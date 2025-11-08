@@ -1,0 +1,12 @@
+{
+  "domain": "schedule_state_card",
+  "name": "Schedule State Card",
+  "codeowners": ["@Pulpyyyy"],
+  "config_flow": false,
+  "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Pulpyyyy/schedule-state-card/issues",
+  "requirements": [],
+  "version": "3.9.6",
+  "homeassistant": "2023.12.0"
+}

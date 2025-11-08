@@ -1,0 +1,8 @@
+*.pyc
+__pycache__/
+.DS_Store
+.vscode/
+*.swp
+node_modules/
+dist/
+*.zip
