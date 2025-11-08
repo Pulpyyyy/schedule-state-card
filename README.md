@@ -2,6 +2,8 @@
 
 Advanced Home Assistant card for visualizing complex schedules with support for multiple layers, dynamic values, and conditional time periods.
 
+![Schedule State Card](.img/card.png)
+
 ## Features
 
 ✨ **Multi-layer Scheduling**
