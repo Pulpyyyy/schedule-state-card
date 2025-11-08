@@ -4,6 +4,13 @@ Advanced Home Assistant card for visualizing complex schedules with support for 
 
 ![Schedule State Card](.img/card.png)
 
+## ⚠️ Requirements
+
+**This card requires the Schedule State custom component:**
+- GitHub: https://github.com/aneeshd/schedule_state
+- This component provides the `schedule_state` platform for sensors
+- Install it before using this card
+
 ## Features
 
 ✨ **Multi-layer Scheduling**
@@ -30,13 +37,6 @@ Advanced Home Assistant card for visualizing complex schedules with support for 
 - Adapts to different screen sizes
 - Smooth animations
 - Touch-friendly interface
-
-## ⚠️ Requirements
-
-**This card requires the Schedule State custom component:**
-- GitHub: https://github.com/aneeshd/schedule_state
-- This component provides the `schedule_state` platform for sensors
-- Install it before using this card
 
 ## Installation
 
@@ -108,7 +108,6 @@ This card **requires** the Schedule State custom component. Install it first:
      module: schedule_parser
      class: ScheduleParser
      config_file: /config/schedule.yaml
-     secrets_file: /config/secrets.yaml
    ```
 
 4. **Restart AppDaemon**
