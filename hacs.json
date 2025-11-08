@@ -1,7 +1,6 @@
 {
   "name": "Schedule State Card",
   "content_in_root": false,
-  "filename": "schedule-state-card.js",
   "homeassistant": "2023.12.0",
   "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
   "issues": "https://github.com/Pulpyyyy/schedule-state-card/issues",

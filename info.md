@@ -9,6 +9,10 @@ Advanced scheduling card for Home Assistant with multi-layer support, dynamic va
 - 🌍 Multi-language support (EN, FR, DE, ES)
 - 📱 Responsive design
 
+**Includes:**
+- Lovelace card component
+- Home Assistant integration (schedule_parser)
+
 **Compatibility:**
 - Home Assistant 2023.12.0+
 - All browsers supporting Web Components
