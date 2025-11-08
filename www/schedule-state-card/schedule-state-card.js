@@ -1,4 +1,4 @@
-// schedule-state-card.js v3.9.6 - Version modifiée (Hachurage + Layer 0 + Valeurs Dynamiques)
+// schedule-state-card.js v3.9.6 - Version modifiée (Hachurage + Layer 0 + Valeurs Dynamiques + Couleurs normalisées + Unités + Icones alignées)
 // Instructions: Téléchargez ce fichier et placez-le dans /config/www/schedule-state-card/
 
 const TRANSLATIONS = {
@@ -230,18 +230,39 @@ class ScheduleStateCard extends HTMLElement {
         })
     }
 
-    getColorForState(stateValue) {
-        const str = String(stateValue).trim();
+    getColorForState(stateValue, unit) {
+        // Normaliser pour la couleur UNIQUEMENT
+        let str = String(stateValue).trim();
+        
+        // Essayer d'extraire un nombre
+        const numMatch = str.match(/^[\d.]+/);
+        if (numMatch) {
+            // Si c'est un nombre, normaliser avec parseFloat
+            str = String(parseFloat(numMatch[0]));
+        }
+        // Sinon garder la chaîne texte comme-is
+        
+        // Ajouter l'unité au calcul (si présente)
+        if (unit) {
+            str = str + "|" + unit;
+        }
+        
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = (hash << 5) - hash + str.charCodeAt(i);
             hash = hash & 4294967295
         }
-        const hues = [0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192, 204, 216, 228, 240, 252, 264, 276, 288, 300, 312, 324, 336, 348, 10, 35, 55, 95, 145, 250];
-        const saturations = [75, 80, 85, 70, 80, 75, 85, 70, 80, 75, 85, 70, 80, 75, 85, 70, 75, 80, 85, 55, 48, 52, 50, 55, 48, 52, 50, 55, 48, 52, 50, 52, 48, 50, 52, 48];
-        const lightnesses = [50, 48, 52, 55, 48, 52, 50, 55, 48, 52, 50, 55, 48, 52, 50, 55, 50, 48, 52, 55, 48, 52, 50, 55, 48, 52, 50, 55, 48, 52, 50, 52, 48, 50, 52, 48];
+        const hues = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355];
+        const saturations = Array(72).fill(75);
+        const lightnesses = Array(72).fill(50);
         const idx = Math.abs(hash) % hues.length;
-        return "hsl(" + hues[idx] + ", " + saturations[idx] + "%, " + lightnesses[idx] + "%)"
+        const hsl = "hsl(" + hues[idx] + ", " + saturations[idx] + "%, " + lightnesses[idx] + "%)";
+        
+        // Calculer si la couleur est claire (luminosité > 50)
+        const isLight = lightnesses[idx] > 50;
+        const textColor = isLight ? "#000000" : "#ffffff";
+        
+        return { color: hsl, textColor: textColor }
     }
 
     timeToMinutes(time) {
@@ -547,14 +568,12 @@ class ScheduleStateCard extends HTMLElement {
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
                 
-                // Déclarer isDefaultBg EN PREMIER
                 const isDefaultBg = block.is_default_bg || false;
 
                 if (block.end === '00:00' && endMin === 0) {
                     endMin = 1440;
                 }
                 
-                // Pour 23:59, toujours aller à 1440 (100%)
                 if (block.end === '23:59') {
                     endMin = 1439.5;
                 }
@@ -570,8 +589,10 @@ class ScheduleStateCard extends HTMLElement {
                 const isDynamic = this.isDynamicTemplate(rawTemplate);
                 const resolvedState = this.resolveTemplate(rawState);
                 const unit = block.unit || unitOfMeasurement || "";
-                const stateWithUnit = resolvedState && resolvedState.trim() ? (unit ? resolvedState + " " + unit : resolvedState) : "";
-                const color = this.getColorForState(resolvedState || "default");
+                const stateWithUnit = resolvedState && resolvedState.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
+                const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
+                const color = colorData.color;
+                const textColor = colorData.textColor;
 
                 const wrapsStart = block.wraps_start || false;
                 const wrapsEnd = block.wraps_end || false;
@@ -610,7 +631,7 @@ class ScheduleStateCard extends HTMLElement {
                     blockClass += " dynamic";
                 }
 
-                const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";";
+                const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";color:" + textColor + ";";
                 const containerWidth = this.shadowRoot.querySelector(".timeline-container")?.offsetWidth || 800;
                 const bWidthPx = width / 100 * containerWidth;
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
@@ -629,7 +650,7 @@ class ScheduleStateCard extends HTMLElement {
                 }
                 if (isDynamic) {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
-                    blockTooltipText += "\n🔄 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "")
+                    blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "")
                 }
                 if (block.description) {
                     blockTooltipText += "\n💬 " + this.escapeHtml(block.description)
@@ -724,7 +745,7 @@ class ScheduleStateCard extends HTMLElement {
     render() {
         const days = this.getDays();
         const showTitle = this._config.title && this._config.title.trim().length > 0;
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:18px;height:18px;color:white;border-radius:50%;font-size:10px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.schedule-block.dynamic{animation:pulse-dynamic 2.5s ease-in-out infinite;box-shadow:0 1px 3px rgba(0,0,0,.3)!important}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:1}.day-header{font-size:16px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--primary-text-color)}@keyframes pulse-dynamic{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}`;
+        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.schedule-block.dynamic{animation:pulse-dynamic 2.5s ease-in-out infinite;box-shadow:0 1px 3px rgba(0,0,0,.3)!important}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:1}.day-header{font-size:16px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--primary-text-color)}@keyframes pulse-dynamic{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}`;
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -788,7 +809,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.6 - FIXED ICONS %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
