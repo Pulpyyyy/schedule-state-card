@@ -1,4 +1,4 @@
-// schedule-state-card.js v3.9.6 - Version modifiée (Hachurage + Layer 0 + Valeurs Dynamiques + Couleurs normalisées + Unités + Icones alignées)
+// schedule-state-card.js v3.9.10 - Version modifiée (Hachurage + Layer 0 + Valeurs Dynamiques + Couleurs normalisées + Unités + Icones alignées + MATH COMPLEXE + SYNTAX FIX + NO DECIMAL LIMIT)
 // Instructions: Téléchargez ce fichier et placez-le dans /config/www/schedule-state-card/
 
 const TRANSLATIONS = {
@@ -312,39 +312,47 @@ class ScheduleStateCard extends HTMLElement {
             const state = this._hass.states[entity];
             return state && state.attributes && state.attributes[attr] !== undefined ? String(state.attributes[attr]) : "0"
         });
+        
+        // Supprime les filtres Jinja courants pour préparer l'expression au calcul.
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
+        
+        // Utilise la nouvelle fonction _evalMath pour les expressions complexes.
         result = this._evalMath(result);
+        
         return String(result).trim()
     }
 
+    /**
+     * @param {string} expr L'expression mathématique à évaluer.
+     * @returns {string} Le résultat de l'évaluation ou l'expression originale.
+     */
     _evalMath(expr) {
-        if (!expr || typeof expr !== "string") return String(expr);
-        expr = expr.trim();
-        try {
-            const num = parseFloat(expr);
-            if (!isNaN(num) && expr === String(num)) return String(num)
-        } catch (e) {}
-        const exprNormalized = expr.replace(/\s*\+\s*/g, "+").replace(/\s*-\s*/g, "-").replace(/\s*\*\s*/g, "*").replace(/\s*\/\s*/g, "/");
-        const match = exprNormalized.match(/^([\d.]+)([\+\-\*\/])([\d.]+)$/);
-        if (match) {
-            try {
-                const num1 = parseFloat(match[1]);
-                const op = match[2];
-                const num2 = parseFloat(match[3]);
-                if (isNaN(num1) || isNaN(num2)) return expr;
-                let result;
-                if (op === "+") result = num1 + num2;
-                else if (op === "-") result = num1 - num2;
-                else if (op === "*") result = num1 * num2;
-                else if (op === "/") result = num2 !== 0 ? num1 / num2 : num1;
-                else return expr;
-                if (result % 1 !== 0) result = Math.round(result * 10) / 10;
-                return String(result)
-            } catch (e) {
-                return expr
-            }
+        if (!expr || typeof expr !== 'string') return String(expr);
+
+        let cleanedExpr = expr.trim();
+        
+        // 1. Vérifie si l'expression est purement numérique ou mathématique.
+        if (!/^[\d\s\.\+\-\*\/\(\)]+$/.test(cleanedExpr)) {
+            // Tente une conversion simple si c'est juste un nombre isolé (post-templating)
+            const num = parseFloat(cleanedExpr);
+            return isNaN(num) ? expr : String(num);
         }
-        return expr
+
+        try {
+            // 2. Utilise le constructeur Function pour une exécution sécurisée de l'expression mathématique.
+            const result = new Function('return ' + cleanedExpr)();
+            
+            if (typeof result === 'number' && !isNaN(result)) {
+                // CORRECTION: Pas d'arrondi forcé. Retourne la chaîne complète.
+                return String(result);
+            }
+            // Si le résultat n'est pas un nombre, on retourne l'expression originale
+            return expr;
+
+        } catch (e) {
+            console.error("Schedule card: Évaluation mathématique complexe échouée pour l'expression:", cleanedExpr, e);
+            return expr;
+        }
     }
 
     evalCondition(condition) {
@@ -353,7 +361,7 @@ class ScheduleStateCard extends HTMLElement {
             const state = this._hass.states[entity];
             return state && state.state === value ? "true" : "false"
         });
-        expr = expr.replace(/\band\b/gi, "&&").replace(/\bor\b/gi, "||").replace(/\bnot\b/gi, "!");
+        expr = expr.replace(/\band(s*)\b/gi, "&&").replace(/\bor\b/gi, "||").replace(/\bnot\b/gi, "!");
         return this._safeBooleanEval(expr);
     }
     
@@ -646,7 +654,7 @@ class ScheduleStateCard extends HTMLElement {
                 }
                 blockTooltipText += "\n🌡️ " + this.t("state_label") + ": " + this.escapeHtml(resolvedState) + (unit ? " " + unit : "");
                 if (isDefaultBg) {
-                    blockTooltipText += "\n(État par défaut)";
+                    blockTooltipText += "\n(" + this.t("default_state_label") + ")";
                 }
                 if (isDynamic) {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
@@ -809,7 +817,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.6 - FIXED ICONS %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.10 - NO DECIMAL LIMIT %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
