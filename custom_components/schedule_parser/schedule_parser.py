@@ -104,13 +104,28 @@ class ScheduleParser(hass.Hass):
                 self.log(f"Skipping invalid sensor block #{i}: {e}", level="ERROR")
                 continue
 
+        # PRE-PASS: Ajouter TOUS les schedule_state à la liste avant traitement
+        for sensor_cfg in schedule_sensors:
+            sensor_name = sensor_cfg.get('name', 'Unknown')
+            sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+            sensor_id = sensor_id.replace('sensor_schedule_state_', '')
+            sensor_id = sensor_id.replace('sensor_schedule_', '')
+            sensor_id = sensor_id.replace('schedule_state_', '')
+            
+            # Ajouter toutes les variantes
+            self.schedule_state_entities.add(f"sensor.schedule_{sensor_id}")
+            self.schedule_state_entities.add(f"sensor.consigne_{sensor_id.replace('consigne_', '')}")
+            self.schedule_state_entities.add(f"sensor.{sensor_id}")
+
         # PASS 1: Construire la liste complète des entités dynamiques
         for sensor_cfg in schedule_sensors:
             sensor_name = sensor_cfg.get('name', 'Unknown')
             sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+            sensor_id = sensor_id.replace('sensor_schedule_state_', '')
+            sensor_id = sensor_id.replace('sensor_schedule_', '')
+            sensor_id = sensor_id.replace('schedule_state_', '')
             schedule_entity_id = f"sensor.schedule_{sensor_id}"
             self.dynamic_entities.add(schedule_entity_id)
-            self.schedule_state_entities.add(schedule_entity_id)
             
             events = sensor_cfg.get('events', []) or []
             self._extract_dynamic_entities(events)
@@ -158,6 +173,9 @@ class ScheduleParser(hass.Hass):
     def _process_sensor(self, sensor_cfg, days):
         sensor_name = sensor_cfg.get('name', 'Unknown')
         sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+        
+        # ✅ Déterminer si c'est un schedule_state AVANT de nettoyer
+        is_this_schedule_state = 'schedule_state' in sensor_id or 'schedule_state' in sensor_name.lower()
         
         # ✅ Nettoyer les préfixes en double
         sensor_id = sensor_id.replace('sensor_schedule_state_', '')
@@ -270,6 +288,7 @@ class ScheduleParser(hass.Hass):
                 end_time = '00:00'
                 event_allow_wrap = False
             
+            # ✅ Utiliser correctement le retour de _is_dynamic_color
             if is_dynamic_color == 'schedule_state':
                 block_icon = 'mdi:refresh'
             elif is_dynamic_color == 'dynamic':

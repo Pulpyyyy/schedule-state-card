@@ -1,10 +1,8 @@
-// schedule-state-card.js v3.9.12 - Contraste couleur adaptatif + Traductions complètes + Icons dynamiques
-// Instructions: Téléchargez ce fichier et placez-le dans /config/www/schedule-state-card/
+// schedule-state-card.js v3.9.16 - Code épuré et optimisé - CORRIGÉ
 
 const TRANSLATIONS = {
     en: {
         state_label: "State",
-        dynamic_value: "Dynamic value",
         condition_label: "Condition",
         layer_label: "Layer",
         time_label: "Time",
@@ -13,6 +11,7 @@ const TRANSLATIONS = {
         wrapping: "wrapping",
         no_schedule: "No schedule",
         entity_not_found: "Entity not found",
+        dynamic_value: "Dynamic value",
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -25,7 +24,6 @@ const TRANSLATIONS = {
     },
     fr: {
         state_label: "État",
-        dynamic_value: "Valeur dynamique",
         condition_label: "Condition",
         layer_label: "Couche",
         time_label: "Horaires",
@@ -34,6 +32,7 @@ const TRANSLATIONS = {
         wrapping: "débordement",
         no_schedule: "Pas de planning",
         entity_not_found: "Entité non trouvée",
+        dynamic_value: "Valeur dynamique",
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -46,7 +45,6 @@ const TRANSLATIONS = {
     },
     de: {
         state_label: "Status",
-        dynamic_value: "Dynamischer Wert",
         condition_label: "Bedingung",
         layer_label: "Schicht",
         time_label: "Zeiten",
@@ -55,6 +53,7 @@ const TRANSLATIONS = {
         wrapping: "Überlauf",
         no_schedule: "Kein Zeitplan",
         entity_not_found: "Entität nicht gefunden",
+        dynamic_value: "Dynamischer Wert",
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -67,7 +66,6 @@ const TRANSLATIONS = {
     },
     es: {
         state_label: "Estado",
-        dynamic_value: "Valor dinámico",
         condition_label: "Condición",
         layer_label: "Capa",
         time_label: "Horarios",
@@ -76,6 +74,7 @@ const TRANSLATIONS = {
         wrapping: "desbordamiento",
         no_schedule: "Sin horario",
         entity_not_found: "Entidad no encontrada",
+        dynamic_value: "Valor dinámico",
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -98,38 +97,32 @@ class ScheduleStateCard extends HTMLElement {
         this.selectedDay = this.currentTime.day;
         this.updateInterval = null;
         this.tooltipElement = null;
-        this.hideTooltipTimeout = null
     }
 
     getLanguage() {
-        if (this._hass && this._hass.locale) {
-            const lang = this._hass.locale.language;
-            return TRANSLATIONS[lang] ? lang : "en"
+        if (this._hass?.locale?.language) {
+            return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
         }
-        return "en"
+        return "en";
     }
 
     t(key) {
         const lang = this.getLanguage();
-        return TRANSLATIONS[lang][key] || TRANSLATIONS.en[key] || key
+        return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
     }
 
     use12HourFormat() {
-        if (this._hass && this._hass.locale && this._hass.locale.time_format) {
-            return this._hass.locale.time_format === "12"
-        }
-        return this.getLanguage() === "en"
+        return this._hass?.locale?.time_format === "12" || this.getLanguage() === "en";
     }
 
     formatHour(hour) {
-        const use12h = this.use12HourFormat();
-        if (use12h) {
+        if (this.use12HourFormat()) {
             if (hour === 0) return "12 AM";
             if (hour < 12) return hour + " AM";
             if (hour === 12) return "12 PM";
-            return hour - 12 + " PM"
+            return hour - 12 + " PM";
         }
-        return hour + "h"
+        return hour + "h";
     }
 
     setConfig(config) {
@@ -139,21 +132,19 @@ class ScheduleStateCard extends HTMLElement {
             ...config,
             entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? { entity: e } : e) : []
         };
-        if (this._hass) {
-            this.render()
-        }
+        if (this._hass) this.render();
     }
 
     set hass(hass) {
         this._hass = hass;
-        if (this._config && this._config.entities && !this.shadowRoot.querySelector("ha-card")) {
+        if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
             this.render();
         }
         this.updateContent();
     }
 
     static getConfigElement() {
-        return document.createElement("schedule-state-card-editor")
+        return document.createElement("schedule-state-card-editor");
     }
 
     static getStubConfig() {
@@ -164,60 +155,60 @@ class ScheduleStateCard extends HTMLElement {
                 icon: "mdi:thermometer"
             }],
             title: "Schedule Planning"
-        }
+        };
     }
 
     getCardSize() {
-        return 8
+        return 8;
     }
 
     getDays() {
-        const lang = this.getLanguage();
-        const dayTranslations = TRANSLATIONS[lang] ? TRANSLATIONS[lang].days : TRANSLATIONS.en.days;
+        const dayTranslations = TRANSLATIONS[this.getLanguage()]?.days || TRANSLATIONS.en.days;
         return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(id => ({
             id,
-            label: dayTranslations[id] || id.charAt(0).toUpperCase() + id.slice(1)
-        }))
+            label: dayTranslations[id]
+        }));
     }
 
     getCurrentTime() {
-        const now = new Date;
+        const now = new Date();
         const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
         return {
             day: dayMap[now.getDay()],
             hours: String(now.getHours()).padStart(2, "0"),
             minutes: String(now.getMinutes()).padStart(2, "0")
-        }
+        };
     }
 
     isToday() {
-        return this.selectedDay === this.currentTime.day
+        return this.selectedDay === this.currentTime.day;
     }
 
     getCurrentTimePercentage() {
         const hours = parseInt(this.currentTime.hours);
         const minutes = parseInt(this.currentTime.minutes);
-        return (hours * 60 + minutes) / 1440 * 100
+        return (hours * 60 + minutes) / 1440 * 100;
     }
 
     startTimelineUpdate() {
         if (this.updateInterval) clearInterval(this.updateInterval);
         this.updateInterval = setInterval(() => {
             this.currentTime = this.getCurrentTime();
-            this.updateTimeline()
-        }, 6e4)
+            this.updateTimeline();
+        }, 60000);
     }
 
     stopTimelineUpdate() {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
-            this.updateInterval = null
+            this.updateInterval = null;
         }
     }
 
     updateTimeline() {
+        const containers = this.shadowRoot.querySelectorAll(".timeline-container");
+        
         if (!this.isToday()) {
-            const containers = this.shadowRoot.querySelectorAll(".timeline-container");
             containers.forEach(container => {
                 const cursor = container.querySelector(".time-cursor");
                 if (cursor) cursor.style.display = "none";
@@ -226,27 +217,22 @@ class ScheduleStateCard extends HTMLElement {
         }
         
         const timePercentage = this.getCurrentTimePercentage();
-        const containers = this.shadowRoot.querySelectorAll(".timeline-container");
         containers.forEach(container => {
             let cursor = container.querySelector(".time-cursor");
             if (!cursor) {
                 cursor = document.createElement("div");
                 cursor.className = "time-cursor";
-                container.appendChild(cursor)
+                container.appendChild(cursor);
             }
             cursor.style.display = "block";
-            const currentLeft = parseFloat(cursor.style.left) || -1;
-            if (Math.abs(currentLeft - timePercentage) > 0.1) {
-                cursor.style.left = timePercentage + "%"
-            }
-        })
+            cursor.style.left = timePercentage + "%";
+        });
     }
 
     getPerceivedLuminance(h, s, l) {
         const c = (s / 100) * (1 - Math.abs(2 * (l / 100) - 1));
         const h_prime = h / 60;
         let r_prime, g_prime, b_prime;
-        
         if (h_prime <= 1) {
             r_prime = c; g_prime = c * h_prime; b_prime = 0;
         } else if (h_prime <= 2) {
@@ -260,27 +246,22 @@ class ScheduleStateCard extends HTMLElement {
         } else {
             r_prime = c; g_prime = 0; b_prime = c * (6 - h_prime);
         }
-        
         const m = (l / 100) - c / 2;
         const r = r_prime + m;
         const g = g_prime + m;
         const b = b_prime + m;
-        
         const luminance = 0.2126 * (r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4)) +
                          0.7152 * (g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4)) +
                          0.0722 * (b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4));
-        
         return luminance;
     }
 
     getTextColorForBackground(hslColor) {
         const match = hslColor.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
         if (!match) return "#000000";
-        
         const h = parseFloat(match[1]);
         const s = parseFloat(match[2]);
         const l = parseFloat(match[3]);
-        
         const luminance = this.getPerceivedLuminance(h, s, l);
         return luminance > 0.5 ? "#000000" : "#ffffff";
     }
@@ -288,26 +269,18 @@ class ScheduleStateCard extends HTMLElement {
     getColorForState(stateValue, unit) {
         let str = String(stateValue).trim();
         const numMatch = str.match(/^[\d.]+/);
-        if (numMatch) {
-            str = String(parseFloat(numMatch[0]));
-        }
-        if (unit) {
-            str = str + "|" + unit;
-        }
-        
+        if (numMatch) str = String(parseFloat(numMatch[0]));
+        if (unit) str = str + "|" + unit;
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash = hash & 4294967295
+            hash = hash & 4294967295;
         }
         const hues = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355];
-        const saturations = Array(72).fill(75);
-        const lightnesses = Array(72).fill(50);
         const idx = Math.abs(hash) % hues.length;
-        const hsl = "hsl(" + hues[idx] + ", " + saturations[idx] + "%, " + lightnesses[idx] + "%)";
+        const hsl = "hsl(" + hues[idx] + ", 75%, 50%)";
         const textColor = this.getTextColorForBackground(hsl);
-        
-        return { color: hsl, textColor: textColor }
+        return { color: hsl, textColor: textColor };
     }
 
     timeToMinutes(time) {
@@ -316,17 +289,27 @@ class ScheduleStateCard extends HTMLElement {
         if (parts.length < 2) return 0;
         const hours = parseInt(parts[0]);
         const minutes = parseInt(parts[1]);
-        return (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes)
+        return (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
     }
 
     escapeHtml(text) {
         const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-        return String(text).replace(/[&<>"']/g, m => map[m])
+        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 
     decodeHtmlEntities(text) {
         const map = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
-        return String(text).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => map[m])
+        return String(text).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => map[m]);
+    }
+
+    truncateText(text, maxWidthPx) {
+        if (!text || typeof text !== "string") return text;
+        if (maxWidthPx < 30) return "...";
+        const charWidth = 6;
+        const maxChars = Math.floor(maxWidthPx / charWidth) - 2;
+        if (maxChars <= 0) return "...";
+        if (text.length <= maxChars) return text;
+        return text.substring(0, maxChars) + "...";
     }
 
     resolveTemplate(template) {
@@ -336,51 +319,37 @@ class ScheduleStateCard extends HTMLElement {
         result = result.replace(/\{\{|\}\}/g, "").replace(/\{%|%\}/g, "").trim();
         const ifElifMatch = result.match(/if\s+(.+?)\s+(.+?)\s+elif\s+(.+?)\s+(.+?)\s+else\s+(.+?)$/is);
         if (ifElifMatch) {
-            if (this.evalCondition(ifElifMatch[1].trim())) {
-                result = ifElifMatch[2].trim()
-            } else if (this.evalCondition(ifElifMatch[3].trim())) {
-                result = ifElifMatch[4].trim()
-            } else {
-                result = ifElifMatch[5].trim()
-            }
+            result = this.evalCondition(ifElifMatch[1].trim()) ? ifElifMatch[2].trim() : this.evalCondition(ifElifMatch[3].trim()) ? ifElifMatch[4].trim() : ifElifMatch[5].trim();
         } else {
             const ifMatch = result.match(/if\s+(.+?)\s+(.+?)\s+else\s+(.+?)$/is);
-            if (ifMatch) {
-                result = this.evalCondition(ifMatch[1].trim()) ? ifMatch[2].trim() : ifMatch[3].trim()
-            }
+            if (ifMatch) result = this.evalCondition(ifMatch[1].trim()) ? ifMatch[2].trim() : ifMatch[3].trim();
         }
         result = result.replace(/states\(\s*['"]([^'"]+)['"]\s*\)/g, (match, entity) => {
             const state = this._hass.states[entity];
-            return state ? String(state.state) : "0"
+            return state ? String(state.state) : "0";
         });
         result = result.replace(/state_attr\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g, (match, entity, attr) => {
             const state = this._hass.states[entity];
-            return state && state.attributes && state.attributes[attr] !== undefined ? String(state.attributes[attr]) : "0"
+            return state?.attributes?.[attr] !== undefined ? String(state.attributes[attr]) : "0";
         });
-        
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
         result = this._evalMath(result);
-        
-        return String(result).trim()
+        return String(result).trim();
     }
 
     _evalMath(expr) {
         if (!expr || typeof expr !== 'string') return String(expr);
         let cleanedExpr = expr.trim();
-        
         if (!/^[\d\s\.\+\-\*\/\(\)]+$/.test(cleanedExpr)) {
             const num = parseFloat(cleanedExpr);
             return isNaN(num) ? expr : String(num);
         }
-
         try {
             const result = this._safeMathEval(cleanedExpr);
-            if (typeof result === 'number' && !isNaN(result)) {
-                return String(result);
-            }
+            if (typeof result === 'number' && !isNaN(result)) return String(result);
             return expr;
         } catch (e) {
-            console.error("Schedule card: Évaluation mathématique complexe échouée pour l'expression:", cleanedExpr, e);
+            console.error("Schedule card: Math eval failed:", cleanedExpr, e);
             return expr;
         }
     }
@@ -402,7 +371,6 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
         if (current) tokens.push(parseFloat(current));
-
         return this._evaluateTokens(tokens);
     }
 
@@ -410,26 +378,23 @@ class ScheduleStateCard extends HTMLElement {
         while (tokens.includes('(')) {
             const startIdx = tokens.lastIndexOf('(');
             let endIdx = tokens.indexOf(')', startIdx);
-            if (endIdx === -1) throw new Error('Parenthèses mal appairées');
-            
+            if (endIdx === -1) throw new Error('Mismatched parentheses');
             const subTokens = tokens.slice(startIdx + 1, endIdx);
             const result = this._evaluateTokens(subTokens);
             tokens.splice(startIdx, endIdx - startIdx + 1, result);
         }
-
         for (let i = 1; i < tokens.length; i += 2) {
             if (tokens[i] === '*') {
                 const result = tokens[i - 1] * tokens[i + 1];
                 tokens.splice(i - 1, 3, result);
                 i -= 2;
             } else if (tokens[i] === '/') {
-                if (tokens[i + 1] === 0) throw new Error('Division par zéro');
+                if (tokens[i + 1] === 0) throw new Error('Division by zero');
                 const result = tokens[i - 1] / tokens[i + 1];
                 tokens.splice(i - 1, 3, result);
                 i -= 2;
             }
         }
-
         for (let i = 1; i < tokens.length; i += 2) {
             if (tokens[i] === '+') {
                 const result = tokens[i - 1] + tokens[i + 1];
@@ -441,7 +406,6 @@ class ScheduleStateCard extends HTMLElement {
                 i -= 2;
             }
         }
-
         return tokens[0];
     }
 
@@ -449,44 +413,33 @@ class ScheduleStateCard extends HTMLElement {
         let expr = condition.trim();
         expr = expr.replace(/is_state\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g, (match, entity, value) => {
             const state = this._hass.states[entity];
-            return state && state.state === value ? "true" : "false"
+            return state && state.state === value ? "true" : "false";
         });
         expr = expr.replace(/\band(s*)\b/gi, "&&").replace(/\bor\b/gi, "||").replace(/\bnot\b/gi, "!");
         return this._safeBooleanEval(expr);
     }
-    
+
     _safeBooleanEval(expr) {
-        expr = expr.trim();
-        expr = expr.replace(/\bfalse\b/g, "0").replace(/\btrue\b/g, "1");
+        expr = expr.trim().replace(/\bfalse\b/g, "0").replace(/\btrue\b/g, "1");
         try {
-            if (!/^[01&|()!\s]+$/.test(expr)) {
-                console.warn("Unsafe expression:", expr);
-                return false;
-            }
+            if (!/^[01&|()!\s]+$/.test(expr)) return false;
             let result = expr;
-            while (result.includes("!")) {
-                result = result.replace(/!([01])/g, (match, val) => val === "1" ? "0" : "1");
-            }
-            while (result.includes("&&")) {
-                result = result.replace(/([01])\s*&&\s*([01])/g, (match, a, b) => (a === "1" && b === "1") ? "1" : "0");
-            }
-            while (result.includes("||")) {
-                result = result.replace(/([01])\s*\|\|\s*([01])/g, (match, a, b) => (a === "1" || b === "1") ? "1" : "0");
-            }
-            result = result.replace(/\s/g, "");
-            return result === "1";
+            while (result.includes("!")) result = result.replace(/!([01])/g, (m, v) => v === "1" ? "0" : "1");
+            while (result.includes("&&")) result = result.replace(/([01])\s*&&\s*([01])/g, (m, a, b) => (a === "1" && b === "1") ? "1" : "0");
+            while (result.includes("||")) result = result.replace(/([01])\s*\|\|\s*([01])/g, (m, a, b) => (a === "1" || b === "1") ? "1" : "0");
+            return result.replace(/\s/g, "") === "1";
         } catch (e) {
-            console.error("Schedule card: condition evaluation failed", expr, e);
-            return false
+            console.error("Schedule card: condition evaluation failed", e);
+            return false;
         }
     }
 
     _evaluateConditionsForLayer(layer) {
         if (layer.is_default_layer) return false;
-        if (!layer || !layer.blocks || layer.blocks.length === 0) return true;
+        if (!layer?.blocks?.length) return true;
         let allConditions = [];
         for (const block of layer.blocks) {
-            if (block.raw_conditions && Array.isArray(block.raw_conditions) && block.raw_conditions.length > 0) {
+            if (block.raw_conditions?.length) {
                 allConditions = allConditions.concat(block.raw_conditions);
             }
         }
@@ -514,18 +467,15 @@ class ScheduleStateCard extends HTMLElement {
             if (condition.month) {
                 const currentMonth = new Date().getMonth() + 1;
                 const months = condition.month;
-                if (Array.isArray(months)) {
-                    return months.includes(currentMonth);
-                } else if (typeof months === "number") {
-                    return currentMonth === months;
-                }
+                if (Array.isArray(months)) return months.includes(currentMonth);
+                else if (typeof months === "number") return currentMonth === months;
             }
             return true;
         }
         if (condType === "state") {
             const entity = this._hass.states[condition.entity_id];
             if (!entity) return false;
-            return entity.state === condition.state
+            return entity.state === condition.state;
         }
         if (condType === "numeric_state") {
             const entity = this._hass.states[condition.entity_id];
@@ -533,14 +483,14 @@ class ScheduleStateCard extends HTMLElement {
             const value = parseFloat(entity.state);
             if (condition.above !== undefined && value <= condition.above) return false;
             if (condition.below !== undefined && value >= condition.below) return false;
-            return true
+            return true;
         }
-        return true
+        return true;
     }
 
     isDynamicTemplate(rawTemplate) {
         if (!rawTemplate || typeof rawTemplate !== "string") return false;
-        return rawTemplate.includes("states(") || rawTemplate.includes("state_attr(") || rawTemplate.includes("{%") || rawTemplate.includes("{{")
+        return rawTemplate.includes("states(") || rawTemplate.includes("state_attr(") || rawTemplate.includes("{%") || rawTemplate.includes("{{");
     }
 
     isScheduleStateSensor(rawTemplate) {
@@ -550,38 +500,21 @@ class ScheduleStateCard extends HTMLElement {
         const entityId = match[1];
         const entity = this._hass.states[entityId];
         if (!entity) return false;
-        return entity.attributes && entity.attributes.icon === "mdi:calendar-clock";
+        return entity.attributes?.icon === "mdi:calendar-clock";
     }
 
     extractEntityFromTemplate(template) {
         if (!template || typeof template !== "string") return "";
         const match = template.match(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/);
-        return match ? match[1] : ""
-    }
-
-    truncateText(text, widthPx) {
-        if (widthPx > 80) {
-            return text
-        } else if (widthPx > 40) {
-            if (text.length <= 8) return text;
-            return text.substring(0, 6) + "…"
-        } else if (widthPx > 20) {
-            if (text.length <= 4) return text;
-            return text.substring(0, 3) + "…"
-        } else if (widthPx > 8) {
-            return "…"
-        } else {
-            return ""
-        }
+        return match ? match[1] : "";
     }
 
     showTooltip(event, text) {
-        if (this.hideTooltipTimeout) clearTimeout(this.hideTooltipTimeout);
         if (!this.tooltipElement) {
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
             this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
-            document.body.appendChild(this.tooltipElement)
+            document.body.appendChild(this.tooltipElement);
         }
         const decoded = this.decodeHtmlEntities(text);
         this.tooltipElement.textContent = decoded.replace(/\\n/g, "\n");
@@ -595,21 +528,20 @@ class ScheduleStateCard extends HTMLElement {
         this.tooltipElement.style.left = left + "px";
         this.tooltipElement.style.top = top + "px";
         this.tooltipElement.style.transform = "translateX(-50%)";
-        this.tooltipElement.style.display = "block"
+        this.tooltipElement.style.display = "block";
     }
 
     hideTooltip() {
-        if (this.hideTooltipTimeout) clearTimeout(this.hideTooltipTimeout);
-        if (this.tooltipElement) this.tooltipElement.style.display = "none"
+        if (this.tooltipElement) this.tooltipElement.style.display = "none";
     }
 
     renderErrorCard(entityId, message) {
-        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>"
+        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
     }
 
     renderTimeline(roomName, roomIcon, layers, unitOfMeasurement) {
-        if (!layers || layers.length === 0) {
-            return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>'
+        if (!layers?.length) {
+            return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
         const blockHeight = 20;
@@ -620,36 +552,21 @@ class ScheduleStateCard extends HTMLElement {
 
         let defaultLayer = null;
         let otherLayers = [];
-        
         for (let i = 0; i < layers.length; i++) {
-            const layer = layers[i];
-            if (layer.is_default_layer) {
-                defaultLayer = layer;
-            } else {
-                otherLayers.push(layer);
-            }
+            if (layers[i].is_default_layer) defaultLayer = layers[i];
+            else otherLayers.push(layers[i]);
         }
         
         let visibleLayers = [];
-        if (defaultLayer) {
-            visibleLayers.push(defaultLayer);
-        }
-        if (otherLayers.length > 0) {
-            visibleLayers = visibleLayers.concat(otherLayers);
-        }
+        if (defaultLayer) visibleLayers.push(defaultLayer);
+        if (otherLayers.length > 0) visibleLayers = visibleLayers.concat(otherLayers);
         
         const layerActiveStates = [];
         for (const layer of visibleLayers) {
-            if (layer.is_default_layer) {
-                layerActiveStates.push(null);
-            } else {
-                layerActiveStates.push(this._evaluateConditionsForLayer(layer));
-            }
+            layerActiveStates.push(layer.is_default_layer ? null : this._evaluateConditionsForLayer(layer));
         }
         
-        const anyOtherLayerActive = layerActiveStates.some((active, idx) => 
-            active === true && !visibleLayers[idx].is_default_layer
-        );
+        const anyOtherLayerActive = layerActiveStates.some((active, idx) => active === true && !visibleLayers[idx].is_default_layer);
         
         for (let i = 0; i < layerActiveStates.length; i++) {
             if (visibleLayers[i].is_default_layer) {
@@ -666,7 +583,7 @@ class ScheduleStateCard extends HTMLElement {
 
         for (let layerIdx = 0; layerIdx < visibleLayers.length; layerIdx++) {
             const currentLayer = visibleLayers[layerIdx];
-            if (!currentLayer || !currentLayer.blocks) continue;
+            if (!currentLayer?.blocks) continue;
 
             const top = topMargin + layerIdx * (blockHeight + verticalGap);
             const conditionText = currentLayer.condition_text || "(default)";
@@ -675,18 +592,13 @@ class ScheduleStateCard extends HTMLElement {
                 const block = currentLayer.blocks[i];
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
-                
                 const isDefaultBg = block.is_default_bg || false;
 
-                if (block.end === '00:00' && endMin === 0) {
-                    endMin = 1440;
-                }
-                
-                if (block.end === '23:59') {
-                    endMin = 1439.5;
-                }
+                if (block.end === '00:00' && endMin === 0) endMin = 1440;
+                if (block.end === '23:59') endMin = 1439.5;
 
                 let zIndex = block.z_index || 2;
+                if (isDefaultBg) zIndex = 1;
                 
                 const left = startMin / 1440 * 100;
                 const width = (endMin - startMin) / 1440 * 100;
@@ -696,7 +608,7 @@ class ScheduleStateCard extends HTMLElement {
                 const isScheduleState = this.isScheduleStateSensor(rawTemplate);
                 const resolvedState = this.resolveTemplate(rawState);
                 const unit = block.unit || unitOfMeasurement || "";
-                const stateWithUnit = resolvedState && resolvedState.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
+                const stateWithUnit = resolvedState?.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
                 const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
                 const color = colorData.color;
                 const textColor = colorData.textColor;
@@ -711,8 +623,6 @@ class ScheduleStateCard extends HTMLElement {
                     borderRadius = "0 4px 4px 0";
                 } else if (!wrapsStart && wrapsEnd) {
                     borderRadius = "4px 0 0 4px";
-                } else if (wrapsStart && wrapsEnd) {
-                    borderRadius = "4px";
                 }
                 
                 if (isDefaultBg) {
@@ -722,8 +632,6 @@ class ScheduleStateCard extends HTMLElement {
                         borderRadius = "0 4px 4px 0";
                     } else if (startMin > 0 && endMin === 1440) {
                         borderRadius = "4px 0 0 4px";
-                    } else if (startMin === 0 && endMin === 1440) {
-                        borderRadius = "4px";
                     }
                 }
 
@@ -731,24 +639,22 @@ class ScheduleStateCard extends HTMLElement {
                 const originalEnd = block.original_end || block.end;
 
                 let blockClass = "schedule-block";
-                if (isDefaultBg) {
-                    blockClass += " default-block";
-                }
-                if (isDynamic) {
-                    blockClass += " dynamic";
-                }
+                if (isDefaultBg) blockClass += " default-block";
+                if (isDynamic) blockClass += " dynamic";
 
                 const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";color:" + textColor + ";";
                 const containerWidth = this.shadowRoot.querySelector(".timeline-container")?.offsetWidth || 800;
                 const bWidthPx = width / 100 * containerWidth;
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
                 const escapedState = this.escapeHtml(displayText);
-                
+
                 let dynamicIcon = "";
                 if (isDynamic) {
                     const blockIcon = block.icon || 'mdi:calendar';
                     if (blockIcon === 'mdi:refresh') {
                         dynamicIcon = "🔄";
+                    } else {
+                        dynamicIcon = "";
                     }
                 }
                 
@@ -756,9 +662,9 @@ class ScheduleStateCard extends HTMLElement {
 
                 let blockTooltipText = this.t("time_label") + ": ";
                 if (wrapsStart || wrapsEnd) {
-                    blockTooltipText += originalStart + " - " + originalEnd + " (" + this.t("wrapping") + ")"
+                    blockTooltipText += originalStart + " - " + originalEnd + " (" + this.t("wrapping") + ")";
                 } else {
-                    blockTooltipText += block.start + " - " + block.end
+                    blockTooltipText += block.start + " - " + block.end;
                 }
                 blockTooltipText += "\n🌡️ " + this.t("state_label") + ": " + this.escapeHtml(resolvedState) + (unit ? " " + unit : "");
                 if (isDefaultBg) {
@@ -768,19 +674,19 @@ class ScheduleStateCard extends HTMLElement {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
                     const blockIcon = block.icon || 'mdi:calendar';
                     if (blockIcon === 'mdi:refresh') {
-                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + (entity ? " (schedule_state: " + entity + ")" : "")
+                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + (entity ? " (schedule_state: " + entity + ")" : "");
                     } else {
-                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "")
+                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "");
                     }
                 }
                 if (block.description) {
-                    blockTooltipText += "\n💬 " + this.escapeHtml(block.description)
+                    blockTooltipText += "\n💬 " + this.escapeHtml(block.description);
                 }
 
-                blockHtml += '<div class="' + blockClass + '" style="' + style + "background-color:" + color + ';" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>"
+                blockHtml += '<div class="' + blockClass + '" style="' + style + "background-color:" + color + ';" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>";
             }
 
-            const firstBlock = currentLayer.blocks && currentLayer.blocks[0];
+            const firstBlock = currentLayer.blocks?.[0];
             if (firstBlock) {
                 const isActive = layerActiveStates[layerIdx];
                 const iconStyle = isActive ? "background:var(--primary-color);filter:brightness(1.3);" : "background:var(--secondary-text-color);opacity:0.5;";
@@ -788,45 +694,39 @@ class ScheduleStateCard extends HTMLElement {
                 if (currentLayer.is_default_layer) {
                     iconTooltipText = this.t("layer_label") + " 0";
                     if (conditionText && conditionText !== "(default)") {
-                        iconTooltipText += "\n✓ " + this.t("condition_label") + ": " + conditionText
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + conditionText;
                     } else {
-                        iconTooltipText += "\n" + this.t("default_state_label")
+                        iconTooltipText += "\n" + this.t("default_state_label");
                     }
                 } else {
                     if (conditionText && conditionText !== "(default)") {
-                        iconTooltipText += "\n✓ " + this.t("condition_label") + ": " + conditionText
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + conditionText;
                     } else {
-                        iconTooltipText += "\n" + this.t("no_specific_condition")
+                        iconTooltipText += "\n" + this.t("no_specific_condition");
                     }
                 }
 
                 const displayLayerIndex = currentLayer.is_default_layer ? "0" : (layerIdx);
-                iconHtml += '<div class="icon-row" style="top:' + top + 'px;" data-tooltip="' + this.escapeHtml(iconTooltipText) + '" data-layer-index="' + displayLayerIndex + '"><span class="layer-number" style="' + iconStyle + '">' + displayLayerIndex + "</span></div>"
+                iconHtml += '<div class="icon-row" style="top:' + top + 'px;" data-tooltip="' + this.escapeHtml(iconTooltipText) + '" data-layer-index="' + displayLayerIndex + '"><span class="layer-number" style="' + iconStyle + '">' + displayLayerIndex + "</span></div>";
             }
         }
 
-        return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-wrapper"><div class="icon-column" style="width:' + iconColumnWidth + "px;height:" + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div><div class="time-cursor" style="left:' + this.getCurrentTimePercentage() + '%;"></div></div></div></div>'
+        return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-wrapper"><div class="icon-column" style="width:' + iconColumnWidth + "px;height:" + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
     }
 
     updateContent() {
-        if (!this._hass) {
-            return
-        }
+        if (!this._hass) return;
         const content = this.shadowRoot.querySelector("#content");
-        if (!content) {
-            return
-        }
+        if (!content) return;
         let timelines = "";
         for (let i = 0; i < this._config.entities.length; i++) {
             const entityConfig = this._config.entities[i];
             const entityId = typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
-            if (!entityId) {
-                continue
-            }
+            if (!entityId) continue;
             const state = this._hass.states[entityId];
             if (!state) {
                 timelines += this.renderErrorCard(entityId, this.t("entity_not_found"));
-                continue
+                continue;
             }
             const attrs = state.attributes || {};
             const layers = attrs.layers || {};
@@ -836,10 +736,11 @@ class ScheduleStateCard extends HTMLElement {
             const roomIcon = customIcon || attrs.icon || "mdi:thermometer";
             const unitOfMeasurement = attrs.unit_of_measurement || "";
             const dayLayers = layers[this.selectedDay] || [];
-            timelines += this.renderTimeline(roomName, roomIcon, dayLayers, unitOfMeasurement)
+            timelines += this.renderTimeline(roomName, roomIcon, dayLayers, unitOfMeasurement);
         }
         content.innerHTML = '<div class="schedules-container">' + timelines + "</div>";
-        this.attachBlockTooltips()
+        this.attachBlockTooltips();
+        this.updateTimeline();
     }
 
     attachBlockTooltips() {
@@ -849,29 +750,28 @@ class ScheduleStateCard extends HTMLElement {
             blocks.forEach(block => {
                 block.addEventListener("mouseenter", e => {
                     const tooltip = e.currentTarget.dataset.tooltip;
-                    if (tooltip) this.showTooltip(e, tooltip)
+                    if (tooltip) this.showTooltip(e, tooltip);
                 });
-                block.addEventListener("mouseleave", () => this.hideTooltip())
+                block.addEventListener("mouseleave", () => this.hideTooltip());
             });
             iconRows.forEach(row => {
                 row.addEventListener("mouseenter", e => {
                     const tooltip = e.currentTarget.dataset.tooltip;
-                    if (tooltip) this.showTooltip(e, tooltip)
+                    if (tooltip) this.showTooltip(e, tooltip);
                 });
-                row.addEventListener("mouseleave", () => this.hideTooltip())
-            })
-        })
+                row.addEventListener("mouseleave", () => this.hideTooltip());
+            });
+        });
     }
 
     render() {
         const days = this.getDays();
-        const showTitle = this._config.title && this._config.title.trim().length > 0;
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.schedule-block.dynamic{animation:pulse-dynamic 2.5s ease-in-out infinite;box-shadow:0 1px 3px rgba(0,0,0,.3)!important}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:1}.day-header{font-size:16px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--primary-text-color)}@keyframes pulse-dynamic{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}`;
+        const showTitle = this._config.title?.trim().length > 0;
+        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:10}`;
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
         this.startTimelineUpdate();
-        this.updateTimeline();
         
         requestAnimationFrame(() => {
             const dayButtons = this.shadowRoot.querySelectorAll(".day-button");
@@ -881,56 +781,55 @@ class ScheduleStateCard extends HTMLElement {
                     if (newDay !== this.selectedDay) {
                         this.selectedDay = newDay;
                         this.render();
-                        this.updateTimeline()
                     }
-                })
-            })
-        })
+                });
+            });
+        });
     }
 
     connectedCallback() {
-        this.startTimelineUpdate()
+        this.startTimelineUpdate();
     }
 
     disconnectedCallback() {
         this.stopTimelineUpdate();
         if (this.tooltipElement) {
             this.tooltipElement.remove();
-            this.tooltipElement = null
+            this.tooltipElement = null;
         }
     }
 }
 
 class ScheduleStateCardEditor extends HTMLElement {
     setConfig(config) {
-        this._config = config
+        this._config = config;
     }
 
     render() {
         if (!this.shadowRoot) {
             this.attachShadow({ mode: "open" });
-            this.shadowRoot.innerHTML = '<style>.config-row{margin-bottom:10px}.config-row label{font-weight:bold;display:block;margin-bottom:5px}.config-row input{width:100%;padding:8px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);box-sizing:border-box}</style><div class="config-row"><label>Title (leave empty to hide)</label><input id="title" value="' + (this._config && this._config.title ? this._config.title : "") + '" placeholder="Schedule Planning"/></div><div class="config-row"><label>Entities (use YAML editor)</label><div style="font-size:12px;color:var(--secondary-text-color)">Edit your configuration in YAML</div></div>';
+            this.shadowRoot.innerHTML = '<style>.config-row{margin-bottom:10px}.config-row label{font-weight:bold;display:block;margin-bottom:5px}.config-row input{width:100%;padding:8px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);box-sizing:border-box}</style><div class="config-row"><label>Title (leave empty to hide)</label><input id="title" value="' + (this._config?.title || "") + '" placeholder="Schedule Planning"/></div><div class="config-row"><label>Entities (use YAML editor)</label><div style="font-size:12px;color:var(--secondary-text-color)">Edit your configuration in YAML</div></div>';
             const titleInput = this.shadowRoot.querySelector("#title");
             if (titleInput) {
                 titleInput.addEventListener("change", e => {
                     this._config.title = e.target.value;
                     this.dispatchEvent(new CustomEvent("config-changed", {
                         detail: { config: this._config }
-                    }))
-                })
+                    }));
+                });
             }
         }
     }
 
     set hass(hass) {
         this._hass = hass;
-        this.render()
+        this.render();
     }
 }
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.12 - Traductions complètes + Icons dynamiques %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.16 - Code épuré et optimisé - CORRIGÉ %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
