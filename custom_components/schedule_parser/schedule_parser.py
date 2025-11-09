@@ -158,6 +158,12 @@ class ScheduleParser(hass.Hass):
     def _process_sensor(self, sensor_cfg, days):
         sensor_name = sensor_cfg.get('name', 'Unknown')
         sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+        
+        # ✅ Nettoyer les préfixes en double
+        sensor_id = sensor_id.replace('sensor_schedule_state_', '')
+        sensor_id = sensor_id.replace('sensor_schedule_', '')
+        sensor_id = sensor_id.replace('schedule_state_', '')
+        
         raw_default = sensor_cfg.get('default', sensor_cfg.get('default_state', 'unknown'))
         
         default_state = raw_default
@@ -379,10 +385,10 @@ class ScheduleParser(hass.Hass):
             'condition_text': '',
             'tooltip': 'État par défaut',
             'description': '',
-            'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) else 'mdi:calendar-blank',
+            'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) == 'schedule_state' else 'mdi:calendar' if self._is_dynamic_color(raw_default) == 'dynamic' else 'mdi:calendar-blank',
             'is_default_bg': True,
             'z_index': 1,
-            'is_dynamic_color': self._is_dynamic_color(raw_default)
+            'is_dynamic_color': bool(self._is_dynamic_color(raw_default))
         }]
         
         layers.append({
@@ -473,9 +479,9 @@ class ScheduleParser(hass.Hass):
                     'condition_text': '',
                     'tooltip': 'État par défaut',
                     'description': '',
-                    'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) else 'mdi:calendar-blank',
+                    'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) == 'schedule_state' else 'mdi:calendar' if self._is_dynamic_color(raw_default) == 'dynamic' else 'mdi:calendar-blank',
                     'is_default_bg': True,
-                    'is_dynamic_color': self._is_dynamic_color(raw_default)
+                    'is_dynamic_color': bool(self._is_dynamic_color(raw_default))
                 })
         
         return result
