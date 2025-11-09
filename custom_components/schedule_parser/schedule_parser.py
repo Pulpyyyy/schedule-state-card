@@ -3,422 +3,637 @@ import yaml
 from datetime import datetime
 import re
 import os
-from collections import defaultdict
-
-# --- Configuration AppDaemon requise pour ce script ---
-# Dans apps.yaml (à placer dans votre dossier 'appdaemon/apps'):
-# schedule_parser:
-#   module: schedule_parser
-#   class: ScheduleParser
-#   schedules_file: /config/schedules.yaml # Chemin vers votre fichier de planification
+from collections import OrderedDict
 
 class ScheduleParser(hass.Hass):
 
     def initialize(self):
         self.log("Schedule Parser - Initialization...")
-        # Récupère le chemin du fichier de schedules défini dans apps.yaml
-        self.schedules_file = self.args.get('schedules_file')
+        self.config_file = self.args.get('config_file')
         self.secrets_file = self.args.get('secrets_file', '/config/secrets.yaml')
-        
-        # Vérification si une configuration est fournie (fichier ou directement dans args)
-        if not self.schedules_file and not self.args.get('schedules'):
-            self.log("Neither 'schedules_file' nor 'schedules' provided in apps.yaml. Aborting.", level="ERROR")
+        self.schedule_sensor_names = set()
+        self.dynamic_entities = set()
+        self.schedule_state_entities = set()
+        if not self.config_file:
+            self.log("No config_file provided in apps.yaml. Aborting.", level="ERROR")
+            return
+        if not os.path.exists(self.config_file):
+            self.log(f"Configuration file not found: {self.config_file}", level="ERROR")
             return
 
         self._load_secrets(self.secrets_file)
-        
-        # On lance le premier parsing peu après le démarrage pour attendre HA
         self.run_in(self.parse_schedules, 10)
-        # On relance le parsing toutes les heures pour rafraîchir
         self.run_every(self.parse_schedules, "now+60", 3600)
-        # Événement pour forcer le rechargement via un service ou un autre appel
         self.listen_event(self.parse_schedules, "reload_schedules")
         
-        self.log(f"Schedule Parser initialized.")
-
-    def _load_secrets(self, secrets_file):
-        """Charge les secrets depuis un fichier YAML."""
-        self.secrets = {}
-        if os.path.exists(secrets_file):
-            try:
-                with open(secrets_file, 'r', encoding='utf-8') as f:
-                    # Remplacer les !secret par leur valeur (si nécessaire)
-                    # Bien que yaml.safe_load ne gère pas nativement !secret, nous le chargeons
-                    # tel quel. La gestion des secrets dans AppDaemon est souvent externe.
-                    self.secrets = yaml.safe_load(f) or {}
-                self.log(f"Loaded {len(self.secrets)} secrets from {secrets_file}.")
-            except Exception as e:
-                self.log(f"Error loading secrets file: {e}", level="ERROR")
-
-    def _get_schedule_config(self):
-        """
-        Récupère la configuration des plannings.
-        1. Tente de lire depuis le fichier configuré dans apps.yaml.
-        2. Si le fichier n'est pas fourni, utilise la configuration 'schedules' directement dans apps.yaml.
-        """
-        if self.schedules_file:
-            try:
-                # 1. Lecture du fichier schedules
-                if not os.path.exists(self.schedules_file):
-                    self.log(f"Configuration file not found: {self.schedules_file}", level="ERROR")
-                    return {}
-                with open(self.schedules_file, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f) or {}
-                
-                # Le format attendu est un dictionnaire de schedules sous la clé 'schedule' ou 'sensor' (pour compatibilité)
-                # ou le document entier si c'est déjà un mapping d'entités
-                return config.get('schedule') or config.get('sensor') or config
-
-            except Exception as e:
-                self.log(f"Error reading or parsing schedule config file {self.schedules_file}: {e}", level="ERROR")
-                return {}
-        else:
-            # 2. Utilisation de la configuration 'schedules' directement dans apps.yaml
-            return self.args.get('schedules') or {}
+        self.log(f"Schedule Parser initialized using: {self.config_file}")
 
     def parse_schedules(self, *args, **kwargs):
-        self.log("Starting parsing of schedules...")
+        self.log(f"Starting parsing of {self.config_file}...")
+        self.dynamic_entities = set()
+        self.schedule_state_entities = set()
         
-        schedules_config = self._get_schedule_config()
-        if not schedules_config:
-            self.log("No valid schedules found. Aborting parse.", level="WARNING")
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                raw = f.read()
+        except Exception as e:
+            self.log(f"Error reading config: {e}", level="ERROR")
             return
 
-        sensor_blocks = {}
-        
-        # Le format attendu est un dictionnaire: {entity_id: schedule_data}
-        if isinstance(schedules_config, dict):
-            # Tente de gérer le format liste [{- entite_id: data}, ...] s'il est au niveau racine
-            # pour une meilleure compatibilité avec le formatage YAML d'un fichier séparé
-            if all(isinstance(v, dict) and len(v) == 1 for v in schedules_config.values()):
-                # On suppose que chaque élément est {entity_id: data}
-                for item in schedules_config.values():
-                     entity_id, schedule_data = next(iter(item.items()))
-                     sensor_blocks[entity_id] = schedule_data
+        config = {}
+        try:
+            config = yaml.safe_load(raw) or {}
+        except yaml.YAMLError as e:
+            self.log(f"Invalid global YAML: {e}, attempting extraction of sensor section...", level="WARNING")
+            sensor_blocks = self._extract_sensor_blocks(raw)
+            if not sensor_blocks:
+                self.log("No sensor section found or extraction failed", level="WARNING")
+                config = {}
             else:
-                # C'est déjà {entity_id: data}
-                sensor_blocks = schedules_config
-        # Si c'est une liste (format YAML typique):
-        elif isinstance(schedules_config, list):
-            # On convertit la liste en dictionnaire {entity_id: schedule_data}
-            for item in schedules_config:
-                if isinstance(item, dict) and len(item) == 1:
-                    entity_id, schedule_data = next(iter(item.items()))
-                    sensor_blocks[entity_id] = schedule_data
-                else:
-                    self.log(f"Invalid schedule block format (expected {{entity_id: data}}): {item}", level="WARNING")
+                sensors = []
+                for i, block in enumerate(sensor_blocks):
+                    try:
+                        loaded = yaml.safe_load(block)
+                        if isinstance(loaded, dict) and 'sensor' in loaded:
+                            s = loaded['sensor']
+                            if isinstance(s, list):
+                                sensors.extend(s)
+                            elif isinstance(s, dict):
+                                sensors.append(s)
+                        elif isinstance(loaded, list):
+                            sensors.extend(loaded)
+                        elif isinstance(loaded, dict):
+                            sensors.append(loaded)
+                    except yaml.YAMLError as e:
+                        self.log(f"Sensor block #{i} unreadable, skipped: {e}", level="ERROR")
+                        continue
+                config = {'sensor': sensors}
 
-        if not sensor_blocks:
-             self.log("No valid sensor blocks to process.", level="WARNING")
-             return
-
-        for entity_id, schedule_data in sensor_blocks.items():
-            self._process_schedule_block(entity_id, schedule_data)
-            
-        self.log(f"Finished parsing and updating {len(sensor_blocks)} schedules.")
-
-
-    def _process_schedule_block(self, entity_id, schedule_data):
-        """Traite un seul bloc de planification et met à jour l'entité capteur."""
-        # 1. Normalisation de l'entity_id pour le capteur AppDaemon
-        base_name = re.sub(r'[^a-z0-9_]+', '', self.clean_string(entity_id.lower()).replace('.', '_'))
-        sensor_entity_id = f"sensor.schedule_state_{base_name}"
-        
-        # self.log(f"Processing schedule for {entity_id} -> {sensor_entity_id}") # Décommenter pour debug
-
-        # 2. Extraction des couches (layers) et gestion de l'héritage
-        schedule_events = schedule_data.get('schedule', [])
-        parent_config = schedule_data.get('parent')
-        
-        if parent_config:
-            # La fonction d'extraction de parent est conservée car elle gère la lecture de fichiers externes
-            parent_events = self._extract_parent_schedule(parent_config)
-            # On combine les événements parents (qui sont des bases) et les événements spécifiques (qui les écrasent si le layer est >)
-            schedule_events = parent_events + schedule_events
-        
-        # 3. Construction des attributs
-        default_state = schedule_data.get('default_state', 'unknown')
-        layers = self._build_layers_for_day(schedule_events, default_state)
-        
-        attributes = {
-            'layers': layers,
-            'friendly_name': schedule_data.get('friendly_name', entity_id),
-            'icon': schedule_data.get('icon', 'mdi:calendar-clock'),
-            'unit_of_measurement': schedule_data.get('unit_of_measurement'),
-            'current_state': default_state,
-        }
-
-        # 4. Mise à jour de l'entité
-        # On utilise le 'default_state' comme état principal du capteur
-        self.set_state(sensor_entity_id, state=default_state, attributes=attributes)
-        # self.log(f"Updated sensor {sensor_entity_id} with {len(layers.get('mon', []))} layers for Monday.") # Décommenter pour debug
-
-
-    def _extract_parent_schedule(self, parent_config):
-        """
-        Récupère les événements de la planification 'parent' à partir d'un fichier externe.
-        """
-        if not parent_config:
-            return []
-        
-        if isinstance(parent_config, str):
-            parent_config = {'file': parent_config}
-        
-        parent_file = parent_config.get('file')
-        parent_key = parent_config.get('key')
-        
-        if not parent_file or not parent_key:
-            self.log("Invalid parent schedule configuration (missing file or key).", level="ERROR")
-            return []
-
-        # Détermine le chemin complet du fichier parent
-        # Si self.schedules_file existe, on utilise son répertoire comme base pour le fichier parent
-        if self.schedules_file and os.path.exists(self.schedules_file):
-            base_dir = os.path.dirname(self.schedules_file)
+        if isinstance(config, dict):
+            sensors_section = config.get('sensor', []) or []
+        elif isinstance(config, list):
+            sensors_section = []
+            for item in config:
+                if isinstance(item, dict) and 'sensor' in item:
+                    s = item['sensor']
+                    if isinstance(s, list):
+                        sensors_section.extend(s)
+                    elif isinstance(s, dict):
+                        sensors_section.append(s)
+                elif isinstance(item, dict) and item.get('platform') == 'schedule_state':
+                    sensors_section.append(item)
         else:
-            base_dir = '/config' # Fallback si le fichier principal n'est pas chargé via chemin
-            
-        full_path = os.path.join(base_dir, parent_file)
+            sensors_section = []
 
-        if not os.path.exists(full_path):
-            self.log(f"Parent schedule file not found: {full_path}", level="ERROR")
-            return []
-            
-        try:
-            with open(full_path, 'r', encoding='utf-8') as f:
-                parent_data = yaml.safe_load(f)
-                
-            # Les données parentes sont généralement une liste sous une clé spécifique dans le fichier
-            parent_events = parent_data.get(parent_key, [])
-            if not isinstance(parent_events, list):
-                self.log(f"Parent key '{parent_key}' does not contain a list of events.", level="ERROR")
-                return []
+        if isinstance(sensors_section, dict):
+            sensors_section = [sensors_section]
+        elif not isinstance(sensors_section, list):
+            sensors_section = []
 
-            self.log(f"Successfully loaded {len(parent_events)} events from parent schedule '{parent_key}' in {parent_file}.")
-            return parent_events
-            
-        except Exception as e:
-            self.log(f"Error loading parent schedule from {full_path}: {e}", level="ERROR")
-            return []
-
-    # --- Les fonctions utilitaires de temps et de nettoyage restent identiques ---
-
-    def clean_string(self, s):
-        """Supprime les accents et remplace les caractères non alphanumériques par _."""
-        # Retire les accents
-        s = re.sub(r'[àáâãäå]', 'a', s)
-        s = re.sub(r'[èéêë]', 'e', s)
-        s = re.sub(r'[ìíîï]', 'i', s)
-        s = re.sub(r'[òóôõö]', 'o', s)
-        s = re.sub(r'[ùúûü]', 'u', s)
-        s = re.sub(r'[ýÿ]', 'y', s)
-        s = re.sub(r'[ñ]', 'n', s)
-        s = re.sub(r'[ç]', 'c', s)
-        # Remplace tous les caractères non alphanumériques et underscores par un underscore
-        s = re.sub(r'[^a-zA-Z0-9_]+', '_', s)
-        # Supprime les underscores multiples consécutifs
-        s = re.sub(r'_+', '_', s)
-        return s.strip('_')
-
-    def _time_to_minutes(self, time_str):
-        """Convertit une chaîne de temps 'HH:MM' en minutes depuis minuit."""
-        try:
-            h, m = map(int, time_str.split(':'))
-            return h * 60 + m
-        except:
-            return 0  # Fallback
-
-    def _minutes_to_time(self, minutes):
-        """Convertit les minutes depuis minuit en chaîne 'HH:MM'."""
-        minutes = minutes % 1440 # Wrap around days (just in case)
-        h = minutes // 60
-        m = minutes % 60
-        return f"{h:02d}:{m:02d}"
-
-    def _get_weekdays_from_event(self, event):
-        """Retourne la liste des jours de la semaine affectés par l'événement."""
-        weekdays = event.get('weekdays')
-        if not weekdays:
-            return ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        
-        if isinstance(weekdays, str):
-            weekdays = [d.strip() for d in weekdays.lower().split(',')]
-            
-        valid_days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        return [d for d in weekdays if d in valid_days]
-        
-    def _create_layer_with_default(self, events, default_state):
-        """
-        Construit les couches d'une journée en insérant le 'default_state'
-        dans les intervalles non couverts.
-        """
-        # Le temps est en minutes (0 à 1439)
-        timeline = {}
-        for event in events:
-            # On ignore les événements sans heure ou sans état 
-            if not event.get('from') or not event.get('to') or not event.get('state'):
+        schedule_sensors = []
+        for i, s in enumerate(sensors_section):
+            try:
+                if not isinstance(s, dict):
+                    raise ValueError("sensor block is not a mapping")
+                if s.get('platform') == 'schedule_state':
+                    schedule_sensors.append(s)
+                    sensor_name = s.get('name', '')
+                    if sensor_name:
+                        self.schedule_sensor_names.add(sensor_name)
+            except Exception as e:
+                self.log(f"Skipping invalid sensor block #{i}: {e}", level="ERROR")
                 continue
 
-            start_minutes = self._time_to_minutes(event['from'])
-            end_minutes = self._time_to_minutes(event['to'])
+        # PASS 1: Construire la liste complète des entités dynamiques
+        for sensor_cfg in schedule_sensors:
+            sensor_name = sensor_cfg.get('name', 'Unknown')
+            sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+            schedule_entity_id = f"sensor.schedule_{sensor_id}"
+            self.dynamic_entities.add(schedule_entity_id)
+            self.schedule_state_entities.add(schedule_entity_id)
             
-            # Gère l'enveloppement (wrapping) sur minuit (22:00 -> 02:00)
-            if start_minutes >= end_minutes:
-                # Bloc 1: De l'heure de début à minuit (1439)
-                # On utilise 'start_minutes' comme clé pour éviter d'écraser des événements qui commencent à la même heure
-                timeline[f"{start_minutes}_0"] = {'start': start_minutes, 'end': 1440, 'data': event} # 1440 = minuit
-                # Bloc 2: De minuit (0) à l'heure de fin
-                timeline[f"0_1"] = {'start': 0, 'end': end_minutes, 'data': event}
-            else:
-                # Bloc normal
-                timeline[f"{start_minutes}_0"] = {'start': start_minutes, 'end': end_minutes, 'data': event}
+            events = sensor_cfg.get('events', []) or []
+            self._extract_dynamic_entities(events)
+            raw_default = sensor_cfg.get('default', sensor_cfg.get('default_state', 'unknown'))
+            self._extract_dynamic_entities([{'state': raw_default}])
 
-        # Trie les événements par heure de début
-        sorted_events = sorted(timeline.values(), key=lambda x: x['start'])
+        days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        parsed_count = 0
+        
+        # PASS 2: Traiter les sensors avec la liste complète
+        for sensor_cfg in schedule_sensors:
+            try:
+                self._process_sensor(sensor_cfg, days)
+                parsed_count += 1
+            except Exception as e:
+                self.log(f"Error parsing sensor {sensor_cfg.get('name','?')}: {e}", level="ERROR")
+                import traceback
+                self.log(traceback.format_exc(), level="ERROR")
+                continue
+        
+        self.log(f"Parsing completed: {parsed_count}/{len(schedule_sensors)} sensors processed successfully")
+
+    def _extract_dynamic_entities(self, items):
+        """
+        Extrait toutes les entités référencées dans les items (events, states).
+        """
+        if not items:
+            return
+        
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            
+            for key in ['state', 'state_value', 'raw_state_template', 'default_state']:
+                if key in item:
+                    value = item[key]
+                    if isinstance(value, str):
+                        entities = re.findall(r"states\s*\(\s*['\"]([^'\"]+)['\"]\s*\)", value)
+                        entities += re.findall(r"state_attr\s*\(\s*['\"]([^'\"]+)['\"]", value)
+                        self.dynamic_entities.update(entities)
+            
+            if 'events' in item:
+                self._extract_dynamic_entities(item['events'])
+
+    def _process_sensor(self, sensor_cfg, days):
+        sensor_name = sensor_cfg.get('name', 'Unknown')
+        sensor_id = self.clean_string(sensor_name.lower().replace(' ', '_'))
+        raw_default = sensor_cfg.get('default', sensor_cfg.get('default_state', 'unknown'))
+        
+        default_state = raw_default
+        
+        events = sensor_cfg.get('events', []) or []
+        allow_wrap = sensor_cfg.get('allow_wrap', False)
+
+        parent_sensor_id = self._extract_parent_schedule(raw_default)
+        if parent_sensor_id:
+            self.log(f"Sensor {sensor_name} will inherit schedule from {parent_sensor_id}")
+            parent_events = self._get_parent_events(parent_sensor_id)
+            if parent_events:
+                events = parent_events + events
+
+        layers_by_day = {}
+        for day in days:
+            layers_by_day[day] = self._build_layers_for_day(
+                day, events, raw_default, allow_wrap
+            )
+
+        entity_id = f"sensor.schedule_{sensor_id}"
+        total_events = sum(len(layers_by_day[day]) for day in days)
+
+        unit_of_measurement = sensor_cfg.get('unit_of_measurement', '')
+        
+        if not unit_of_measurement:
+            extra_attrs = sensor_cfg.get('extra_attributes', {})
+            if isinstance(extra_attrs, dict):
+                unit_of_measurement = extra_attrs.get('unit_of_measurement', '')
+            elif isinstance(extra_attrs, str):
+                unit_of_measurement = extra_attrs
+            else:
+                unit_of_measurement = str(extra_attrs) if extra_attrs else ''
+
+        attributes = {
+            'platform': 'schedule_state',
+            'room': sensor_name,
+            'default_state': default_state,
+            'layers': layers_by_day,
+            'events': events,
+            'total_events': total_events,
+            'icon': 'mdi:calendar-month',
+            'friendly_name': f"{sensor_name} - Planning complet",
+            'last_update': datetime.now().isoformat()
+        }
+
+        if unit_of_measurement:
+            attributes['unit_of_measurement'] = unit_of_measurement
+        
+        extra_attrs = sensor_cfg.get('extra_attributes', {})
+        if isinstance(extra_attrs, dict):
+            attributes.update(extra_attrs)
+
+        self.set_state(entity_id, state=total_events, attributes=attributes)
+        
+        for day in days:
+            day_layers = layers_by_day[day]
+            default_count = sum(1 for layer in day_layers if layer.get('is_default_layer', False))
+            other_count = len(day_layers) - default_count
+            self.log(f"  Day {day}: {other_count} regular layers + {default_count} default layers = {len(day_layers)} total", level="DEBUG")
+        
+        self.log(f"Sensor {entity_id}: {total_events} events - Unit: '{unit_of_measurement}'", level="INFO")
+
+    def _build_layers_for_day(self, day, events, raw_default, allow_wrap=False):
+        groups = OrderedDict()
+        
+        for event_idx, event in enumerate(events):
+            if not isinstance(event, dict):
+                continue
+            
+            conditions = event.get('condition', []) or event.get('conditions', [])
+            if not isinstance(conditions, list):
+                conditions = [conditions] if conditions else []
+            
+            event_months = event.get('months')
+            if event_months is not None:
+                month_condition_exists = any(
+                    isinstance(c, dict) and c.get('condition') == 'time' and 'month' in c
+                    for c in conditions
+                )
+                if not month_condition_exists:
+                    conditions.append({'condition': 'time', 'month': event_months})
+            
+            weekdays = self.get_weekdays_from_condition(conditions)
+            if day not in weekdays:
+                continue
+            
+            raw_state = event.get('state', '')
+            unit = event.get('unit', '')
+            condition_key = self._serialize_conditions(conditions)
+            tooltip_text = event.get('tooltip', self.format_conditions(conditions))
+            description = event.get('description', '')
+            
+            is_dynamic_color = self._is_dynamic_color(raw_state)
+            if is_dynamic_color:
+                tooltip_text = f"🔄 {tooltip_text}" if tooltip_text else "🔄"
+            
+            start_time = event.get('start', '00:00')
+            end_time = event.get('end', '23:59')
+            
+            event_allow_wrap = event.get('allow_wrap', allow_wrap)
+
+            if start_time == '00:00' and end_time == '00:00':
+                end_time = '00:00'
+                event_allow_wrap = False
+            
+            if is_dynamic_color == 'schedule_state':
+                block_icon = 'mdi:refresh'
+            elif is_dynamic_color == 'dynamic':
+                block_icon = 'mdi:calendar'
+            else:
+                block_icon = event.get('icon', 'mdi:calendar')
+            
+            if event_allow_wrap:
+                start_min = self._time_to_minutes(start_time)
+                end_min = self._time_to_minutes(end_time)
+                
+                if end_min <= start_min:
+                    if condition_key not in groups:
+                        groups[condition_key] = []
+                    
+                    groups[condition_key].append({
+                        'event_idx': event_idx,
+                        'start': start_time,
+                        'end': '00:00',
+                        'original_start': start_time,
+                        'original_end': end_time,
+                        'wraps_start': False,
+                        'wraps_end': True,
+                        'is_end_of_day_wrap': True,
+                        'state_value': raw_state,
+                        'raw_state_template': raw_state,
+                        'unit': unit,
+                        'raw_conditions': conditions,
+                        'condition_text': self.format_conditions(conditions),
+                        'tooltip': tooltip_text,
+                        'description': description,
+                        'icon': block_icon,
+                        'is_dynamic_color': is_dynamic_color,
+                    })
+                    groups[condition_key].append({
+                        'event_idx': event_idx,
+                        'start': '00:00',
+                        'end': end_time,
+                        'original_start': start_time,
+                        'original_end': end_time,
+                        'wraps_start': True,
+                        'wraps_end': False,
+                        'is_end_of_day_wrap': False,
+                        'state_value': raw_state,
+                        'raw_state_template': raw_state,
+                        'unit': unit,
+                        'raw_conditions': conditions,
+                        'condition_text': self.format_conditions(conditions),
+                        'tooltip': tooltip_text,
+                        'description': description,
+                        'icon': block_icon,
+                        'is_dynamic_color': is_dynamic_color,
+                    })
+                    continue
+            
+            if condition_key not in groups:
+                groups[condition_key] = []
+            
+            groups[condition_key].append({
+                'event_idx': event_idx,
+                'start': start_time,
+                'end': end_time,
+                'original_start': start_time,
+                'original_end': end_time,
+                'wraps_start': False,
+                'wraps_end': False,
+                'is_end_of_day_wrap': (end_time == '00:00' and start_time == '00:00'),
+                'state_value': raw_state,
+                'raw_state_template': raw_state,
+                'unit': unit,
+                'raw_conditions': conditions,
+                'condition_text': self.format_conditions(conditions),
+                'tooltip': tooltip_text,
+                'description': description,
+                'icon': block_icon,
+                'is_dynamic_color': is_dynamic_color,
+            })
         
         layers = []
-        current_time = 0 # En minutes (début de la journée)
-
-        for event in sorted_events:
-            event_start = event['start']
-            event_end = event['end']
-            event_data = event['data']
+        
+        for condition_key in groups.keys():
+            blocks = groups[condition_key]
             
-            # 1. Insérer l'état par défaut (Layer 0) si l'intervalle est non couvert
-            if event_start > current_time:
-                # Évite d'insérer un bloc par défaut de 0 minute
-                if self._minutes_to_time(event_start) != self._minutes_to_time(current_time):
-                    layers.append({
-                        'from': self._minutes_to_time(current_time),
-                        'to': self._minutes_to_time(event_start),
-                        'state': default_state,
-                        'layer': 0, # Le layer 0 est l'état par défaut
-                        'conditions': self.format_conditions(event_data.get('conditions', []))
-                    })
-
-            # 2. Insérer l'événement planifié
-            # Assure que le bloc a une durée positive
-            if event_end > event_start:
-                 layers.append({
-                    'from': self._minutes_to_time(event_start),
-                    'to': self._minutes_to_time(event_end) if event_end < 1440 else '00:00',
-                    'state': event_data['state'],
-                    'layer': event_data.get('layer', 1), # Layer 1 par défaut
-                    'conditions': self.format_conditions(event_data.get('conditions', []))
-                })
+            blocks.sort(key=lambda b: (self._time_to_minutes(b['start']), b['event_idx']))
             
-            # 3. Mettre à jour le temps de début pour le prochain bloc
-            current_time = max(current_time, event_end)
-
-        # 4. Insérer le dernier état par défaut jusqu'à minuit
-        if current_time < 1440:
-             # Assure que le bloc a une durée positive
-             if self._minutes_to_time(current_time) != '00:00':
-                 layers.append({
-                    'from': self._minutes_to_time(current_time),
-                    'to': '00:00', # Représente la fin de la journée (1440 minutes)
-                    'state': default_state,
-                    'layer': 0,
-                    'conditions': self.format_conditions([])
-                })
-
-        # Dernière passe : fusionner les blocs consécutifs de même état et même layer
-        final_layers = []
-        if layers:
-            current_block = layers[0].copy()
-            for next_block in layers[1:]:
-                # Fusionner si l'état ET le layer sont identiques
-                if (next_block['state'] == current_block['state'] and 
-                    next_block['layer'] == current_block['layer'] and
-                    next_block['conditions'] == current_block['conditions']): # Aussi les conditions pour la fusion
-                    
-                    # Étendre la période du bloc actuel
-                    current_block['to'] = next_block['to']
+            layer_blocks = self._create_layer_with_default(blocks, raw_default)
+            
+            for block in layer_blocks:
+                if block.get('is_default_bg'):
+                    block['z_index'] = 1
                 else:
-                    # Ajouter le bloc actuel et commencer un nouveau
-                    final_layers.append(current_block)
-                    current_block = next_block.copy()
-            final_layers.append(current_block) # Ajouter le dernier bloc
-
-        return final_layers
-
-    def _check_month_condition(self, event, month):
-        """Vérifie si le mois actuel est inclus dans la condition de mois de l'événement."""
-        condition_blocks = event.get('conditions', [])
-        for cond in condition_blocks:
-            if cond.get('condition') == 'time' and cond.get('after') and cond.get('before'):
-                try:
-                    after_month = int(cond['after'])
-                    before_month = int(cond['before'])
-
-                    if after_month <= before_month:
-                        # Cas simple: Janvier à Décembre (ex: 03 à 09)
-                        if after_month <= month <= before_month:
-                            return True
-                    else:
-                        # Cas enveloppé: Décembre à Février (ex: 10 à 03)
-                        if month >= after_month or month <= before_month:
-                            return True
-                except ValueError:
-                    self.log(f"Invalid month value in condition: {cond}", level="WARNING")
-                    return True # En cas d'erreur, on suppose que la condition est remplie
-        return True # Si aucune condition de mois n'est spécifiée, l'événement est toujours actif
-
-    def _build_layers_for_day(self, schedule_events, default_state):
-        """
-        Construit un dictionnaire de toutes les couches pour tous les jours de la semaine,
-        en tenant compte des conditions de mois.
-        """
-        
-        # Filtrer les événements pour le mois actuel (cela permet de réduire le traitement)
-        current_month = datetime.now().month
-        filtered_events = []
-        for event in schedule_events:
-            # On ne garde que les événements qui n'ont pas de conditions de mois OU qui correspondent au mois actuel
-            if self._check_month_condition(event, current_month):
-                filtered_events.append(event)
-        
-        # Grouper les événements par jour de la semaine (y compris les événements sans jours spécifiés)
-        grouped_events = defaultdict(list)
-        for event in filtered_events:
-            weekdays = self._get_weekdays_from_event(event)
-            for day in weekdays:
-                grouped_events[day].append(event)
-
-        # Construire les couches pour chaque jour
-        layers_output = {}
-        for day in ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']:
-            # Tri par layer pour s'assurer que les layers supérieurs écrasent les inférieurs
-            # Le tri est stable, donc l'ordre d'apparition dans le YAML est conservé pour les layers égaux.
-            day_events = sorted(grouped_events[day], key=lambda x: x.get('layer', 1))
+                    block['z_index'] = 2
             
-            # Création des couches pour cette journée
-            layers_output[day] = self._create_layer_with_default(day_events, default_state)
-            
-        return layers_output
-    
-    
-    def format_conditions(self, conditions):
-        """Formate une liste de conditions HA en une chaîne lisible pour le JS."""
-        parts = []
-        weekday_names = {
-            'mon': 'Lundi', 'tue': 'Mardi', 'wed': 'Mercredi', 'thu': 'Jeudi', 
-            'fri': 'Vendredi', 'sat': 'Samedi', 'sun': 'Dimanche'
-        }
+            layers.append({
+                'condition_key': condition_key,
+                'condition_text': blocks[0]['condition_text'] if blocks else '',
+                'blocks': layer_blocks,
+                'is_default_layer': False
+            })
         
+        default_layer_blocks = [{
+            'start': '00:00',
+            'end': '23:59',
+            'original_start': '00:00',
+            'original_end': '23:59',
+            'wraps_start': False,
+            'wraps_end': False,
+            'is_end_of_day_wrap': False,
+            'state_value': raw_default,
+            'raw_state_template': raw_default,
+            'unit': '',
+            'raw_conditions': [],
+            'condition_text': '',
+            'tooltip': 'État par défaut',
+            'description': '',
+            'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) else 'mdi:calendar-blank',
+            'is_default_bg': True,
+            'z_index': 1,
+            'is_dynamic_color': self._is_dynamic_color(raw_default)
+        }]
+        
+        layers.append({
+            'condition_key': 'default',
+            'condition_text': '(default)',
+            'blocks': default_layer_blocks,
+            'is_default_layer': True
+        })
+        
+        return layers
+
+    def _create_layer_with_default(self, specific_blocks, raw_default):
+        result = []
+        
+        breakpoints = set([0, 1440]) 
+        
+        for block in specific_blocks:
+            start_min = self._time_to_minutes(block['start'])
+            end_min = self._time_to_minutes(block['end'])
+            
+            if block['end'] == '00:00' and end_min == 0:
+                end_min = 1440
+
+            breakpoints.add(start_min)
+            breakpoints.add(end_min)
+        
+        breakpoints = sorted(list(breakpoints))
+        
+        for i in range(len(breakpoints) - 1):
+            seg_start_min = breakpoints[i]
+            seg_end_min = breakpoints[i + 1]
+            
+            if seg_start_min >= seg_end_min:
+                continue
+            
+            covering_block = None
+            
+            for block in specific_blocks:
+                block_start_min = self._time_to_minutes(block['start'])
+                block_end_min = self._time_to_minutes(block['end'])
+
+                if block['end'] == '00:00' and block_end_min == 0:
+                    block_end_min = 1440
+                
+                if block_start_min <= seg_start_min and seg_end_min <= block_end_min:
+                    covering_block = block
+                    break
+            
+            final_end_time_str = '00:00' if seg_end_min == 1440 else self._minutes_to_time(seg_end_min)
+            
+            if seg_end_min == 1440:
+                final_end_time_str = '23:59'
+                seg_end_min = 1439
+            
+            if (covering_block):
+                result.append({
+                    'start': self._minutes_to_time(seg_start_min),
+                    'end': final_end_time_str,
+                    'original_start': covering_block['original_start'],
+                    'original_end': covering_block['original_end'],
+                    'wraps_start': covering_block.get('wraps_start', False),
+                    'wraps_end': covering_block.get('wraps_end', False),
+                    'is_end_of_day_wrap': covering_block.get('is_end_of_day_wrap', False),
+                    'state_value': covering_block['state_value'],
+                    'raw_state_template': covering_block['raw_state_template'],
+                    'unit': covering_block['unit'],
+                    'raw_conditions': covering_block['raw_conditions'],
+                    'condition_text': covering_block['condition_text'],
+                    'tooltip': covering_block['tooltip'],
+                    'description': covering_block['description'],
+                    'icon': covering_block.get('icon', 'mdi:calendar'),
+                    'is_default_bg': False,
+                    'is_dynamic_color': covering_block.get('is_dynamic_color', False)
+                })
+            else:
+                result.append({
+                    'start': self._minutes_to_time(seg_start_min),
+                    'end': final_end_time_str,
+                    'original_start': self._minutes_to_time(seg_start_min),
+                    'original_end': final_end_time_str,
+                    'wraps_start': False,
+                    'wraps_end': False,
+                    'is_end_of_day_wrap': (seg_end_min == 1440 and seg_start_min == 0),
+                    'state_value': raw_default,
+                    'raw_state_template': raw_default,
+                    'unit': '',
+                    'raw_conditions': [],
+                    'condition_text': '',
+                    'tooltip': 'État par défaut',
+                    'description': '',
+                    'icon': 'mdi:refresh' if self._is_dynamic_color(raw_default) else 'mdi:calendar-blank',
+                    'is_default_bg': True,
+                    'is_dynamic_color': self._is_dynamic_color(raw_default)
+                })
+        
+        return result
+
+    def _is_dynamic_color(self, state_value):
+        """
+        Détecte si la valeur d'état est dynamique (template ou référence à une entité dynamique).
+        Retourne le type : 'schedule_state', 'dynamic' ou False
+        """
+        if not state_value or not isinstance(state_value, str):
+            return False
+        
+        state_str = str(state_value).strip()
+        
+        if 'states(' in state_str or 'state_attr(' in state_str or '{{' in state_str or '{%' in state_str:
+            entity_matches = re.findall(r"states\s*\(\s*['\"]([^'\"]+)['\"]\s*\)", state_str)
+            entity_matches += re.findall(r"state_attr\s*\(\s*['\"]([^'\"]+)['\"]", state_str)
+            
+            # Vérifier d'abord si c'est un schedule_state
+            for entity_id in entity_matches:
+                if entity_id in self.schedule_state_entities:
+                    return 'schedule_state'
+            
+            # Ensuite vérifier si c'est une autre entité dynamique
+            for entity_id in entity_matches:
+                if entity_id in self.dynamic_entities:
+                    return 'dynamic'
+            
+            # Si c'est un template mais pas une entité connue, c'est quand même dynamique
+            return 'dynamic'
+        
+        return False
+
+    def _time_to_minutes(self, time_str):
+        if not time_str or ':' not in str(time_str):
+            return 0
+        parts = str(time_str).split(':')
+        try:
+            return int(parts[0]) * 60 + int(parts[1])
+        except (ValueError, IndexError):
+            return 0
+
+    def _minutes_to_time(self, minutes):
+        hours = (int(minutes) // 60) % 24
+        mins = int(minutes) % 60
+        return f"{hours:02d}:{mins:02d}"
+
+    def _serialize_conditions(self, conditions):
+        clean_conditions = []
         for cond in conditions:
+            if cond.get('condition') == 'time':
+                if 'month' in cond:
+                    clean_conditions.append(cond)
+            else:
+                clean_conditions.append(cond)
+
+        return yaml.dump(clean_conditions, default_flow_style=False) if clean_conditions else "default"
+
+    def _extract_parent_schedule(self, raw_default):
+        match = re.search(r"states\(\s*['\"]sensor\.schedule_([^'\"]+)['\"]\s*\)", raw_default)
+        return match.group(1) if match else None
+
+    def _get_parent_events(self, parent_sensor_id):
+        try:
+            parent_entity_id = f"sensor.schedule_{parent_sensor_id}"
+            return self.get_state(parent_entity_id, attribute='events') or []
+        except Exception as e:
+            self.log(f"Error reading events from parent {parent_sensor_id}: {e}", level="ERROR")
+            return []
+
+    def _load_secrets(self, secrets_path):
+        self._secrets = {}
+        if os.path.exists(secrets_path):
+            try:
+                with open(secrets_path, 'r', encoding='utf-8') as sf:
+                    self._secrets = yaml.safe_load(sf) or {}
+            except Exception:
+                pass
+        
+        def secret_constructor(loader, node):
+            key = loader.construct_scalar(node)
+            return self._secrets.get(key, f"<secret {key}>")
+        yaml.SafeLoader.add_constructor('!secret', secret_constructor)
+
+    def _extract_sensor_blocks(self, raw):
+        blocks = []
+        m = re.search(r'(^sensor:\s*\n(?:\s+.*\n)+)', raw, flags=re.MULTILINE)
+        if not m:
+            return blocks
+        sensor_section = m.group(1)
+        lines = sensor_section.splitlines()[1:]
+        current = []
+        for line in lines:
+            if re.match(r'^\s*-\s', line) and current:
+                blocks.append("sensor:\n" + "\n".join(current) + "\n")
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            blocks.append("sensor:\n" + "\n".join(current) + "\n")
+        return blocks
+
+    def clean_string(self, text):
+        replacements = {
+            'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+            'à': 'a', 'â': 'a', 'ä': 'a',
+            'ù': 'u', 'û': 'u', 'ü': 'u',
+            'ô': 'o', 'ö': 'o',
+            'î': 'i', 'ï': 'i',
+            'ç': 'c'
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        text = re.sub(r'[^a-z0-9_]', '_', text)
+        return text
+
+    def get_weekdays_from_condition(self, conditions):
+        if not conditions:
+            return ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        weekdays = []
+        for cond in conditions:
+            if isinstance(cond, dict) and cond.get('condition') == 'time' and 'weekday' in cond:
+                wd = cond['weekday']
+                if isinstance(wd, list):
+                    weekdays.extend(wd)
+                else:
+                    weekdays.append(wd)
+        return weekdays or ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+    def format_conditions(self, conditions):
+        if not conditions:
+            return ''
+        if isinstance(conditions, dict):
+            conditions = [conditions]
+        parts = []
+        for cond in conditions:
+            if not isinstance(cond, dict):
+                continue
             cond_type = cond.get('condition')
-            
-            # Le JavaScript ne s'occupe pas de la condition de temps de mois pour l'affichage
             if cond_type == 'time':
-                weekdays = cond.get('weekday')
-                if weekdays:
+                if 'month' in cond:
+                    months = cond['month']
+                    month_names = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aout", "Sep", "Oct", "Nov", "Dec"]
+                    if isinstance(months, list):
+                        formatted_months = [month_names[m-1] for m in months if 1 <= m <= 12]
+                        parts.append(f"Mois: {', '.join(formatted_months)}")
+                    elif isinstance(months, int):
+                        if 1 <= months <= 12:
+                            parts.append(f"Mois: {month_names[months-1]}")
+                if 'weekday' in cond:
+                    weekdays = cond['weekday']
+                    weekday_names = {"mon": "Lun", "tue": "Mar", "wed": "Mer", "thu": "Jeu", "fri": "Ven", "sat": "Sam", "sun": "Dim"}
                     if isinstance(weekdays, list):
-                        day_list = [weekday_names.get(d, d) for d in weekdays]
-                        parts.append(f"Jours: {', '.join(day_list)}")
+                        formatted_days = [weekday_names.get(d, d) for d in weekdays]
+                        parts.append(f"Jours: {', '.join(formatted_days)}")
                     elif isinstance(weekdays, str):
                         parts.append(f"Jours: {weekday_names.get(weekdays, weekdays)}")
-                continue # On ignore les autres paramètres de la condition de temps (after/before qui sont les mois)
+                continue
             elif cond_type == 'state':
                 entity_id = cond.get('entity_id', '')
                 state_value = cond.get('state', '')
@@ -432,7 +647,7 @@ class ScheduleParser(hass.Hass):
                 if 'below' in cond:
                     conds.append(f"< {cond['below']}")
                 friendly = self.get_friendly_name(entity_id)
-                parts.append(f"{friendly} {' et '.join(conds)}")
+                parts.append(f"{friendly} {' and '.join(conds)}")
             elif cond_type == 'or':
                 or_conditions = cond.get('conditions', [])
                 or_parts = []
@@ -442,15 +657,10 @@ class ScheduleParser(hass.Hass):
                         or_parts.append(or_text)
                 if or_parts:
                     parts.append(f"({' OU '.join(or_parts)})")
-            # Ignorer toute autre condition qui n'est pas formatée
-        
         return ' ET '.join(parts) if parts else ''
 
     def get_friendly_name(self, entity_id):
-        """Récupère le nom convivial de l'entité."""
         try:
-            # Tente de récupérer le nom convivial de HA
             return self.get_state(entity_id, attribute='friendly_name') or entity_id
         except Exception:
-            # Fallback si l'entité n'est pas encore chargée
             return entity_id

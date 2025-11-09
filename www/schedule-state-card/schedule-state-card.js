@@ -1,4 +1,4 @@
-// schedule-state-card.js v3.9.10 - Version modifiée (Hachurage + Layer 0 + Valeurs Dynamiques + Couleurs normalisées + Unités + Icones alignées + MATH COMPLEXE + SYNTAX FIX + NO DECIMAL LIMIT)
+// schedule-state-card.js v3.9.11 - Contraste couleur adaptatif + Sans gras + Icons dynamiques
 // Instructions: Téléchargez ce fichier et placez-le dans /config/www/schedule-state-card/
 
 const TRANSLATIONS = {
@@ -230,19 +230,55 @@ class ScheduleStateCard extends HTMLElement {
         })
     }
 
-    getColorForState(stateValue, unit) {
-        // Normaliser pour la couleur UNIQUEMENT
-        let str = String(stateValue).trim();
+    getPerceivedLuminance(h, s, l) {
+        const c = (s / 100) * (1 - Math.abs(2 * (l / 100) - 1));
+        const h_prime = h / 60;
+        let r_prime, g_prime, b_prime;
         
-        // Essayer d'extraire un nombre
+        if (h_prime <= 1) {
+            r_prime = c; g_prime = c * h_prime; b_prime = 0;
+        } else if (h_prime <= 2) {
+            r_prime = c * (2 - h_prime); g_prime = c; b_prime = 0;
+        } else if (h_prime <= 3) {
+            r_prime = 0; g_prime = c; b_prime = c * (h_prime - 2);
+        } else if (h_prime <= 4) {
+            r_prime = 0; g_prime = c * (4 - h_prime); b_prime = c;
+        } else if (h_prime <= 5) {
+            r_prime = c * (h_prime - 4); g_prime = 0; b_prime = c;
+        } else {
+            r_prime = c; g_prime = 0; b_prime = c * (6 - h_prime);
+        }
+        
+        const m = (l / 100) - c / 2;
+        const r = r_prime + m;
+        const g = g_prime + m;
+        const b = b_prime + m;
+        
+        const luminance = 0.2126 * (r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4)) +
+                         0.7152 * (g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4)) +
+                         0.0722 * (b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4));
+        
+        return luminance;
+    }
+
+    getTextColorForBackground(hslColor) {
+        const match = hslColor.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
+        if (!match) return "#000000";
+        
+        const h = parseFloat(match[1]);
+        const s = parseFloat(match[2]);
+        const l = parseFloat(match[3]);
+        
+        const luminance = this.getPerceivedLuminance(h, s, l);
+        return luminance > 0.5 ? "#000000" : "#ffffff";
+    }
+
+    getColorForState(stateValue, unit) {
+        let str = String(stateValue).trim();
         const numMatch = str.match(/^[\d.]+/);
         if (numMatch) {
-            // Si c'est un nombre, normaliser avec parseFloat
             str = String(parseFloat(numMatch[0]));
         }
-        // Sinon garder la chaîne texte comme-is
-        
-        // Ajouter l'unité au calcul (si présente)
         if (unit) {
             str = str + "|" + unit;
         }
@@ -257,10 +293,7 @@ class ScheduleStateCard extends HTMLElement {
         const lightnesses = Array(72).fill(50);
         const idx = Math.abs(hash) % hues.length;
         const hsl = "hsl(" + hues[idx] + ", " + saturations[idx] + "%, " + lightnesses[idx] + "%)";
-        
-        // Calculer si la couleur est claire (luminosité > 50)
-        const isLight = lightnesses[idx] > 50;
-        const textColor = isLight ? "#000000" : "#ffffff";
+        const textColor = this.getTextColorForBackground(hsl);
         
         return { color: hsl, textColor: textColor }
     }
@@ -313,46 +346,97 @@ class ScheduleStateCard extends HTMLElement {
             return state && state.attributes && state.attributes[attr] !== undefined ? String(state.attributes[attr]) : "0"
         });
         
-        // Supprime les filtres Jinja courants pour préparer l'expression au calcul.
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
-        
-        // Utilise la nouvelle fonction _evalMath pour les expressions complexes.
         result = this._evalMath(result);
         
         return String(result).trim()
     }
 
-    /**
-     * @param {string} expr L'expression mathématique à évaluer.
-     * @returns {string} Le résultat de l'évaluation ou l'expression originale.
-     */
     _evalMath(expr) {
         if (!expr || typeof expr !== 'string') return String(expr);
-
         let cleanedExpr = expr.trim();
         
-        // 1. Vérifie si l'expression est purement numérique ou mathématique.
         if (!/^[\d\s\.\+\-\*\/\(\)]+$/.test(cleanedExpr)) {
-            // Tente une conversion simple si c'est juste un nombre isolé (post-templating)
             const num = parseFloat(cleanedExpr);
             return isNaN(num) ? expr : String(num);
         }
 
         try {
-            // 2. Utilise le constructeur Function pour une exécution sécurisée de l'expression mathématique.
-            const result = new Function('return ' + cleanedExpr)();
-            
+            // Parser mathématique simple sans eval (CSP-safe)
+            const result = this._safeMathEval(cleanedExpr);
             if (typeof result === 'number' && !isNaN(result)) {
-                // CORRECTION: Pas d'arrondi forcé. Retourne la chaîne complète.
                 return String(result);
             }
-            // Si le résultat n'est pas un nombre, on retourne l'expression originale
             return expr;
-
         } catch (e) {
             console.error("Schedule card: Évaluation mathématique complexe échouée pour l'expression:", cleanedExpr, e);
             return expr;
         }
+    }
+
+    _safeMathEval(expr) {
+        // Tokenize l'expression
+        const tokens = [];
+        let current = '';
+        for (let i = 0; i < expr.length; i++) {
+            const char = expr[i];
+            if ('+-*/()'.includes(char)) {
+                if (current) tokens.push(parseFloat(current));
+                tokens.push(char);
+                current = '';
+            } else if (char === ' ') {
+                if (current) tokens.push(parseFloat(current));
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        if (current) tokens.push(parseFloat(current));
+
+        // Évalue avec priorité des opérateurs
+        return this._evaluateTokens(tokens);
+    }
+
+    _evaluateTokens(tokens) {
+        // Gère les parenthèses
+        while (tokens.includes('(')) {
+            const startIdx = tokens.lastIndexOf('(');
+            let endIdx = tokens.indexOf(')', startIdx);
+            if (endIdx === -1) throw new Error('Parenthèses mal appairées');
+            
+            const subTokens = tokens.slice(startIdx + 1, endIdx);
+            const result = this._evaluateTokens(subTokens);
+            tokens.splice(startIdx, endIdx - startIdx + 1, result);
+        }
+
+        // Gère * et /
+        for (let i = 1; i < tokens.length; i += 2) {
+            if (tokens[i] === '*') {
+                const result = tokens[i - 1] * tokens[i + 1];
+                tokens.splice(i - 1, 3, result);
+                i -= 2;
+            } else if (tokens[i] === '/') {
+                if (tokens[i + 1] === 0) throw new Error('Division par zéro');
+                const result = tokens[i - 1] / tokens[i + 1];
+                tokens.splice(i - 1, 3, result);
+                i -= 2;
+            }
+        }
+
+        // Gère + et -
+        for (let i = 1; i < tokens.length; i += 2) {
+            if (tokens[i] === '+') {
+                const result = tokens[i - 1] + tokens[i + 1];
+                tokens.splice(i - 1, 3, result);
+                i -= 2;
+            } else if (tokens[i] === '-') {
+                const result = tokens[i - 1] - tokens[i + 1];
+                tokens.splice(i - 1, 3, result);
+                i -= 2;
+            }
+        }
+
+        return tokens[0];
     }
 
     evalCondition(condition) {
@@ -453,6 +537,19 @@ class ScheduleStateCard extends HTMLElement {
         return rawTemplate.includes("states(") || rawTemplate.includes("state_attr(") || rawTemplate.includes("{%") || rawTemplate.includes("{{")
     }
 
+    isScheduleStateSensor(rawTemplate) {
+        if (!rawTemplate || typeof rawTemplate !== "string" || !this._hass) return false;
+        // Extrait l'entity_id référencé
+        const match = rawTemplate.match(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/);
+        if (!match) return false;
+        const entityId = match[1];
+        // Vérifie si l'entité existe et vient de l'intégration schedule_state
+        const entity = this._hass.states[entityId];
+        if (!entity) return false;
+        // L'intégration schedule_state utilise "schedule_state" comme platform
+        return entity.attributes && entity.attributes.icon === "mdi:calendar-clock";
+    }
+
     extractEntityFromTemplate(template) {
         if (!template || typeof template !== "string") return "";
         const match = template.match(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/);
@@ -480,7 +577,7 @@ class ScheduleStateCard extends HTMLElement {
         if (!this.tooltipElement) {
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
-            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:999999;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
+            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
             document.body.appendChild(this.tooltipElement)
         }
         const decoded = this.decodeHtmlEntities(text);
@@ -588,13 +685,14 @@ class ScheduleStateCard extends HTMLElement {
 
                 let zIndex = block.z_index || 2;
                 if (isDefaultBg) zIndex = 2;
-                else zIndex = 3 + layerIdx;
+                else zIndex = 2;
                 
                 const left = startMin / 1440 * 100;
                 const width = (endMin - startMin) / 1440 * 100;
                 const rawState = block.state_value || "";
                 const rawTemplate = block.raw_state_template || rawState;
                 const isDynamic = this.isDynamicTemplate(rawTemplate);
+                const isScheduleState = this.isScheduleStateSensor(rawTemplate);
                 const resolvedState = this.resolveTemplate(rawState);
                 const unit = block.unit || unitOfMeasurement || "";
                 const stateWithUnit = resolvedState && resolvedState.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
@@ -644,11 +742,25 @@ class ScheduleStateCard extends HTMLElement {
                 const bWidthPx = width / 100 * containerWidth;
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
                 const escapedState = this.escapeHtml(displayText);
-                const finalText = isDynamic ? escapedState + " 🔄" : escapedState;
+                
+                // Déterminer l'icône dynamique basée sur block.icon
+                let dynamicIcon = "";
+                if (isDynamic) {
+                    const blockIcon = block.icon || 'mdi:calendar';
+                    if (blockIcon === 'mdi:refresh') {
+                        // Refresh pour schedule_state : apparait sur le bloc
+                        dynamicIcon = "🔄";
+                    } else {
+                        // Calendar pour autre sensor : n'apparait pas sur le bloc
+                        dynamicIcon = "";
+                    }
+                }
+                
+                const finalText = isDynamic && dynamicIcon ? escapedState + " " + dynamicIcon : escapedState;
 
                 let blockTooltipText = this.t("time_label") + ": ";
                 if (wrapsStart || wrapsEnd) {
-                    blockTooltipText += originalStart + " - " + originalEnd + " (débordement)"
+                    blockTooltipText += originalStart + " - " + originalEnd + " (déboordement)"
                 } else {
                     blockTooltipText += block.start + " - " + block.end
                 }
@@ -658,7 +770,12 @@ class ScheduleStateCard extends HTMLElement {
                 }
                 if (isDynamic) {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
-                    blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "")
+                    const blockIcon = block.icon || 'mdi:calendar';
+                    if (blockIcon === 'mdi:refresh') {
+                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + (entity ? " (schedule_state: " + entity + ")" : "")
+                    } else {
+                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "")
+                    }
                 }
                 if (block.description) {
                     blockTooltipText += "\n💬 " + this.escapeHtml(block.description)
@@ -753,7 +870,7 @@ class ScheduleStateCard extends HTMLElement {
     render() {
         const days = this.getDays();
         const showTitle = this._config.title && this._config.title.trim().length > 0;
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.schedule-block.dynamic{animation:pulse-dynamic 2.5s ease-in-out infinite;box-shadow:0 1px 3px rgba(0,0,0,.3)!important}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:1}.day-header{font-size:16px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--primary-text-color)}@keyframes pulse-dynamic{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}`;
+        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.schedule-block.dynamic{animation:pulse-dynamic 2.5s ease-in-out infinite;box-shadow:0 1px 3px rgba(0,0,0,.3)!important}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:1}.day-header{font-size:16px;font-weight:600;margin-bottom:8px;text-align:center;color:var(--primary-text-color)}@keyframes pulse-dynamic{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}`;
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -817,7 +934,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.10 - NO DECIMAL LIMIT %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.11 - Contraste adaptatif + Icons dynamiques %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
