@@ -1,4 +1,4 @@
-// schedule-state-card.js v3.9.11 - Contraste couleur adaptatif + Sans gras + Icons dynamiques
+// schedule-state-card.js v3.9.12 - Contraste couleur adaptatif + Traductions complètes + Icons dynamiques
 // Instructions: Téléchargez ce fichier et placez-le dans /config/www/schedule-state-card/
 
 const TRANSLATIONS = {
@@ -10,6 +10,9 @@ const TRANSLATIONS = {
         time_label: "Time",
         no_specific_condition: "No specific condition",
         default_state_label: "Default state",
+        wrapping: "wrapping",
+        no_schedule: "No schedule",
+        entity_not_found: "Entity not found",
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -28,6 +31,9 @@ const TRANSLATIONS = {
         time_label: "Horaires",
         no_specific_condition: "Aucune condition spécifique",
         default_state_label: "État par défaut",
+        wrapping: "débordement",
+        no_schedule: "Pas de planning",
+        entity_not_found: "Entité non trouvée",
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -46,6 +52,9 @@ const TRANSLATIONS = {
         time_label: "Zeiten",
         no_specific_condition: "Keine spezifische Bedingung",
         default_state_label: "Standardstatus",
+        wrapping: "Überlauf",
+        no_schedule: "Kein Zeitplan",
+        entity_not_found: "Entität nicht gefunden",
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -59,11 +68,14 @@ const TRANSLATIONS = {
     es: {
         state_label: "Estado",
         dynamic_value: "Valor dinámico",
-        condition_label: "Capa",
+        condition_label: "Condición",
         layer_label: "Capa",
         time_label: "Horarios",
         no_specific_condition: "Sin condición específica",
         default_state_label: "Estado por defecto",
+        wrapping: "desbordamiento",
+        no_schedule: "Sin horario",
+        entity_not_found: "Entidad no encontrada",
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -362,7 +374,6 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         try {
-            // Parser mathématique simple sans eval (CSP-safe)
             const result = this._safeMathEval(cleanedExpr);
             if (typeof result === 'number' && !isNaN(result)) {
                 return String(result);
@@ -375,7 +386,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _safeMathEval(expr) {
-        // Tokenize l'expression
         const tokens = [];
         let current = '';
         for (let i = 0; i < expr.length; i++) {
@@ -393,12 +403,10 @@ class ScheduleStateCard extends HTMLElement {
         }
         if (current) tokens.push(parseFloat(current));
 
-        // Évalue avec priorité des opérateurs
         return this._evaluateTokens(tokens);
     }
 
     _evaluateTokens(tokens) {
-        // Gère les parenthèses
         while (tokens.includes('(')) {
             const startIdx = tokens.lastIndexOf('(');
             let endIdx = tokens.indexOf(')', startIdx);
@@ -409,7 +417,6 @@ class ScheduleStateCard extends HTMLElement {
             tokens.splice(startIdx, endIdx - startIdx + 1, result);
         }
 
-        // Gère * et /
         for (let i = 1; i < tokens.length; i += 2) {
             if (tokens[i] === '*') {
                 const result = tokens[i - 1] * tokens[i + 1];
@@ -423,7 +430,6 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        // Gère + et -
         for (let i = 1; i < tokens.length; i += 2) {
             if (tokens[i] === '+') {
                 const result = tokens[i - 1] + tokens[i + 1];
@@ -539,14 +545,11 @@ class ScheduleStateCard extends HTMLElement {
 
     isScheduleStateSensor(rawTemplate) {
         if (!rawTemplate || typeof rawTemplate !== "string" || !this._hass) return false;
-        // Extrait l'entity_id référencé
         const match = rawTemplate.match(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/);
         if (!match) return false;
         const entityId = match[1];
-        // Vérifie si l'entité existe et vient de l'intégration schedule_state
         const entity = this._hass.states[entityId];
         if (!entity) return false;
-        // L'intégration schedule_state utilise "schedule_state" comme platform
         return entity.attributes && entity.attributes.icon === "mdi:calendar-clock";
     }
 
@@ -606,7 +609,7 @@ class ScheduleStateCard extends HTMLElement {
 
     renderTimeline(roomName, roomIcon, layers, unitOfMeasurement) {
         if (!layers || layers.length === 0) {
-            return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">No schedule</div></div></div>'
+            return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>'
         }
 
         const blockHeight = 20;
@@ -684,8 +687,6 @@ class ScheduleStateCard extends HTMLElement {
                 }
 
                 let zIndex = block.z_index || 2;
-                if (isDefaultBg) zIndex = 2;
-                else zIndex = 2;
                 
                 const left = startMin / 1440 * 100;
                 const width = (endMin - startMin) / 1440 * 100;
@@ -743,16 +744,11 @@ class ScheduleStateCard extends HTMLElement {
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
                 const escapedState = this.escapeHtml(displayText);
                 
-                // Déterminer l'icône dynamique basée sur block.icon
                 let dynamicIcon = "";
                 if (isDynamic) {
                     const blockIcon = block.icon || 'mdi:calendar';
                     if (blockIcon === 'mdi:refresh') {
-                        // Refresh pour schedule_state : apparait sur le bloc
                         dynamicIcon = "🔄";
-                    } else {
-                        // Calendar pour autre sensor : n'apparait pas sur le bloc
-                        dynamicIcon = "";
                     }
                 }
                 
@@ -760,7 +756,7 @@ class ScheduleStateCard extends HTMLElement {
 
                 let blockTooltipText = this.t("time_label") + ": ";
                 if (wrapsStart || wrapsEnd) {
-                    blockTooltipText += originalStart + " - " + originalEnd + " (déboordement)"
+                    blockTooltipText += originalStart + " - " + originalEnd + " (" + this.t("wrapping") + ")"
                 } else {
                     blockTooltipText += block.start + " - " + block.end
                 }
@@ -829,7 +825,7 @@ class ScheduleStateCard extends HTMLElement {
             }
             const state = this._hass.states[entityId];
             if (!state) {
-                timelines += this.renderErrorCard(entityId, "Entity not found");
+                timelines += this.renderErrorCard(entityId, this.t("entity_not_found"));
                 continue
             }
             const attrs = state.attributes || {};
@@ -934,7 +930,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.11 - Contraste adaptatif + Icons dynamiques %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.12 - Traductions complètes + Icons dynamiques %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
