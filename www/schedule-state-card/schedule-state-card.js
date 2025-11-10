@@ -1,5 +1,3 @@
-// schedule-state-card.js v3.9.18 - Code épuré et optimisé - CORRIGÉ (Traduction des conditions + Ponctuation)
-
 const TRANSLATIONS = {
     en: {
         state_label: "State",
@@ -14,11 +12,11 @@ const TRANSLATIONS = {
         dynamic_value: "Dynamic value",
         dynamic_ref_schedule: "schedule_state",
         dynamic_ref_sensor: "sensor",
-        // NOUVEAU: Clés pour la traduction des conditions
         cond_days: "Days",
         cond_month: "Month",
         cond_and: "AND",
         cond_or: "OR",
+        cond_combined_schedule: "Result of combination (Click to show/hide layers)",
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -42,11 +40,11 @@ const TRANSLATIONS = {
         dynamic_value: "Valeur dynamique",
         dynamic_ref_schedule: "état_planning",
         dynamic_ref_sensor: "capteur",
-        // NOUVEAU: Clés pour la traduction des conditions
         cond_days: "Jours",
         cond_month: "Mois",
         cond_and: "ET",
         cond_or: "OU",
+        cond_combined_schedule: "Résultat de la combinaison (Cliquez pour afficher/masquer les couches)",
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -70,11 +68,11 @@ const TRANSLATIONS = {
         dynamic_value: "Dynamischer Wert",
         dynamic_ref_schedule: "Zeitplan-Status",
         dynamic_ref_sensor: "Sensor",
-        // NOUVEAU: Clés pour la traduction des conditions
         cond_days: "Tage",
         cond_month: "Monat",
         cond_and: "UND",
         cond_or: "ODER",
+        cond_combined_schedule: "Ergebnis der Kombination (Klicken zum Anzeigen/Ausblenden der Schichten)",
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -98,11 +96,11 @@ const TRANSLATIONS = {
         dynamic_value: "Valor dinámico",
         dynamic_ref_schedule: "estado_horario",
         dynamic_ref_sensor: "sensor",
-        // NOUVEAU: Clés pour la traduction des conditions
         cond_days: "Días",
         cond_month: "Mes",
         cond_and: "Y",
         cond_or: "O",
+        cond_combined_schedule: "Resultado de la combinación (Clic para mostrar/ocultar capas)",
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -125,6 +123,11 @@ class ScheduleStateCard extends HTMLElement {
         this.selectedDay = this.currentTime.day;
         this.updateInterval = null;
         this.tooltipElement = null;
+        this._layerVisibility = {};
+        this._tooltipListener = null; 
+        // Ajout du timer pour gérer le délai d'affichage de l'infobulle
+        this._tooltipTimer = null; 
+        this._isToggling = false; // <<< AJOUTÉ POUR LE DÉBOUNCAGE DU CLIC
     }
 
     getLanguage() {
@@ -139,28 +142,21 @@ class ScheduleStateCard extends HTMLElement {
         return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
     }
     
-    // NOUVELLE MÉTHODE AMÉLIORÉE: Traduit la chaîne de condition en gérant la ponctuation
     _translateConditionText(text) {
         if (!text) return "";
         let translated = text;
 
-        // Mappings des jours abrégés anglais vers les clés de traduction complètes
         const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
         const dayTranslations = this.t("days");
 
-        // 1. Traduire les en-têtes et connecteurs
         translated = translated.replace("Days:", this.t("cond_days") + ":");
         translated = translated.replace("Month:", this.t("cond_month") + ":");
-        // Remplacer les connecteurs logiques (avec espaces autour)
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
 
-        // 2. Traduire les abréviations de jours et conserver la ponctuation/espaces
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
             if (translatedDay) {
-                // Utilise \b pour ne matcher que des mots entiers.
-                // ([,\.\s]*) capture la ponctuation et les espaces suivants dans $1.
                 translated = translated.replace(new RegExp(`\\b${abbr}([,\.\\s]*)`, 'g'), `${translatedDay}$1`);
             }
         }
@@ -249,10 +245,11 @@ class ScheduleStateCard extends HTMLElement {
 
     startTimelineUpdate() {
         if (this.updateInterval) clearInterval(this.updateInterval);
+        // Fréquence de 60s demandée (déjà en place)
         this.updateInterval = setInterval(() => {
             this.currentTime = this.getCurrentTime();
             this.updateTimeline();
-        }, 60000);
+        }, 60000); 
     }
 
     stopTimelineUpdate() {
@@ -323,23 +320,45 @@ class ScheduleStateCard extends HTMLElement {
         return luminance > 0.5 ? "#000000" : "#ffffff";
     }
 
+    /**
+     * NOUVELLE FONCTION getColorForState (V2)
+     * Utilise un hash plus robuste (FNV-1a-like) et 144 teintes pour réduire les collisions.
+     */
     getColorForState(stateValue, unit) {
         let str = String(stateValue).trim();
         const numMatch = str.match(/^[\d.]+/);
         if (numMatch) str = String(parseFloat(numMatch[0]));
         if (unit) str = str + "|" + unit;
-        let hash = 0;
+
+        // --- Algorithme de hachage FNV-1a-like (plus robuste) ---
+        let hash = 2166136261; // FNV-1a offset basis
+        const prime = 16777619; // FNV-1a prime
         for (let i = 0; i < str.length; i++) {
-            hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash = hash & 4294967295;
+            hash ^= str.charCodeAt(i);
+            // Multiplication et maintien en 32bit non-signé
+            hash = (hash * prime) & 4294967295; 
         }
-        const hues = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355];
-        const idx = Math.abs(hash) % hues.length;
-        const hsl = "hsl(" + hues[idx] + ", 75%, 50%)";
+        // Dispersion finale (Murmur3-like finalizer)
+        hash ^= hash >>> 16;
+        // Prendre la valeur absolue
+        hash = Math.abs(hash); 
+        // -----------------------------------------------------------------------------------
+
+        // 144 teintes (tous les 2.5° : 360 / 144 = 2.5) pour un meilleur spectre
+        const numHues = 144; 
+        const step = 360 / numHues;
+        
+        // Le modulo réduit l'entier hash (jusqu'à 4 milliards) à un index de 0 à 143
+        const idx = hash % numHues; 
+        
+        // Calcule la teinte (Hue)
+        let hue = Math.round(idx * step);
+
+        const hsl = `hsl(${hue}, 75%, 50%)`;
         const textColor = this.getTextColorForBackground(hsl);
         return { color: hsl, textColor: textColor };
     }
-
+    
     timeToMinutes(time) {
         if (!time || typeof time !== "string") return 0;
         const parts = time.split(":");
@@ -510,9 +529,10 @@ class ScheduleStateCard extends HTMLElement {
                 uniqueConditions.push(cond);
             }
         }
+        
         for (const cond of uniqueConditions) {
-            if (cond.condition === "time" && !cond.month) continue;
-            if (!this._evaluateCondition(cond)) return false;
+            if (cond.condition === "time" && !cond.month) continue; 
+            if (!this._evaluateCondition(cond)) return false; 
         }
         return true;
     }
@@ -544,6 +564,133 @@ class ScheduleStateCard extends HTMLElement {
         }
         return true;
     }
+    
+    /**
+     * Crée le layer Sigma (combiné) : Layer 0 comme base + layers actifs empilés par ordre
+     */
+    createCombinedLayer(defaultLayer, activeConditionalLayers) {
+        if (!defaultLayer) return null;
+        
+        // Commencer avec les layers actifs SEULEMENT (pas Layer 0 d'emblée)
+        let result = [];
+        
+        // Empiler les layers actifs dans l'ordre (par numéro)
+        for (const activeLayer of activeConditionalLayers) {
+            if (!activeLayer.blocks) continue;
+            
+            for (const activeBlock of activeLayer.blocks) {
+                // Ajouter le bloc actif avec marquage source
+                result.push({...activeBlock, _source_layer: activeLayer});
+            }
+        }
+        
+        // Trier par start time et event_idx
+        result.sort((a, b) => {
+            const startA = this.timeToMinutes(a.start);
+            const startB = this.timeToMinutes(b.start);
+            if (startA !== startB) return startA - startB;
+            return (a.event_idx || 0) - (b.event_idx || 0);
+        });
+        
+        // Remplir SEULEMENT les trous avec Layer 0
+        result = this._fillGapsWithDefaultLayer(result, defaultLayer);
+        
+        return {
+            is_combined_layer: true, 
+            condition_text: "combined", 
+            is_default_layer: false,
+            blocks: result,
+        };
+    }
+    
+    /**
+     * Remplit les trous (gaps) avec les blocs du Layer 0
+     */
+    _fillGapsWithDefaultLayer(layerBlocks, defaultLayer) {
+        if (!layerBlocks || layerBlocks.length === 0) {
+            return (defaultLayer.blocks || []).map(b => ({...b, _source_layer: 0}));
+        }
+        
+        const result = [];
+        const breakpoints = new Set([0, 1440]);
+        
+        // Collecter tous les breakpoints
+        for (const block of layerBlocks) {
+            const startMin = this.timeToMinutes(block.start);
+            let endMin = this.timeToMinutes(block.end);
+            if (block.end === '00:00' && endMin === 0) endMin = 1440;
+            breakpoints.add(startMin);
+            breakpoints.add(endMin);
+        }
+        
+        // Ajouter aussi les breakpoints du Layer 0 pour bien couvrir sa durée
+        const defaultBlocks = defaultLayer.blocks || [];
+        for (const defBlock of defaultBlocks) {
+            const defStart = this.timeToMinutes(defBlock.start);
+            let defEnd = this.timeToMinutes(defBlock.end);
+            if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+            breakpoints.add(defStart);
+            breakpoints.add(defEnd);
+        }
+        
+        const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
+        
+        for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
+            const segStart = sortedBreakpoints[i];
+            const segEnd = sortedBreakpoints[i + 1];
+            
+            // Chercher un bloc qui couvre ce segment
+            let coveringBlock = null;
+            for (const block of layerBlocks) {
+                const blockStart = this.timeToMinutes(block.start);
+                let blockEnd = this.timeToMinutes(block.end);
+                if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
+                
+                if (blockStart <= segStart && segEnd <= blockEnd) {
+                    coveringBlock = block;
+                    break;
+                }
+            }
+            
+            if (coveringBlock) {
+                // Ce segment est couvert
+                const segStartStr = this._minutesToTime(segStart);
+                const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                result.push({
+                    ...coveringBlock,
+                    start: segStartStr,
+                    end: segEndStr
+                });
+            } else {
+                // Ce segment est un "gap", le remplir avec Layer 0
+                for (const defBlock of defaultBlocks) {
+                    const defStart = this.timeToMinutes(defBlock.start);
+                    let defEnd = this.timeToMinutes(defBlock.end);
+                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+                    
+                    if (defStart <= segStart && segEnd <= defEnd) {
+                        const segStartStr = this._minutesToTime(segStart);
+                        const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                        result.push({
+                            ...defBlock,
+                            start: segStartStr,
+                            end: segEndStr,
+                            _source_layer: 0
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    _minutesToTime(minutes) {
+        const hours = Math.floor(minutes / 60) % 24;
+        const mins = minutes % 60;
+        return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    }
 
     isDynamicTemplate(rawTemplate) {
         if (!rawTemplate || typeof rawTemplate !== "string") return false;
@@ -570,34 +717,90 @@ class ScheduleStateCard extends HTMLElement {
         if (!this.tooltipElement) {
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
-            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
+            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:6;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
             document.body.appendChild(this.tooltipElement);
         }
         const decoded = this.decodeHtmlEntities(text);
         this.tooltipElement.textContent = decoded.replace(/\\n/g, "\n");
         const rect = event.target.getBoundingClientRect();
+        // Pour une délégation, on utilise clientX/Y car event.target n'est pas le bloc
+        const x = event.clientX;
+        const y = event.clientY; 
+        
         const tooltipRect = this.tooltipElement.getBoundingClientRect();
-        let left = rect.left + rect.width / 2;
-        let top = rect.top - tooltipRect.height - 10;
-        if (top < 0) top = rect.bottom + 10;
-        if (left + tooltipRect.width / 2 > window.innerWidth) left = window.innerWidth - tooltipRect.width / 2 - 10;
-        if (left - tooltipRect.width / 2 < 0) left = tooltipRect.width / 2 + 10;
+        let left = x;
+        let top = y - tooltipRect.height - 10;
+        
+        // Ajustements de position pour rester dans la fenêtre
+        if (top < 0) top = y + 25; // Si trop haut, mettez sous le curseur
+
+        // Centrage horizontal (basé sur le curseur, pas la cible)
+        left = left - tooltipRect.width / 2;
+
+        if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width - 10;
+        if (left < 0) left = 10;
+        
         this.tooltipElement.style.left = left + "px";
         this.tooltipElement.style.top = top + "px";
-        this.tooltipElement.style.transform = "translateX(-50%)";
+        this.tooltipElement.style.transform = "none"; 
         this.tooltipElement.style.display = "block";
     }
 
     hideTooltip() {
         if (this.tooltipElement) this.tooltipElement.style.display = "none";
     }
+    
+    // NOUVELLE FONCTION AVEC DÉBOUNCAGE (Anti-rebond)
+    toggleLayerVisibility(entityId) {
+        // Ignorer le clic si une bascule est déjà en cours de traitement
+        if (this._isToggling) return; 
+
+        // Verrouiller la bascule immédiatement pour traiter ce clic
+        this._isToggling = true; 
+
+        // 1. L'état de visibilité est basculé immédiatement
+        this._layerVisibility[entityId] = !this._layerVisibility[entityId];
+        
+        // 2. L'affichage est rafraîchi immédiatement
+        this.updateContent();
+        
+        // 3. Le déverrouillage est différé de 300ms pour ignorer les clics rapides pendant le re-rendu
+        setTimeout(() => {
+            this._isToggling = false;
+        }, 300); 
+    }
+    
+    attachToggleListener() {
+        requestAnimationFrame(() => {
+            const toggles = this.shadowRoot.querySelectorAll(".layer-number.combined-layer-toggle");
+            toggles.forEach(toggle => {
+                // On utilise ici un addEventListener classique car c'est un seul élément par entité
+                toggle.addEventListener("click", e => {
+                    
+                    // Priorité au clic : Annuler le minuteur de l'infobulle s'il est actif
+                    if (this._tooltipTimer) {
+                        clearTimeout(this._tooltipTimer);
+                        this._tooltipTimer = null;
+                        this.hideTooltip(); // S'assurer qu'elle disparaît immédiatement
+                    }
+                    
+                    const entityId = e.currentTarget.dataset.entityId;
+                    if (entityId) {
+                        // toggleLayerVisibility contient maintenant le débouncage et l'action immédiate
+                        this.toggleLayerVisibility(entityId);
+                    }
+                    e.stopPropagation(); 
+                });
+            });
+        });
+    }
 
     renderErrorCard(entityId, message) {
         return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
     }
 
-    renderTimeline(roomName, roomIcon, layers, unitOfMeasurement) {
-        if (!layers?.length) {
+    renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId) {
+        if (!allLayers?.length) {
             return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
@@ -607,50 +810,111 @@ class ScheduleStateCard extends HTMLElement {
         const bottomMargin = 20;
         const iconColumnWidth = 28;
 
-        let defaultLayer = null;
-        let otherLayers = [];
-        for (let i = 0; i < layers.length; i++) {
-            if (layers[i].is_default_layer) defaultLayer = layers[i];
-            else otherLayers.push(layers[i]);
+        let defaultLayer = allLayers.find(l => l.is_default_layer);
+        let combinedLayer = allLayers.find(l => l.is_combined_layer);
+        let conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
+        
+        const isCollapsed = this._layerVisibility[entityId] === true;
+        
+        let layersToDisplay = [];
+
+        if (!isCollapsed) {
+            if (defaultLayer) layersToDisplay.push(defaultLayer);
+            layersToDisplay = layersToDisplay.concat(conditionalLayers);
         }
         
-        let visibleLayers = [];
-        if (defaultLayer) visibleLayers.push(defaultLayer);
-        if (otherLayers.length > 0) visibleLayers = visibleLayers.concat(otherLayers);
+        if (combinedLayer) layersToDisplay.push(combinedLayer);
         
+        if (layersToDisplay.length === 0) {
+            return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
+        }
+
         const layerActiveStates = [];
-        for (const layer of visibleLayers) {
-            layerActiveStates.push(layer.is_default_layer ? null : this._evaluateConditionsForLayer(layer));
+        for (const layer of allLayers) {
+            layerActiveStates.push(layer.is_default_layer || layer.is_combined_layer ? null : this._evaluateConditionsForLayer(layer));
         }
         
-        const anyOtherLayerActive = layerActiveStates.some((active, idx) => active === true && !visibleLayers[idx].is_default_layer);
+        const anyOtherLayerActive = layerActiveStates.some((active, idx) => active === true && !allLayers[idx].is_default_layer && !allLayers[idx].is_combined_layer);
         
-        for (let i = 0; i < layerActiveStates.length; i++) {
-            if (visibleLayers[i].is_default_layer) {
+        for (let i = 0; i < allLayers.length; i++) {
+            if (allLayers[i].is_default_layer) {
                 layerActiveStates[i] = !anyOtherLayerActive;
             }
         }
-
-        const containerHeight = topMargin + visibleLayers.length * blockHeight + (visibleLayers.length - 1) * verticalGap + bottomMargin;
+        
+        const layersCount = layersToDisplay.length;
+        const containerHeight = topMargin + layersCount * blockHeight + (layersCount > 0 ? (layersCount - 1) * verticalGap : 0) + bottomMargin;
+        
         const hours = Array.from({ length: 24 }, (v, i) => i);
         const hourLabels = hours.map(h => h === 6 || h === 12 || h === 18 ? '<div class="timeline-hour">' + this.formatHour(h) + "</div>" : '<div class="timeline-hour"></div>').join("");
 
         let blockHtml = "";
         let iconHtml = "";
 
-        for (let layerIdx = 0; layerIdx < visibleLayers.length; layerIdx++) {
-            const currentLayer = visibleLayers[layerIdx];
+        for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
+            const currentLayer = layersToDisplay[layerIdx];
             if (!currentLayer?.blocks) continue;
 
             const top = topMargin + layerIdx * (blockHeight + verticalGap);
             const conditionText = currentLayer.condition_text || "(default)";
-            const translatedConditionText = this._translateConditionText(conditionText); // UTILISATION DE LA NOUVELLE FONCTION
+            const translatedConditionText = this._translateConditionText(conditionText);
+
+            if (currentLayer.is_combined_layer) {
+                 
+                 const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
+                 let toggleClass = '';
+                 let iconStyle = 'background:var(--info-color);filter:brightness(1.1);';
+
+                 if (hasCollapsibleLayers) {
+                     toggleClass = ' combined-layer-toggle'; 
+                     if (!isCollapsed) {
+                         iconStyle = 'background:var(--primary-color);filter:brightness(1.3);';
+                     }
+                 }
+                 
+                 iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ">
+                    <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
+                        Σ
+                    </span>
+                 </div>`;
+            }
+            else { 
+                const originalIndex = allLayers.findIndex(l => l === currentLayer);
+                const isActive = layerActiveStates[originalIndex];
+                const iconStyle = isActive ? "background:var(--primary-color);filter:brightness(1.3);" : "background:var(--secondary-text-color);opacity:0.5;";
+                
+                let iconTooltipText = this.t("layer_label") + " " + (originalIndex);
+                if (currentLayer.is_default_layer) {
+                    iconTooltipText = this.t("layer_label") + " 0";
+                    if (conditionText && conditionText !== "default") { 
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                    } else {
+                        iconTooltipText += "\n" + this.t("default_state_label");
+                    }
+                } else {
+                    if (conditionText && conditionText !== "default") { 
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                    } else {
+                        iconTooltipText += "\n" + this.t("no_specific_condition");
+                    }
+                }
+
+                const displayLayerIndex = currentLayer.is_default_layer ? "0" : (originalIndex);
+                
+                iconHtml += `<div class="icon-row" style="top:${top}px;" data-tooltip="${this.escapeHtml(iconTooltipText)}" data-layer-index="${displayLayerIndex}">
+                    <span class="layer-number" style="${iconStyle}">${displayLayerIndex}</span>
+                </div>`;
+            }
 
             for (let i = 0; i < currentLayer.blocks.length; i++) {
                 const block = currentLayer.blocks[i];
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
-                const isDefaultBg = block.is_default_bg || false;
+                // Dans le Layer Sigma, seuls les blocs du Layer 0 (_source_layer === 0) doivent avoir le hachurage
+                let isDefaultBg = block.is_default_bg || false;
+                if (currentLayer.is_combined_layer && block._source_layer !== 0) {
+                    isDefaultBg = false; // Pas de hachurage pour les blocs des autres layers
+                }
 
                 if (block.end === '00:00' && endMin === 0) endMin = 1440;
                 if (block.end === '23:59') endMin = 1439.5;
@@ -658,6 +922,13 @@ class ScheduleStateCard extends HTMLElement {
                 let zIndex = block.z_index || 2;
                 if (isDefaultBg) zIndex = 1;
                 
+                let blockClass = "schedule-block";
+
+                if (currentLayer.is_combined_layer) {
+                    zIndex = 3; 
+                    blockClass += " combined-layer-block";
+                }
+
                 const left = startMin / 1440 * 100;
                 const width = (endMin - startMin) / 1440 * 100;
                 const rawState = block.state_value || "";
@@ -667,9 +938,10 @@ class ScheduleStateCard extends HTMLElement {
                 const resolvedState = this.resolveTemplate(rawState);
                 const unit = block.unit || unitOfMeasurement || "";
                 const stateWithUnit = resolvedState?.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
+                
                 const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
-                const color = colorData.color;
-                const textColor = colorData.textColor;
+                const color = block.color || colorData.color; 
+                let textColor = colorData.textColor; 
 
                 const wrapsStart = block.wraps_start || false;
                 const wrapsEnd = block.wraps_end || false;
@@ -696,11 +968,11 @@ class ScheduleStateCard extends HTMLElement {
                 const originalStart = block.original_start || block.start;
                 const originalEnd = block.original_end || block.end;
 
-                let blockClass = "schedule-block";
+                
                 if (isDefaultBg) blockClass += " default-block";
                 if (isDynamic) blockClass += " dynamic";
 
-                const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";color:" + textColor + ";";
+                const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";color:" + textColor + ";background-color:" + color + ";";
                 const containerWidth = this.shadowRoot.querySelector(".timeline-container")?.offsetWidth || 800;
                 const bWidthPx = width / 100 * containerWidth;
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
@@ -725,9 +997,13 @@ class ScheduleStateCard extends HTMLElement {
                     blockTooltipText += block.start + " - " + block.end;
                 }
                 blockTooltipText += "\n🌡️ " + this.t("state_label") + ": " + this.escapeHtml(resolvedState) + (unit ? " " + unit : "");
-                if (isDefaultBg) {
+                
+                if (currentLayer.is_combined_layer) {
+                    blockTooltipText += "\n(Layer: Combined)";
+                } else if (isDefaultBg) {
                     blockTooltipText += "\n(" + this.t("default_state_label") + ")";
                 }
+
                 if (isDynamic) {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
                     const blockIcon = block.icon || 'mdi:calendar';
@@ -745,33 +1021,8 @@ class ScheduleStateCard extends HTMLElement {
                     blockTooltipText += "\n💬 " + this.escapeHtml(block.description);
                 }
 
-                blockHtml += '<div class="' + blockClass + '" style="' + style + "background-color:" + color + ';" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>";
-            }
-
-            const firstBlock = currentLayer.blocks?.[0];
-            if (firstBlock) {
-                const isActive = layerActiveStates[layerIdx];
-                const iconStyle = isActive ? "background:var(--primary-color);filter:brightness(1.3);" : "background:var(--secondary-text-color);opacity:0.5;";
-                let iconTooltipText = this.t("layer_label") + " " + (layerIdx);
-                if (currentLayer.is_default_layer) {
-                    iconTooltipText = this.t("layer_label") + " 0";
-                    if (conditionText && conditionText !== "default") { 
-                        // UTILISATION DE LA CHAÎNE TRADUITE POUR L'INFOBULLE
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
-                    } else {
-                        iconTooltipText += "\n" + this.t("default_state_label");
-                    }
-                } else {
-                    if (conditionText && conditionText !== "default") { 
-                        // UTILISATION DE LA CHAÎNE TRADUITE POUR L'INFOBULLE
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
-                    } else {
-                        iconTooltipText += "\n" + this.t("no_specific_condition");
-                    }
-                }
-
-                const displayLayerIndex = currentLayer.is_default_layer ? "0" : (layerIdx);
-                iconHtml += '<div class="icon-row" style="top:' + top + 'px;" data-tooltip="' + this.escapeHtml(iconTooltipText) + '" data-layer-index="' + displayLayerIndex + '"><span class="layer-number" style="' + iconStyle + '">' + displayLayerIndex + "</span></div>";
+                // Utilisation de data-tooltip pour la délégation
+                blockHtml += '<div class="' + blockClass + '" style="' + style + '" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>";
             }
         }
 
@@ -787,6 +1038,11 @@ class ScheduleStateCard extends HTMLElement {
             const entityConfig = this._config.entities[i];
             const entityId = typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
             if (!entityId) continue;
+            
+            if (this._layerVisibility[entityId] === undefined) {
+                this._layerVisibility[entityId] = true; 
+            }
+            
             const state = this._hass.states[entityId];
             if (!state) {
                 timelines += this.renderErrorCard(entityId, this.t("entity_not_found"));
@@ -799,39 +1055,97 @@ class ScheduleStateCard extends HTMLElement {
             const roomName = customName || attrs.room || attrs.friendly_name || entityId;
             const roomIcon = customIcon || attrs.icon || "mdi:thermometer";
             const unitOfMeasurement = attrs.unit_of_measurement || "";
-            const dayLayers = layers[this.selectedDay] || [];
-            timelines += this.renderTimeline(roomName, roomIcon, dayLayers, unitOfMeasurement);
+            
+            let dayLayers = layers[this.selectedDay] || [];
+            
+            const defaultLayer = dayLayers.find(l => l.is_default_layer);
+            
+            const activeConditionalLayers = dayLayers.filter(layer => 
+                !layer.is_default_layer && !layer.is_combined_layer && this._evaluateConditionsForLayer(layer)
+            );
+            
+            // Créer le layer Sigma avec Layer 0 comme base + layers actifs
+            const combinedLayer = this.createCombinedLayer(defaultLayer, activeConditionalLayers);
+            
+            let allLayers = dayLayers.filter(l => !l.is_combined_layer); 
+            
+            if (combinedLayer) {
+                allLayers = [...allLayers, combinedLayer]; 
+            }
+
+            timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId);
         }
         content.innerHTML = '<div class="schedules-container">' + timelines + "</div>";
-        this.attachBlockTooltips();
+        // Appel de la nouvelle fonction de délégation
+        this.attachBlockTooltips(); 
+        this.attachToggleListener(); 
         this.updateTimeline();
     }
-
+    
+    // NOUVELLE FONCTION avec délégation d'événements pour les tooltips (meilleure performance)
     attachBlockTooltips() {
-        requestAnimationFrame(() => {
-            const blocks = this.shadowRoot.querySelectorAll(".schedule-block");
-            const iconRows = this.shadowRoot.querySelectorAll(".icon-row");
-            blocks.forEach(block => {
-                block.addEventListener("mouseenter", e => {
-                    const tooltip = e.currentTarget.dataset.tooltip;
-                    if (tooltip) this.showTooltip(e, tooltip);
-                });
-                block.addEventListener("mouseleave", () => this.hideTooltip());
-            });
-            iconRows.forEach(row => {
-                row.addEventListener("mouseenter", e => {
-                    const tooltip = e.currentTarget.dataset.tooltip;
-                    if (tooltip) this.showTooltip(e, tooltip);
-                });
-                row.addEventListener("mouseleave", () => this.hideTooltip());
-            });
-        });
+        const container = this.shadowRoot.querySelector("#content");
+        if (!container) return;
+
+        // Délai de stabilisation de la souris avant l'affichage (réduit à 200ms)
+        const MOUSE_STABILIZATION_DELAY = 200; 
+
+        // Supprimer tout ancien écouteur pour éviter les doublons lors de updateContent/render
+        if (this._tooltipListener) {
+            container.removeEventListener("mouseover", this._tooltipListener);
+            container.removeEventListener("mouseout", this._tooltipListener);
+            this._tooltipListener = null;
+        }
+
+        const handler = (e) => {
+            // Cherche le bloc de planning ou la ligne d'icône (sauf le toggle du combiné)
+            let target = e.target.closest(".schedule-block, .icon-row:not(.combined-layer-toggle)");
+            
+            if (e.type === "mouseover" && target) {
+                const tooltip = target.dataset.tooltip;
+                
+                // 1. Annuler tout minuteur d'affichage en cours
+                if (this._tooltipTimer) {
+                    clearTimeout(this._tooltipTimer);
+                    this._tooltipTimer = null;
+                }
+                
+                if (tooltip) {
+                    // 2. Définir un nouveau minuteur pour afficher l'infobulle après le délai
+                    // On capture les données d'événement nécessaires
+                    const eventData = { clientX: e.clientX, clientY: e.clientY, target: e.target }; 
+                    this._tooltipTimer = setTimeout(() => {
+                        this.showTooltip(eventData, tooltip);
+                        this._tooltipTimer = null; // Marquer comme terminé
+                    }, MOUSE_STABILIZATION_DELAY);
+                }
+            } else if (e.type === "mouseout") {
+                // 1. Annuler le minuteur d'affichage immédiatement
+                if (this._tooltipTimer) {
+                    clearTimeout(this._tooltipTimer);
+                    this._tooltipTimer = null;
+                }
+                
+                // 2. Conserver le court délai de masquage (50ms) pour la prévention du "flicker"
+                setTimeout(() => this.hideTooltip(), 50); 
+            }
+        };
+        
+        // Attachement des écouteurs au conteneur parent (délégation)
+        container.addEventListener("mouseover", handler);
+        container.addEventListener("mouseout", handler);
+        this._tooltipListener = handler; // Stocker la référence pour la suppression future
     }
+
 
     render() {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:10}`;
+        
+        const additionalStyle = `.schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:3!important}.icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}.icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}.combined-layer-toggle{padding-left:0;padding-right:0}`;
+        
+        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:1}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:4}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:5}` + additionalStyle;
+        
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -860,6 +1174,19 @@ class ScheduleStateCard extends HTMLElement {
         if (this.tooltipElement) {
             this.tooltipElement.remove();
             this.tooltipElement = null;
+        }
+        
+        // Nettoyage du minuteur d'affichage et de l'écouteur délégué
+        if (this._tooltipTimer) {
+            clearTimeout(this._tooltipTimer);
+            this._tooltipTimer = null;
+        }
+        
+        const container = this.shadowRoot.querySelector("#content");
+        if (container && this._tooltipListener) {
+            container.removeEventListener("mouseover", this._tooltipListener);
+            container.removeEventListener("mouseout", this._tooltipListener);
+            this._tooltipListener = null;
         }
     }
 }
@@ -893,7 +1220,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.18 - Code épuré et optimisé - CORRIGÉ (Traduction des conditions + Ponctuation) %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.29 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",

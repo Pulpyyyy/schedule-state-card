@@ -353,11 +353,10 @@ class ScheduleParser(hass.Hass):
             # Sort by start time
             blocks.sort(key=lambda b: (self._time_to_minutes(b['start']), b['event_idx']))
             
+            # _create_layer_with_default crée maintenant la couche conditionnelle SANS les blocs par défaut (créneau vide)
             layer_blocks: List[Dict[str, Any]] = self._create_layer_with_default(blocks, raw_default)
             
-            for block in layer_blocks:
-                # Ensure Z-index is kept
-                block['z_index'] = 1 if block.get('is_default_bg') else 2
+            # Suppression de la boucle redondante, z_index est défini dans _create_specific_segment
             
             layers.append({
                 'condition_key': condition_key,
@@ -472,7 +471,7 @@ class ScheduleParser(hass.Hass):
                 'description': '',
                 'icon': icon,
                 'is_default_bg': True,
-                'z_index': 1,
+                'z_index': 1, # Z-index pour les couches par défaut (le plus bas)
                 'is_dynamic_color': bool(dynamic_type)
             }],
             'is_default_layer': True
@@ -482,6 +481,10 @@ class ScheduleParser(hass.Hass):
         """
         Creates a layer by combining specific blocks and periods 
         of the default state (where there is no specific block).
+        MODIFIÉ: Maintenant, pour les couches conditionnelles (qui seront empilées au-dessus du L0), 
+        cette fonction ne conserve QUE les blocs spécifiques de cette condition, 
+        tout en résolvant les chevauchements internes. Les espaces (gaps) sont laissés vides 
+        pour être comblés par la couche par défaut (Layer 0) lors de la combinaison.
         """
         result: List[Dict[str, Any]] = []
         
@@ -523,18 +526,14 @@ class ScheduleParser(hass.Hass):
                     break
             
             final_end_time_str: str = '00:00' if seg_end_min == 1440 else self._minutes_to_time(seg_end_min)
-            
-            if seg_end_min == 1440:
-                pass
-
             seg_start_time_str: str = self._minutes_to_time(seg_start_min)
             
             if covering_block:
-                # Period covered by a specific block
+                # Period covered by a specific block -> Add it (Layer > 0)
                 result.append(self._create_specific_segment(seg_start_time_str, final_end_time_str, seg_start_min, seg_end_min, covering_block))
             else:
-                # Period covered by the default state (in the context of this condition)
-                result.append(self._create_default_segment(seg_start_time_str, final_end_time_str, seg_start_min, seg_end_min, raw_default))
+                # Period not covered (Gap) -> DO NOT ADD ANYTHING. The space remains empty.
+                pass
         
         return result
 
@@ -560,6 +559,7 @@ class ScheduleParser(hass.Hass):
             'description': covering_block['description'],
             'icon': covering_block.get('icon', 'mdi:calendar'),
             'is_default_bg': False,
+            'z_index': 2, # Z-index pour les blocs spécifiques (Priorité élevée)
             'is_dynamic_color': covering_block.get('is_dynamic_color', False)
         }
         return segment
@@ -587,6 +587,7 @@ class ScheduleParser(hass.Hass):
             'description': '',
             'icon': icon,
             'is_default_bg': True,
+            'z_index': 1, # Z-index pour les blocs par défaut (Priorité basse)
             'is_dynamic_color': bool(dynamic_type)
         }
         return segment
