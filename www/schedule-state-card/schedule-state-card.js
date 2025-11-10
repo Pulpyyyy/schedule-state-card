@@ -1,4 +1,4 @@
-// schedule-state-card.js v3.9.16 - Code épuré et optimisé - CORRIGÉ
+// schedule-state-card.js v3.9.18 - Code épuré et optimisé - CORRIGÉ (Traduction des conditions + Ponctuation)
 
 const TRANSLATIONS = {
     en: {
@@ -12,6 +12,13 @@ const TRANSLATIONS = {
         no_schedule: "No schedule",
         entity_not_found: "Entity not found",
         dynamic_value: "Dynamic value",
+        dynamic_ref_schedule: "schedule_state",
+        dynamic_ref_sensor: "sensor",
+        // NOUVEAU: Clés pour la traduction des conditions
+        cond_days: "Days",
+        cond_month: "Month",
+        cond_and: "AND",
+        cond_or: "OR",
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -33,6 +40,13 @@ const TRANSLATIONS = {
         no_schedule: "Pas de planning",
         entity_not_found: "Entité non trouvée",
         dynamic_value: "Valeur dynamique",
+        dynamic_ref_schedule: "état_planning",
+        dynamic_ref_sensor: "capteur",
+        // NOUVEAU: Clés pour la traduction des conditions
+        cond_days: "Jours",
+        cond_month: "Mois",
+        cond_and: "ET",
+        cond_or: "OU",
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -54,6 +68,13 @@ const TRANSLATIONS = {
         no_schedule: "Kein Zeitplan",
         entity_not_found: "Entität nicht gefunden",
         dynamic_value: "Dynamischer Wert",
+        dynamic_ref_schedule: "Zeitplan-Status",
+        dynamic_ref_sensor: "Sensor",
+        // NOUVEAU: Clés pour la traduction des conditions
+        cond_days: "Tage",
+        cond_month: "Monat",
+        cond_and: "UND",
+        cond_or: "ODER",
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -75,6 +96,13 @@ const TRANSLATIONS = {
         no_schedule: "Sin horario",
         entity_not_found: "Entidad no encontrada",
         dynamic_value: "Valor dinámico",
+        dynamic_ref_schedule: "estado_horario",
+        dynamic_ref_sensor: "sensor",
+        // NOUVEAU: Clés pour la traduction des conditions
+        cond_days: "Días",
+        cond_month: "Mes",
+        cond_and: "Y",
+        cond_or: "O",
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -109,6 +137,35 @@ class ScheduleStateCard extends HTMLElement {
     t(key) {
         const lang = this.getLanguage();
         return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+    }
+    
+    // NOUVELLE MÉTHODE AMÉLIORÉE: Traduit la chaîne de condition en gérant la ponctuation
+    _translateConditionText(text) {
+        if (!text) return "";
+        let translated = text;
+
+        // Mappings des jours abrégés anglais vers les clés de traduction complètes
+        const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
+        const dayTranslations = this.t("days");
+
+        // 1. Traduire les en-têtes et connecteurs
+        translated = translated.replace("Days:", this.t("cond_days") + ":");
+        translated = translated.replace("Month:", this.t("cond_month") + ":");
+        // Remplacer les connecteurs logiques (avec espaces autour)
+        translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
+        translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
+
+        // 2. Traduire les abréviations de jours et conserver la ponctuation/espaces
+        for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
+            const translatedDay = dayTranslations[fullDayKey];
+            if (translatedDay) {
+                // Utilise \b pour ne matcher que des mots entiers.
+                // ([,\.\s]*) capture la ponctuation et les espaces suivants dans $1.
+                translated = translated.replace(new RegExp(`\\b${abbr}([,\.\\s]*)`, 'g'), `${translatedDay}$1`);
+            }
+        }
+        
+        return translated;
     }
 
     use12HourFormat() {
@@ -587,6 +644,7 @@ class ScheduleStateCard extends HTMLElement {
 
             const top = topMargin + layerIdx * (blockHeight + verticalGap);
             const conditionText = currentLayer.condition_text || "(default)";
+            const translatedConditionText = this._translateConditionText(conditionText); // UTILISATION DE LA NOUVELLE FONCTION
 
             for (let i = 0; i < currentLayer.blocks.length; i++) {
                 const block = currentLayer.blocks[i];
@@ -673,10 +731,14 @@ class ScheduleStateCard extends HTMLElement {
                 if (isDynamic) {
                     const entity = this.extractEntityFromTemplate(rawTemplate);
                     const blockIcon = block.icon || 'mdi:calendar';
+                    
+                    let refText = "";
                     if (blockIcon === 'mdi:refresh') {
-                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + (entity ? " (schedule_state: " + entity + ")" : "");
+                        refText = entity ? " (" + this.t("dynamic_ref_schedule") + ": " + entity + ")" : "";
+                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + refText;
                     } else {
-                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + (entity ? " (sensor: " + entity + ")" : "");
+                        refText = entity ? " (" + this.t("dynamic_ref_sensor") + ": " + entity + ")" : "";
+                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + refText;
                     }
                 }
                 if (block.description) {
@@ -693,14 +755,16 @@ class ScheduleStateCard extends HTMLElement {
                 let iconTooltipText = this.t("layer_label") + " " + (layerIdx);
                 if (currentLayer.is_default_layer) {
                     iconTooltipText = this.t("layer_label") + " 0";
-                    if (conditionText && conditionText !== "(default)") {
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + conditionText;
+                    if (conditionText && conditionText !== "default") { 
+                        // UTILISATION DE LA CHAÎNE TRADUITE POUR L'INFOBULLE
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
                         iconTooltipText += "\n" + this.t("default_state_label");
                     }
                 } else {
-                    if (conditionText && conditionText !== "(default)") {
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + conditionText;
+                    if (conditionText && conditionText !== "default") { 
+                        // UTILISATION DE LA CHAÎNE TRADUITE POUR L'INFOBULLE
+                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
                         iconTooltipText += "\n" + this.t("no_specific_condition");
                     }
@@ -767,7 +831,7 @@ class ScheduleStateCard extends HTMLElement {
     render() {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:10}`;
+        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:0}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:3}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:10}`;
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -829,7 +893,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.16 - Code épuré et optimisé - CORRIGÉ %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.18 - Code épuré et optimisé - CORRIGÉ (Traduction des conditions + Ponctuation) %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
