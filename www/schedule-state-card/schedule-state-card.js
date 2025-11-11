@@ -2,8 +2,8 @@ const TRANSLATIONS = {
     en: {
         state_label: "State",
         condition_label: "Condition",
-        layer_label: "Layer",
-        time_label: "Time",
+        layer_label: "Schedule Rule", 
+        time_label: "Time Slots",     
         no_specific_condition: "No specific condition",
         default_state_label: "Default state",
         wrapping: "wrapping",
@@ -16,7 +16,9 @@ const TRANSLATIONS = {
         cond_month: "Month",
         cond_and: "AND",
         cond_or: "OR",
-        cond_combined_schedule: "Result of combination (Click to show/hide layers)",
+        cond_not: "NOT", 
+        cond_combined_result: "Combined Schedule", 
+        cond_combined_schedule_toggle: "Combined Schedule Result (Click to show/hide rules)", 
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -30,8 +32,8 @@ const TRANSLATIONS = {
     fr: {
         state_label: "État",
         condition_label: "Condition",
-        layer_label: "Couche",
-        time_label: "Horaires",
+        layer_label: "Règle de planning", 
+        time_label: "Plages horaires",    
         no_specific_condition: "Aucune condition spécifique",
         default_state_label: "État par défaut",
         wrapping: "débordement",
@@ -44,7 +46,9 @@ const TRANSLATIONS = {
         cond_month: "Mois",
         cond_and: "ET",
         cond_or: "OU",
-        cond_combined_schedule: "Résultat de la combinaison (Cliquez pour afficher/masquer les couches)",
+        cond_not: "NON", 
+        cond_combined_result: "Planning Combiné", 
+        cond_combined_schedule_toggle: "Résultat du Planning Combiné (Cliquez pour afficher/masquer les règles)", 
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -58,8 +62,8 @@ const TRANSLATIONS = {
     de: {
         state_label: "Status",
         condition_label: "Bedingung",
-        layer_label: "Schicht",
-        time_label: "Zeiten",
+        layer_label: "Zeitplanregel", 
+        time_label: "Zeitfenster",     
         no_specific_condition: "Keine spezifische Bedingung",
         default_state_label: "Standardstatus",
         wrapping: "Überlauf",
@@ -72,7 +76,9 @@ const TRANSLATIONS = {
         cond_month: "Monat",
         cond_and: "UND",
         cond_or: "ODER",
-        cond_combined_schedule: "Ergebnis der Kombination (Klicken zum Anzeigen/Ausblenden der Schichten)",
+        cond_not: "NICHT", 
+        cond_combined_result: "Kombinierter Zeitplan", 
+        cond_combined_schedule_toggle: "Ergebnis des kombinierten Zeitplans (Klicken zum Anzeigen/Ausblenden der Regeln)", 
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -86,8 +92,8 @@ const TRANSLATIONS = {
     es: {
         state_label: "Estado",
         condition_label: "Condición",
-        layer_label: "Capa",
-        time_label: "Horarios",
+        layer_label: "Regla de horario", 
+        time_label: "Intervalos",        
         no_specific_condition: "Sin condición específica",
         default_state_label: "Estado por defecto",
         wrapping: "desbordamiento",
@@ -100,7 +106,9 @@ const TRANSLATIONS = {
         cond_month: "Mes",
         cond_and: "Y",
         cond_or: "O",
-        cond_combined_schedule: "Resultado de la combinación (Clic para mostrar/ocultar capas)",
+        cond_not: "NO", 
+        cond_combined_result: "Horario Combinado", 
+        cond_combined_schedule_toggle: "Resultado del Horario Combinado (Clic para mostrar/ocultar reglas)", 
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -114,6 +122,15 @@ const TRANSLATIONS = {
 };
 
 class ScheduleStateCard extends HTMLElement {
+    // --- CONSTANTES POUR LA MAINTENABILITÉ ---
+    static get BLOCK_HEIGHT() { return 20; }
+    static get VERTICAL_GAP() { return 8; }
+    static get TOP_MARGIN() { return 4; }
+    static get BOTTOM_MARGIN() { return 20; }
+    static get ICON_COLUMN_WIDTH() { return 28; }
+    static get MOUSE_STABILIZATION_DELAY() { return 200; }
+    // ------------------------------------------
+
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -124,11 +141,12 @@ class ScheduleStateCard extends HTMLElement {
         this.updateInterval = null;
         this.tooltipElement = null;
         this._layerVisibility = {};
-        this._tooltipListener = null; 
-        // Ajout du timer pour gérer le délai d'affichage de l'infobulle
+        this._listener = null; 
         this._tooltipTimer = null; 
-        this._isToggling = false; // <<< AJOUTÉ POUR LE DÉBOUNCAGE DU CLIC
+        this._isToggling = false; 
     }
+    
+    // ... (omitting helper functions like getLanguage, t, _translateConditionText, etc., for brevity) ...
 
     getLanguage() {
         if (this._hass?.locale?.language) {
@@ -153,6 +171,7 @@ class ScheduleStateCard extends HTMLElement {
         translated = translated.replace("Month:", this.t("cond_month") + ":");
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
+        translated = translated.replace(/\bNOT\s/g, ` ${this.t("cond_not")} `); 
 
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
@@ -245,7 +264,6 @@ class ScheduleStateCard extends HTMLElement {
 
     startTimelineUpdate() {
         if (this.updateInterval) clearInterval(this.updateInterval);
-        // Fréquence de 60s demandée (déjà en place)
         this.updateInterval = setInterval(() => {
             this.currentTime = this.getCurrentTime();
             this.updateTimeline();
@@ -320,38 +338,24 @@ class ScheduleStateCard extends HTMLElement {
         return luminance > 0.5 ? "#000000" : "#ffffff";
     }
 
-    /**
-     * NOUVELLE FONCTION getColorForState (V2)
-     * Utilise un hash plus robuste (FNV-1a-like) et 144 teintes pour réduire les collisions.
-     */
     getColorForState(stateValue, unit) {
         let str = String(stateValue).trim();
         const numMatch = str.match(/^[\d.]+/);
         if (numMatch) str = String(parseFloat(numMatch[0]));
         if (unit) str = str + "|" + unit;
 
-        // --- Algorithme de hachage FNV-1a-like (plus robuste) ---
-        let hash = 2166136261; // FNV-1a offset basis
-        const prime = 16777619; // FNV-1a prime
+        let hash = 2166136261; 
+        const prime = 16777619; 
         for (let i = 0; i < str.length; i++) {
             hash ^= str.charCodeAt(i);
-            // Multiplication et maintien en 32bit non-signé
             hash = (hash * prime) & 4294967295; 
         }
-        // Dispersion finale (Murmur3-like finalizer)
         hash ^= hash >>> 16;
-        // Prendre la valeur absolue
         hash = Math.abs(hash); 
-        // -----------------------------------------------------------------------------------
 
-        // 144 teintes (tous les 2.5° : 360 / 144 = 2.5) pour un meilleur spectre
         const numHues = 144; 
         const step = 360 / numHues;
-        
-        // Le modulo réduit l'entier hash (jusqu'à 4 milliards) à un index de 0 à 143
         const idx = hash % numHues; 
-        
-        // Calcule la teinte (Hue)
         let hue = Math.round(idx * step);
 
         const hsl = `hsl(${hue}, 75%, 50%)`;
@@ -565,26 +569,19 @@ class ScheduleStateCard extends HTMLElement {
         return true;
     }
     
-    /**
-     * Crée le layer Sigma (combiné) : Layer 0 comme base + layers actifs empilés par ordre
-     */
     createCombinedLayer(defaultLayer, activeConditionalLayers) {
         if (!defaultLayer) return null;
         
-        // Commencer avec les layers actifs SEULEMENT (pas Layer 0 d'emblée)
         let result = [];
         
-        // Empiler les layers actifs dans l'ordre (par numéro)
         for (const activeLayer of activeConditionalLayers) {
             if (!activeLayer.blocks) continue;
             
             for (const activeBlock of activeLayer.blocks) {
-                // Ajouter le bloc actif avec marquage source
                 result.push({...activeBlock, _source_layer: activeLayer});
             }
         }
         
-        // Trier par start time et event_idx
         result.sort((a, b) => {
             const startA = this.timeToMinutes(a.start);
             const startB = this.timeToMinutes(b.start);
@@ -592,20 +589,16 @@ class ScheduleStateCard extends HTMLElement {
             return (a.event_idx || 0) - (b.event_idx || 0);
         });
         
-        // Remplir SEULEMENT les trous avec Layer 0
         result = this._fillGapsWithDefaultLayer(result, defaultLayer);
         
         return {
             is_combined_layer: true, 
-            condition_text: "combined", 
+            condition_text: this.t("cond_combined_result"), 
             is_default_layer: false,
             blocks: result,
         };
     }
     
-    /**
-     * Remplit les trous (gaps) avec les blocs du Layer 0
-     */
     _fillGapsWithDefaultLayer(layerBlocks, defaultLayer) {
         if (!layerBlocks || layerBlocks.length === 0) {
             return (defaultLayer.blocks || []).map(b => ({...b, _source_layer: 0}));
@@ -614,7 +607,6 @@ class ScheduleStateCard extends HTMLElement {
         const result = [];
         const breakpoints = new Set([0, 1440]);
         
-        // Collecter tous les breakpoints
         for (const block of layerBlocks) {
             const startMin = this.timeToMinutes(block.start);
             let endMin = this.timeToMinutes(block.end);
@@ -623,7 +615,6 @@ class ScheduleStateCard extends HTMLElement {
             breakpoints.add(endMin);
         }
         
-        // Ajouter aussi les breakpoints du Layer 0 pour bien couvrir sa durée
         const defaultBlocks = defaultLayer.blocks || [];
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeToMinutes(defBlock.start);
@@ -639,7 +630,6 @@ class ScheduleStateCard extends HTMLElement {
             const segStart = sortedBreakpoints[i];
             const segEnd = sortedBreakpoints[i + 1];
             
-            // Chercher un bloc qui couvre ce segment
             let coveringBlock = null;
             for (const block of layerBlocks) {
                 const blockStart = this.timeToMinutes(block.start);
@@ -653,7 +643,6 @@ class ScheduleStateCard extends HTMLElement {
             }
             
             if (coveringBlock) {
-                // Ce segment est couvert
                 const segStartStr = this._minutesToTime(segStart);
                 const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
                 result.push({
@@ -662,7 +651,6 @@ class ScheduleStateCard extends HTMLElement {
                     end: segEndStr
                 });
             } else {
-                // Ce segment est un "gap", le remplir avec Layer 0
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeToMinutes(defBlock.start);
                     let defEnd = this.timeToMinutes(defBlock.end);
@@ -717,13 +705,12 @@ class ScheduleStateCard extends HTMLElement {
         if (!this.tooltipElement) {
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
-            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:6;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
+            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
             document.body.appendChild(this.tooltipElement);
         }
         const decoded = this.decodeHtmlEntities(text);
         this.tooltipElement.textContent = decoded.replace(/\\n/g, "\n");
-        const rect = event.target.getBoundingClientRect();
-        // Pour une délégation, on utilise clientX/Y car event.target n'est pas le bloc
+        
         const x = event.clientX;
         const y = event.clientY; 
         
@@ -731,10 +718,8 @@ class ScheduleStateCard extends HTMLElement {
         let left = x;
         let top = y - tooltipRect.height - 10;
         
-        // Ajustements de position pour rester dans la fenêtre
-        if (top < 0) top = y + 25; // Si trop haut, mettez sous le curseur
+        if (top < 0) top = y + 25; 
 
-        // Centrage horizontal (basé sur le curseur, pas la cible)
         left = left - tooltipRect.width / 2;
 
         if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width - 10;
@@ -750,50 +735,80 @@ class ScheduleStateCard extends HTMLElement {
         if (this.tooltipElement) this.tooltipElement.style.display = "none";
     }
     
-    // NOUVELLE FONCTION AVEC DÉBOUNCAGE (Anti-rebond)
     toggleLayerVisibility(entityId) {
-        // Ignorer le clic si une bascule est déjà en cours de traitement
         if (this._isToggling) return; 
 
-        // Verrouiller la bascule immédiatement pour traiter ce clic
         this._isToggling = true; 
 
-        // 1. L'état de visibilité est basculé immédiatement
         this._layerVisibility[entityId] = !this._layerVisibility[entityId];
         
-        // 2. L'affichage est rafraîchi immédiatement
         this.updateContent();
         
-        // 3. Le déverrouillage est différé de 300ms pour ignorer les clics rapides pendant le re-rendu
         setTimeout(() => {
             this._isToggling = false;
         }, 300); 
     }
     
-    attachToggleListener() {
-        requestAnimationFrame(() => {
-            const toggles = this.shadowRoot.querySelectorAll(".layer-number.combined-layer-toggle");
-            toggles.forEach(toggle => {
-                // On utilise ici un addEventListener classique car c'est un seul élément par entité
-                toggle.addEventListener("click", e => {
-                    
-                    // Priorité au clic : Annuler le minuteur de l'infobulle s'il est actif
-                    if (this._tooltipTimer) {
-                        clearTimeout(this._tooltipTimer);
+    // Délégation d'événements combinée
+    attachAllListeners() {
+        const container = this.shadowRoot.querySelector("#content");
+        if (!container) return;
+
+        if (this._listener) {
+            container.removeEventListener("click", this._listener);
+            container.removeEventListener("mouseover", this._listener);
+            container.removeEventListener("mouseout", this._listener);
+            this._listener = null;
+        }
+
+        const handler = (e) => {
+            const toggleTarget = e.target.closest(".combined-layer-toggle");
+            if (e.type === "click" && toggleTarget) {
+                if (this._tooltipTimer) {
+                    clearTimeout(this._tooltipTimer);
+                    this._tooltipTimer = null;
+                    this.hideTooltip(); 
+                }
+                
+                const entityId = toggleTarget.dataset.entityId;
+                if (entityId) {
+                    this.toggleLayerVisibility(entityId); 
+                }
+                e.stopPropagation();
+            }
+
+            const tooltipTarget = e.target.closest(".schedule-block, .icon-row[data-tooltip]");
+            
+            if (e.type === "mouseover" && tooltipTarget) {
+                const tooltip = tooltipTarget.dataset.tooltip;
+                
+                if (this._tooltipTimer) {
+                    clearTimeout(this._tooltipTimer);
+                    this._tooltipTimer = null;
+                }
+                
+                if (tooltip) {
+                    const eventData = { clientX: e.clientX, clientY: e.clientY, target: e.target }; 
+                    this._tooltipTimer = setTimeout(() => {
+                        this.showTooltip(eventData, tooltip);
                         this._tooltipTimer = null;
-                        this.hideTooltip(); // S'assurer qu'elle disparaît immédiatement
-                    }
-                    
-                    const entityId = e.currentTarget.dataset.entityId;
-                    if (entityId) {
-                        // toggleLayerVisibility contient maintenant le débouncage et l'action immédiate
-                        this.toggleLayerVisibility(entityId);
-                    }
-                    e.stopPropagation(); 
-                });
-            });
-        });
+                    }, ScheduleStateCard.MOUSE_STABILIZATION_DELAY);
+                }
+            } else if (e.type === "mouseout") {
+                if (this._tooltipTimer) {
+                    clearTimeout(this._tooltipTimer);
+                    this._tooltipTimer = null;
+                }
+                setTimeout(() => this.hideTooltip(), 50); 
+            }
+        };
+
+        container.addEventListener("click", handler);
+        container.addEventListener("mouseover", handler);
+        container.addEventListener("mouseout", handler);
+        this._listener = handler;
     }
+
 
     renderErrorCard(entityId, message) {
         return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
@@ -804,11 +819,12 @@ class ScheduleStateCard extends HTMLElement {
             return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
-        const blockHeight = 20;
-        const verticalGap = 8;
-        const topMargin = 4;
-        const bottomMargin = 20;
-        const iconColumnWidth = 28;
+        // Utilisation des CONSTANTES
+        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
+        const verticalGap = ScheduleStateCard.VERTICAL_GAP;
+        const topMargin = ScheduleStateCard.TOP_MARGIN;
+        const bottomMargin = ScheduleStateCard.BOTTOM_MARGIN;
+        // const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH; // N'est plus utilisé ici, mais dans le style global
 
         let defaultLayer = allLayers.find(l => l.is_default_layer);
         let combinedLayer = allLayers.find(l => l.is_combined_layer);
@@ -859,7 +875,13 @@ class ScheduleStateCard extends HTMLElement {
             const conditionText = currentLayer.condition_text || "(default)";
             const translatedConditionText = this._translateConditionText(conditionText);
 
-            if (currentLayer.is_combined_layer) {
+            const isDefaultLayer = currentLayer.is_default_layer;
+            const isCombinedLayer = currentLayer.is_combined_layer;
+            
+            let displayLayerIndex = "";
+            let iconTooltipText = "";
+
+            if (isCombinedLayer) {
                  
                  const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
                  let toggleClass = '';
@@ -872,7 +894,9 @@ class ScheduleStateCard extends HTMLElement {
                      }
                  }
                  
-                 iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ">
+                 iconTooltipText = this.t("cond_combined_schedule_toggle");
+
+                 iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ" data-tooltip="${this.escapeHtml(iconTooltipText)}">
                     <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
                         Σ
                     </span>
@@ -883,15 +907,19 @@ class ScheduleStateCard extends HTMLElement {
                 const isActive = layerActiveStates[originalIndex];
                 const iconStyle = isActive ? "background:var(--primary-color);filter:brightness(1.3);" : "background:var(--secondary-text-color);opacity:0.5;";
                 
-                let iconTooltipText = this.t("layer_label") + " " + (originalIndex);
-                if (currentLayer.is_default_layer) {
-                    iconTooltipText = this.t("layer_label") + " 0";
+                if (isDefaultLayer) {
+                    displayLayerIndex = "0";
+                    iconTooltipText = this.t("layer_label") + " 0"; 
                     if (conditionText && conditionText !== "default") { 
                         iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
                         iconTooltipText += "\n" + this.t("default_state_label");
                     }
                 } else {
+                    const condLayerIndex = conditionalLayers.findIndex(l => l === currentLayer);
+                    displayLayerIndex = String(condLayerIndex + 1); 
+
+                    iconTooltipText = this.t("layer_label") + " " + displayLayerIndex; 
                     if (conditionText && conditionText !== "default") { 
                         iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
@@ -899,8 +927,6 @@ class ScheduleStateCard extends HTMLElement {
                     }
                 }
 
-                const displayLayerIndex = currentLayer.is_default_layer ? "0" : (originalIndex);
-                
                 iconHtml += `<div class="icon-row" style="top:${top}px;" data-tooltip="${this.escapeHtml(iconTooltipText)}" data-layer-index="${displayLayerIndex}">
                     <span class="layer-number" style="${iconStyle}">${displayLayerIndex}</span>
                 </div>`;
@@ -910,24 +936,26 @@ class ScheduleStateCard extends HTMLElement {
                 const block = currentLayer.blocks[i];
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
-                // Dans le Layer Sigma, seuls les blocs du Layer 0 (_source_layer === 0) doivent avoir le hachurage
+                
                 let isDefaultBg = block.is_default_bg || false;
                 if (currentLayer.is_combined_layer && block._source_layer !== 0) {
-                    isDefaultBg = false; // Pas de hachurage pour les blocs des autres layers
+                    isDefaultBg = false; 
                 }
 
                 if (block.end === '00:00' && endMin === 0) endMin = 1440;
-                if (block.end === '23:59') endMin = 1439.5;
+                if (block.end === '23:59') endMin = 1440;
 
-                let zIndex = block.z_index || 2;
-                if (isDefaultBg) zIndex = 1;
+                let zClass = 'sch-z-layer'; 
+                if (isDefaultBg) zClass = 'sch-z-default';
                 
                 let blockClass = "schedule-block";
 
                 if (currentLayer.is_combined_layer) {
-                    zIndex = 3; 
+                    zClass = 'sch-z-combined'; 
                     blockClass += " combined-layer-block";
                 }
+                
+                blockClass += " " + zClass;
 
                 const left = startMin / 1440 * 100;
                 const width = (endMin - startMin) / 1440 * 100;
@@ -957,7 +985,7 @@ class ScheduleStateCard extends HTMLElement {
                 
                 if (isDefaultBg) {
                     if (width === 100) {
-                        borderRadius = "4px";
+                        borderRadius = "0";
                     } else if (startMin === 0 && endMin < 1440) {
                         borderRadius = "0 4px 4px 0";
                     } else if (startMin > 0 && endMin === 1440) {
@@ -972,7 +1000,16 @@ class ScheduleStateCard extends HTMLElement {
                 if (isDefaultBg) blockClass += " default-block";
                 if (isDynamic) blockClass += " dynamic";
 
-                const style = "left:" + left + "%;width:" + width + "%;top:" + top + "px;height:" + blockHeight + "px;z-index:" + zIndex + ";border-radius:" + borderRadius + ";color:" + textColor + ";background-color:" + color + ";";
+                // Styles en ligne optimisés: ne contient que les propriétés dynamiques
+                const style = `
+                    left:${left}%;
+                    width:${width}%;
+                    top:${top}px;
+                    border-radius:${borderRadius};
+                    color:${textColor};
+                    background-color:${color};
+                `;
+                
                 const containerWidth = this.shadowRoot.querySelector(".timeline-container")?.offsetWidth || 800;
                 const bWidthPx = width / 100 * containerWidth;
                 const displayText = this.truncateText(stateWithUnit, bWidthPx);
@@ -990,7 +1027,7 @@ class ScheduleStateCard extends HTMLElement {
                 
                 const finalText = isDynamic && dynamicIcon ? escapedState + " " + dynamicIcon : escapedState;
 
-                let blockTooltipText = this.t("time_label") + ": ";
+                let blockTooltipText = this.t("time_label") + ": "; 
                 if (wrapsStart || wrapsEnd) {
                     blockTooltipText += originalStart + " - " + originalEnd + " (" + this.t("wrapping") + ")";
                 } else {
@@ -999,7 +1036,7 @@ class ScheduleStateCard extends HTMLElement {
                 blockTooltipText += "\n🌡️ " + this.t("state_label") + ": " + this.escapeHtml(resolvedState) + (unit ? " " + unit : "");
                 
                 if (currentLayer.is_combined_layer) {
-                    blockTooltipText += "\n(Layer: Combined)";
+                    blockTooltipText += "\n(" + this.t("cond_combined_result") + ")"; 
                 } else if (isDefaultBg) {
                     blockTooltipText += "\n(" + this.t("default_state_label") + ")";
                 }
@@ -1021,12 +1058,11 @@ class ScheduleStateCard extends HTMLElement {
                     blockTooltipText += "\n💬 " + this.escapeHtml(block.description);
                 }
 
-                // Utilisation de data-tooltip pour la délégation
                 blockHtml += '<div class="' + blockClass + '" style="' + style + '" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>";
             }
         }
 
-        return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-wrapper"><div class="icon-column" style="width:' + iconColumnWidth + "px;height:" + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
+        return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-wrapper"><div class="icon-column" style="height:' + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
     }
 
     updateContent() {
@@ -1064,7 +1100,6 @@ class ScheduleStateCard extends HTMLElement {
                 !layer.is_default_layer && !layer.is_combined_layer && this._evaluateConditionsForLayer(layer)
             );
             
-            // Créer le layer Sigma avec Layer 0 comme base + layers actifs
             const combinedLayer = this.createCombinedLayer(defaultLayer, activeConditionalLayers);
             
             let allLayers = dayLayers.filter(l => !l.is_combined_layer); 
@@ -1076,65 +1111,8 @@ class ScheduleStateCard extends HTMLElement {
             timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId);
         }
         content.innerHTML = '<div class="schedules-container">' + timelines + "</div>";
-        // Appel de la nouvelle fonction de délégation
-        this.attachBlockTooltips(); 
-        this.attachToggleListener(); 
+        this.attachAllListeners(); 
         this.updateTimeline();
-    }
-    
-    // NOUVELLE FONCTION avec délégation d'événements pour les tooltips (meilleure performance)
-    attachBlockTooltips() {
-        const container = this.shadowRoot.querySelector("#content");
-        if (!container) return;
-
-        // Délai de stabilisation de la souris avant l'affichage (réduit à 200ms)
-        const MOUSE_STABILIZATION_DELAY = 200; 
-
-        // Supprimer tout ancien écouteur pour éviter les doublons lors de updateContent/render
-        if (this._tooltipListener) {
-            container.removeEventListener("mouseover", this._tooltipListener);
-            container.removeEventListener("mouseout", this._tooltipListener);
-            this._tooltipListener = null;
-        }
-
-        const handler = (e) => {
-            // Cherche le bloc de planning ou la ligne d'icône (sauf le toggle du combiné)
-            let target = e.target.closest(".schedule-block, .icon-row:not(.combined-layer-toggle)");
-            
-            if (e.type === "mouseover" && target) {
-                const tooltip = target.dataset.tooltip;
-                
-                // 1. Annuler tout minuteur d'affichage en cours
-                if (this._tooltipTimer) {
-                    clearTimeout(this._tooltipTimer);
-                    this._tooltipTimer = null;
-                }
-                
-                if (tooltip) {
-                    // 2. Définir un nouveau minuteur pour afficher l'infobulle après le délai
-                    // On capture les données d'événement nécessaires
-                    const eventData = { clientX: e.clientX, clientY: e.clientY, target: e.target }; 
-                    this._tooltipTimer = setTimeout(() => {
-                        this.showTooltip(eventData, tooltip);
-                        this._tooltipTimer = null; // Marquer comme terminé
-                    }, MOUSE_STABILIZATION_DELAY);
-                }
-            } else if (e.type === "mouseout") {
-                // 1. Annuler le minuteur d'affichage immédiatement
-                if (this._tooltipTimer) {
-                    clearTimeout(this._tooltipTimer);
-                    this._tooltipTimer = null;
-                }
-                
-                // 2. Conserver le court délai de masquage (50ms) pour la prévention du "flicker"
-                setTimeout(() => this.hideTooltip(), 50); 
-            }
-        };
-        
-        // Attachement des écouteurs au conteneur parent (délégation)
-        container.addEventListener("mouseover", handler);
-        container.addEventListener("mouseout", handler);
-        this._tooltipListener = handler; // Stocker la référence pour la suppression future
     }
 
 
@@ -1142,9 +1120,79 @@ class ScheduleStateCard extends HTMLElement {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
         
-        const additionalStyle = `.schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:3!important}.icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}.icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}.combined-layer-toggle{padding-left:0;padding-right:0}`;
+        // Utilisation des CONSTANTES pour définir les variables CSS
+        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT; 
+        const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH;
         
-        const styleContent = `:host{display:block}ha-card{padding:16px}.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}.card-header.hidden{display:none}.card-title{font-size:24px;font-weight:bold;margin:0}.day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}.day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}.day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}.schedules-container{display:flex;flex-direction:column;gap:24px}.room-timeline{margin-bottom:12px}.room-header{display:flex;align-items:center;gap:8px;padding:0 8px}.room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}.timeline-wrapper{display:flex;gap:0;align-items:stretch}.icon-column{position:relative;width:28px;flex-shrink:0;display:flex;flex-direction:column;z-index:1}.icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:20px;transition:all .2s;top:0;margin-top:6px;z-index:4}.icon-row:hover .layer-number{filter:brightness(1.3)!important}.layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}.timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}.timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}.blocks-container{position:absolute;inset:0;overflow:visible}.timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}.timeline-hour:empty{font-size:0}.timeline-hour:last-child{border-right:none}.schedule-block{position:absolute;display:flex;align-items:center;justify-content:center;color:white;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:help;text-align:center;font-size:12px;overflow:hidden;z-index:2}.schedule-block.default-block{background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;color:white;font-weight:500}.block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}.time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:5}` + additionalStyle;
+        const additionalStyle = `
+            .schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:1!important}
+            .icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}
+            .icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}
+            .combined-layer-toggle{padding-left:0;padding-right:0}
+            /* CLASSES Z-INDEX POUR RÉDUIRE LE STYLE INLINE */
+            .sch-z-default{z-index:1}
+            .sch-z-layer{z-index:1}
+            .sch-z-combined{z-index:1}
+            /* STYLE ICONE FIXE */
+            .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        `;
+        
+        const styleContent = `
+            :host {
+                display: block;
+                /* DÉFINITION DES VARIABLES CSS GLOBALES */
+                --sch-block-height: ${blockHeight}px;
+                --sch-icon-col-width: ${iconColumnWidth}px;
+            }
+            ha-card{padding:16px}
+            .card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+            .card-header.hidden{display:none}
+            .card-title{font-size:24px;font-weight:bold;margin:0}
+            .day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+            .day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}
+            .day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}
+            .day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}
+            .schedules-container{display:flex;flex-direction:column;gap:24px}
+            .room-timeline{margin-bottom:12px}
+            .room-header{display:flex;align-items:center;gap:8px;padding:0 8px}
+            .room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}
+            .timeline-wrapper{display:flex;gap:0;align-items:stretch}
+            
+            /* UTILISATION DES VARIABLES DANS LE CSS */
+            .icon-column{position:relative;width:var(--sch-icon-col-width);flex-shrink:0;display:flex;flex-direction:column;z-index:1}
+            .icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:var(--sch-block-height);transition:all .2s;top:0;margin-top:6px;z-index:1}
+            .icon-row:hover .layer-number{filter:brightness(1.3)!important}
+            
+            .timeline-container{position:relative;background:var(--secondary-background-color);border-radius:8px;border:1px solid var(--divider-color);overflow:visible;padding:4px;flex:1}
+            .timeline-grid{position:absolute;inset:0;display:flex;pointer-events:none;z-index:0}
+            .blocks-container{position:absolute;inset:0;overflow:visible}
+            .timeline-hour{position:relative;flex:1;border-right:1px solid var(--secondary-text-color);opacity:.4;font-size:11px;color:var(--secondary-text-color);display:flex;align-items:flex-end;justify-content:center;font-weight:600;padding-bottom:4px}
+            .timeline-hour:empty{font-size:0}
+            .timeline-hour:last-child{border-right:none}
+            
+            /* STYLES STATIQUES DÉPLACÉS ICI POUR MOINS DE STYLE INLINE */
+            .schedule-block{
+                position:absolute;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-weight:500;
+                box-shadow:0 1px 3px rgba(0,0,0,.3);
+                cursor:help;
+                text-align:center;
+                font-size:12px;
+                overflow:hidden;
+                height: var(--sch-block-height); /* UTILISATION VARIABLE */
+            }
+            .schedule-block.default-block{
+                background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;
+                color:white;
+                font-weight:500;
+            }
+            .block-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:95%;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+            .no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}
+            .time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:2}
+        ` + additionalStyle;
         
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
@@ -1157,8 +1205,11 @@ class ScheduleStateCard extends HTMLElement {
                 button.addEventListener("click", e => {
                     const newDay = e.target.dataset.day;
                     if (newDay !== this.selectedDay) {
+                        dayButtons.forEach(btn => btn.classList.remove("active"));
+                        e.target.classList.add("active");
+                        
                         this.selectedDay = newDay;
-                        this.render();
+                        this.updateContent(); 
                     }
                 });
             });
@@ -1176,17 +1227,17 @@ class ScheduleStateCard extends HTMLElement {
             this.tooltipElement = null;
         }
         
-        // Nettoyage du minuteur d'affichage et de l'écouteur délégué
         if (this._tooltipTimer) {
             clearTimeout(this._tooltipTimer);
             this._tooltipTimer = null;
         }
         
         const container = this.shadowRoot.querySelector("#content");
-        if (container && this._tooltipListener) {
-            container.removeEventListener("mouseover", this._tooltipListener);
-            container.removeEventListener("mouseout", this._tooltipListener);
-            this._tooltipListener = null;
+        if (container && this._listener) {
+            container.removeEventListener("click", this._listener);
+            container.removeEventListener("mouseover", this._listener);
+            container.removeEventListener("mouseout", this._listener);
+            this._listener = null;
         }
     }
 }
@@ -1220,7 +1271,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.29 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v3.9.31 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
