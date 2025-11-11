@@ -28,7 +28,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - ⏱️ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
 - 🎭 **Wrapping Events** - Support for schedules that span across midnight
 
-## Installation
+## Installations
 
 ### Card Installation
 
@@ -40,8 +40,6 @@ resources:
   - url: /local/schedule-state-card/schedule-state-card.js
     type: module
 ```
-
-## Installations
 
 ### Appdaemon Installation
 
