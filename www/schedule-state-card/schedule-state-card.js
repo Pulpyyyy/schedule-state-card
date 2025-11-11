@@ -27,6 +27,26 @@ const TRANSLATIONS = {
             fri: "Friday",
             sat: "Saturday",
             sun: "Sunday"
+        },
+        // Editor Translations
+        editor_title: "Schedule State Card Editor",
+        editor_card_title: "Card Title",
+        editor_entities_label: "Entities",
+        editor_add_entity: "Add Entity",
+        editor_entity_id_label: "Entity ID",
+        editor_name_label: "Name",
+        editor_icon_label: "Icon (mdi:)",
+        editor_placeholder_name: "Display Name",
+        editor_handle: "Handle",
+        editor_actions: "Actions",
+        // New keys for this class version
+        editor_default_entity_name: "Entity",
+        editor_no_entities: "No entities",
+        editor_title_placeholder: "Schedule Planning",
+        editor_no_entities_found: "No entities found",
+        common: {
+            edit: "Edit",
+            delete: "Delete"
         }
     },
     fr: {
@@ -57,6 +77,26 @@ const TRANSLATIONS = {
             fri: "Vendredi",
             sat: "Samedi",
             sun: "Dimanche"
+        },
+        // Traductions de l'éditeur (ScheduleStateCardEditor)
+        editor_title: "Éditeur de Carte d'État de Planning",
+        editor_card_title: "Titre de la Carte",
+        editor_entities_label: "Entités",
+        editor_add_entity: "Ajouter une Entité",
+        editor_entity_id_label: "ID d'Entité",
+        editor_name_label: "Nom",
+        editor_icon_label: "Icône (mdi:)",
+        editor_placeholder_name: "Nom d'affichage",
+        editor_handle: "Poignée",
+        editor_actions: "Actions",
+        // Nouvelles clés pour cette version de classe
+        editor_default_entity_name: "Entité",
+        editor_no_entities: "Aucune entité",
+        editor_title_placeholder: "Planning d'Horaires",
+        editor_no_entities_found: "Aucune entité trouvée",
+        common: {
+            edit: "Éditer",
+            delete: "Supprimer"
         }
     },
     de: {
@@ -87,13 +127,33 @@ const TRANSLATIONS = {
             fri: "Freitag",
             sat: "Samstag",
             sun: "Sonntag"
+        },
+        // Editor Translations
+        editor_title: "Zeitplan-Status-Karten-Editor",
+        editor_card_title: "Kartentitel",
+        editor_entities_label: "Entitäten",
+        editor_add_entity: "Entität hinzufügen",
+        editor_entity_id_label: "Entitäts-ID",
+        editor_name_label: "Name",
+        editor_icon_label: "Icon (mdi:)",
+        editor_placeholder_name: "Anzeigename",
+        editor_handle: "Griff",
+        editor_actions: "Aktionen",
+        // New keys for this class version
+        editor_default_entity_name: "Entität",
+        editor_no_entities: "Keine Entitäten",
+        editor_title_placeholder: "Zeitplan-Planung",
+        editor_no_entities_found: "Keine Entitäten gefunden",
+        common: {
+            edit: "Bearbeiten",
+            delete: "Löschen"
         }
     },
     es: {
         state_label: "Estado",
         condition_label: "Condición",
         layer_label: "Regla de horario", 
-        time_label: "Intervalos",        
+        time_label: "Intervalos",
         no_specific_condition: "Sin condición específica",
         default_state_label: "Estado por defecto",
         wrapping: "desbordamiento",
@@ -117,6 +177,26 @@ const TRANSLATIONS = {
             fri: "Viernes",
             sat: "Sábado",
             sun: "Domingo"
+        },
+        // Editor Translations
+        editor_title: "Editor de Tarjeta de Estado de Horario",
+        editor_card_title: "Título de la Tarjeta",
+        editor_entities_label: "Entidades",
+        editor_add_entity: "Añadir Entidad",
+        editor_entity_id_label: "ID de Entidad",
+        editor_name_label: "Nombre",
+        editor_icon_label: "Icono (mdi:)",
+        editor_placeholder_name: "Nombre de visualización",
+        editor_handle: "Mango",
+        editor_actions: "Acciones",
+        // New keys for this class version
+        editor_default_entity_name: "Entidad",
+        editor_no_entities: "Sin entidades",
+        editor_title_placeholder: "Planificación de Horarios",
+        editor_no_entities_found: "No se encontraron entidades",
+        common: {
+            edit: "Editar",
+            delete: "Eliminar"
         }
     }
 };
@@ -1243,29 +1323,527 @@ class ScheduleStateCard extends HTMLElement {
 }
 
 class ScheduleStateCardEditor extends HTMLElement {
-    setConfig(config) {
-        this._config = config;
+
+    constructor() {
+        super();
+        this.attachShadow({ mode: "open" });
+        this._config = {};
+        this._hass = null;
+        this._entities = [];
+        this._editingIndex = null;
+        this._filterText = {};
+        this._iconsCache = null;
     }
 
-    render() {
-        if (!this.shadowRoot) {
-            this.attachShadow({ mode: "open" });
-            this.shadowRoot.innerHTML = '<style>.config-row{margin-bottom:10px}.config-row label{font-weight:bold;display:block;margin-bottom:5px}.config-row input{width:100%;padding:8px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);box-sizing:border-box}</style><div class="config-row"><label>Title (leave empty to hide)</label><input id="title" value="' + (this._config?.title || "") + '" placeholder="Schedule Planning"/></div><div class="config-row"><label>Entities (use YAML editor)</label><div style="font-size:12px;color:var(--secondary-text-color)">Edit your configuration in YAML</div></div>';
-            const titleInput = this.shadowRoot.querySelector("#title");
-            if (titleInput) {
-                titleInput.addEventListener("change", e => {
-                    this._config.title = e.target.value;
-                    this.dispatchEvent(new CustomEvent("config-changed", {
-                        detail: { config: this._config }
-                    }));
-                });
-            }
-        }
+    // --- Ajout des fonctions de traduction ---
+
+    getLanguage() {
+        // Tente de récupérer la langue de Home Assistant ou la langue par défaut "en"
+        return (this._hass && this._hass.language) || (localStorage.getItem("selectedLanguage")) || "en";
+    }
+
+    t(key) {
+        const lang = this.getLanguage();
+        // Recherche la traduction dans la langue courante, puis en "en", sinon retourne la clé
+        return TRANSLATIONS[lang] && TRANSLATIONS[lang][key]
+            ? TRANSLATIONS[lang][key]
+            : TRANSLATIONS.en[key] || key;
+    }
+
+    // ----------------------------------------
+
+    setConfig(config) {
+        this._config = { ...config };
+        this._entities = Array.isArray(this._config.entities)
+            ? this._config.entities.map(e => ({ ...e }))
+            : [];
+        this.render();
     }
 
     set hass(hass) {
         this._hass = hass;
+        // Effacer le cache des icônes pour le recharger si nécessaire
+        this._iconsCache = null;
+    }
+
+    fireConfigChanged() {
+        this._config.entities = this._entities;
+        this.dispatchEvent(new CustomEvent("config-changed", {
+            detail: { config: this._config }
+        }));
+    }
+
+    addEntity() {
+        this._entities.push({ entity: "", name: "", icon: "" });
+        this.fireConfigChanged();
         this.render();
+    }
+
+    removeEntity(index) {
+        this._entities.splice(index, 1);
+        this.fireConfigChanged();
+        this.render();
+    }
+
+    updateEntity(index, field, value) {
+        if (this._entities[index]) {
+            this._entities[index][field] = value;
+            this.fireConfigChanged();
+        }
+    }
+
+    toggleEditForm(index) {
+        this._editingIndex = this._editingIndex === index ? null : index;
+        this.render();
+    }
+
+    escapeHtml(text) {
+        if (!text) return "";
+        const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    getAllMDIIcons() {
+        if (this._iconsCache) return this._iconsCache;
+
+        let iconList = [];
+        
+        // La tentative de récupérer les icônes à partir de _hass?.resources n'est généralement
+        // pas fiable dans un custom card. On s'appuie sur la liste par défaut si échec.
+        try {
+            const resources = this._hass?.resources;
+            if (resources) {
+                for (const [key, value] of Object.entries(resources)) {
+                    if (typeof value === 'object' && value !== null) {
+                        const icons = Object.keys(value)
+                            .filter(icon => icon.startsWith('mdi:'));
+                        iconList.push(...icons);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log("Erreur lors de la récupération des icônes:", e);
+        }
+
+        // Liste par défaut si la récupération échoue
+        if (iconList.length === 0) {
+            iconList = [
+                "mdi:calendar-clock", "mdi:thermometer", "mdi:lightbulb", "mdi:power",
+                "mdi:weather-sunny", "mdi:water", "mdi:motion-sensor", "mdi:door",
+                "mdi:window-closed", "mdi:fan", "mdi:air-conditioner", "mdi:television",
+                "mdi:music", "mdi:lock", "mdi:shield", "mdi:alarm", "mdi:clock",
+                "mdi:timer", "mdi:play", "mdi:stop", "mdi:pause", "mdi:volume-high",
+                "mdi:brightness-7", "mdi:home", "mdi:sofa", "mdi:bed", "mdi:check", "mdi:close"
+            ];
+        }
+
+        const uniqueIcons = [...new Set(iconList)].sort();
+        this._iconsCache = uniqueIcons;
+        return uniqueIcons;
+    }
+
+    getFilteredEntities(filterText) {
+        const allEntities = Object.keys(this._hass?.states || {}).sort();
+        if (!filterText) return allEntities.slice(0, 10);
+        return allEntities.filter(e => e.toLowerCase().includes(filterText.toLowerCase()));
+    }
+
+    getFilteredIcons(filterText) {
+        const allIcons = this.getAllMDIIcons();
+
+        if (!filterText) return allIcons.slice(0, 20);
+        return allIcons.filter(i => i.toLowerCase().includes(filterText.toLowerCase())).slice(0, 50);
+    }
+
+    renderEditForm(entityConfig, index) {
+        const t = this.t.bind(this);
+        const entityId = entityConfig.entity || "";
+        return `
+            <div class="entity-edit-form">
+                <div class="input-group">
+                    <label>${t('editor_entity_id_label')}:</label>
+                    <div class="input-with-suggestions">
+                        <input type="text" class="entity-input entity-search" data-index="${index}" data-field="entity" value="${this.escapeHtml(entityId)}" placeholder="light.my_light">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>${t('editor_name_label')}:</label>
+                    <input type="text" class="entity-input" data-index="${index}" data-field="name" value="${this.escapeHtml(entityConfig.name || '')}" placeholder="${t('editor_placeholder_name')}">
+                </div>
+                <div class="input-group">
+                    <label>${t('editor_icon_label')}:</label>
+                    <div class="input-with-suggestions">
+                        <input type="text" class="entity-input icon-search" data-index="${index}" data-field="icon" value="${this.escapeHtml(entityConfig.icon || '')}" placeholder="mdi:calendar-clock">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderEntityRow(entityConfig, index) {
+        const t = this.t.bind(this);
+        const entityId = entityConfig.entity || "";
+        const entityState = this._hass?.states[entityId];
+        // Utilise une clé de traduction pour le nom par défaut de l'entité
+        const name = entityConfig.name || entityState?.attributes?.friendly_name || entityId || t('editor_default_entity_name');
+        const icon = entityConfig.icon || entityState?.attributes?.icon || "mdi:calendar-clock";
+
+        const isEditing = this._editingIndex === index;
+
+        return `
+            <div class="entity-row">
+                <div class="handle">≡</div>
+                <div class="icon-name">
+                    <ha-icon icon="${this.escapeHtml(icon)}"></ha-icon>
+                    <span>${this.escapeHtml(name)}</span>
+                </div>
+                <div class="entity-id">${this.escapeHtml(entityId)}</div>
+                <div class="actions">
+                    <button class="action-button edit-btn" data-index="${index}" title="${t('common.edit') || 'Edit'}">
+                        <ha-icon icon="mdi:pencil"></ha-icon>
+                    </button>
+                    <button class="action-button remove-btn" data-index="${index}" title="${t('common.delete') || 'Delete'}">
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </button>
+                </div>
+            </div>
+            ${isEditing ? this.renderEditForm(entityConfig, index) : ''}
+        `;
+    }
+
+    render() {
+        const t = this.t.bind(this);
+        const style = `
+            :host { display: block; }
+            
+            .config-row { margin-bottom: 15px; }
+            .config-row label { font-weight: bold; display: block; margin-bottom: 5px; color: var(--primary-text-color); }
+            .config-row input { width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); box-sizing: border-box; }
+            
+            .entity-list { border: 1px solid var(--divider-color); border-radius: 4px; overflow: visible; margin-bottom: 10px; }
+            
+            .entity-row { 
+                display: flex; 
+                align-items: center; 
+                padding: 10px; 
+                background: var(--card-background-color); 
+                border-bottom: 1px solid var(--divider-color); 
+                gap: 10px;
+            }
+            
+            .handle { 
+                cursor: grab; 
+                color: var(--secondary-text-color); 
+                flex-shrink: 0;
+                width: 20px;
+            }
+            
+            .icon-name { 
+                display: flex; 
+                align-items: center; 
+                gap: 8px;
+                flex-grow: 0;
+                flex-basis: 120px;
+                font-weight: 500; 
+                min-width: 0;
+            }
+            
+            .icon-name ha-icon { 
+                color: var(--primary-color); 
+                flex-shrink: 0;
+            }
+            
+            .icon-name span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            
+            .entity-id { 
+                flex-grow: 1;
+                flex-basis: auto;
+                color: var(--secondary-text-color); 
+                font-family: monospace; 
+                font-size: 12px; 
+                text-align: right; 
+                overflow: hidden; 
+                text-overflow: ellipsis; 
+                white-space: nowrap;
+            }
+            
+            .actions { 
+                display: flex; 
+                gap: 5px;
+                flex-shrink: 0;
+            }
+            
+            .action-button { 
+                background: none; 
+                border: none; 
+                cursor: pointer; 
+                color: var(--primary-text-color); 
+                padding: 4px;
+                display: flex;
+                align-items: center;
+            }
+            
+            .action-button:hover ha-icon { 
+                color: var(--primary-color); 
+            }
+            
+            .entity-edit-form { 
+                display: flex;
+                padding: 10px; 
+                background: var(--secondary-background-color); 
+                border-bottom: 1px solid var(--divider-color); 
+                gap: 10px; 
+                flex-wrap: wrap;
+                position: relative;
+                z-index: 10;
+            }
+            
+            .input-group { 
+                flex: 1 1 calc(33.333% - 10px); 
+                min-width: 150px;
+                display: flex;
+                flex-direction: column;
+                position: relative;
+            }
+            
+            .input-group label { 
+                font-size: 12px; 
+                margin-bottom: 3px; 
+                font-weight: 600;
+                color: var(--primary-text-color);
+            }
+            
+            .entity-input {
+                padding: 6px !important;
+                border: 1px solid var(--divider-color) !important;
+                border-radius: 3px !important;
+                background: var(--primary-background-color) !important;
+                color: var(--primary-text-color) !important;
+                font-size: 12px !important;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .input-with-suggestions {
+                position: relative;
+                width: 100%;
+            }
+
+            .suggestions-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--secondary-background-color);
+                border: 1px solid var(--divider-color);
+                border-top: none;
+                border-radius: 0 0 3px 3px;
+                max-height: 200px;
+                overflow-y: auto;
+                z-index: 1001;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+                margin-top: 2px;
+            }
+
+            .suggestion-item {
+                padding: 8px 10px;
+                cursor: pointer;
+                color: var(--primary-text-color);
+                font-size: 12px;
+                border-bottom: 1px solid var(--divider-color);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: background 0.2s;
+            }
+
+            .suggestion-item:last-child {
+                border-bottom: none;
+            }
+
+            .suggestion-item:hover:not(.disabled) {
+                background: var(--primary-color);
+                color: white;
+            }
+
+            .suggestion-item.disabled {
+                color: var(--secondary-text-color);
+                cursor: default;
+            }
+
+            .suggestion-item ha-icon {
+                flex-shrink: 0;
+            }
+
+            .add-button { 
+                margin-top: 10px; 
+                width: 100%; 
+                padding: 10px; 
+                background: var(--primary-color); 
+                color: white; 
+                border: none; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                font-weight: bold; 
+                transition: all 0.2s;
+                position: relative;
+                z-index: 5;
+            }
+            
+            .add-button:hover { 
+                opacity: 0.9;
+            }
+        `;
+
+        const entitiesHtml = this._entities.length > 0
+            ? this._entities.map((ent, idx) => this.renderEntityRow(ent, idx)).join('')
+            : `<div style="padding: 10px; color: var(--secondary-text-color); text-align: center;">${t('editor_no_entities')}</div>`;
+
+        const html = `
+            <style>${style}</style>
+            <div class="config-row">
+                <label>${t('editor_card_title')}</label>
+                <input id="title-input" value="${this.escapeHtml(this._config?.title || "")}" placeholder="${t('editor_title_placeholder')}"/>
+            </div>
+
+            <div class="config-row">
+                <label>${t('editor_entities_label')}</label>
+                <div class="entity-list" id="entity-list">
+                    ${entitiesHtml}
+                </div>
+                <button class="add-button" id="add-btn">
+                    + ${t('editor_add_entity')}
+                </button>
+            </div>
+        `;
+
+        this.shadowRoot.innerHTML = html;
+        this.attachListeners();
+    }
+
+    updateDropdown(inputElement, type) {
+        const index = parseInt(inputElement.dataset.index);
+        const container = inputElement.closest('.input-with-suggestions');
+        if (!container) return;
+
+        let existingDropdown = container.querySelector('.suggestions-dropdown');
+        if (existingDropdown) existingDropdown.remove();
+
+        const filterText = inputElement.value || "";
+        let items = "";
+
+        if (type === "entity") {
+            const filtered = this.getFilteredEntities(filterText);
+            if (filtered.length > 0) {
+                items = filtered.map(e => `<div class="suggestion-item entity-suggestion" data-index="${index}" data-value="${this.escapeHtml(e)}">${this.escapeHtml(e)}</div>`).join('');
+            } else {
+                items = `<div class="suggestion-item disabled">${this.t('editor_no_entities_found')}</div>`;
+            }
+        } else if (type === "icon") {
+            const filtered = this.getFilteredIcons(filterText);
+            items = filtered.map(icon => `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${this.escapeHtml(icon)}"><ha-icon icon="${this.escapeHtml(icon)}"></ha-icon> ${this.escapeHtml(icon)}</div>`).join('');
+        }
+
+        if (items) {
+            const dropdown = document.createElement('div');
+            dropdown.className = 'suggestions-dropdown';
+            dropdown.innerHTML = items;
+            container.appendChild(dropdown);
+
+            dropdown.querySelectorAll('.suggestion-item').forEach(item => {
+                if (item.classList.contains('disabled')) return;
+                item.addEventListener('click', (e) => {
+                    const idx = parseInt(e.currentTarget.dataset.index);
+                    const value = e.currentTarget.dataset.value;
+                    const field = type === "entity" ? "entity" : "icon";
+                    this.updateEntity(idx, field, value);
+                    inputElement.value = value;
+                    existingDropdown = container.querySelector('.suggestions-dropdown');
+                    if (existingDropdown) existingDropdown.remove();
+                });
+            });
+        }
+    }
+
+    attachListeners() {
+        const titleInput = this.shadowRoot.querySelector("#title-input");
+        if (titleInput) {
+            titleInput.addEventListener("change", (e) => {
+                this._config.title = e.target.value;
+                this.fireConfigChanged();
+            });
+        }
+
+        const addBtn = this.shadowRoot.querySelector("#add-btn");
+        if (addBtn) {
+            addBtn.addEventListener("click", () => this.addEntity());
+        }
+
+        this.shadowRoot.querySelectorAll(".edit-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const index = parseInt(e.currentTarget.dataset.index);
+                this.toggleEditForm(index);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".remove-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const index = parseInt(e.currentTarget.dataset.index);
+                this.removeEntity(index);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".entity-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const index = parseInt(e.target.dataset.index);
+                const field = e.target.dataset.field;
+                this.updateEntity(index, field, e.target.value);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".entity-search").forEach(input => {
+            input.addEventListener("input", (e) => {
+                this.updateDropdown(e.target, "entity");
+            });
+
+            input.addEventListener("focus", (e) => {
+                this.updateDropdown(e.target, "entity");
+            });
+
+            input.addEventListener("blur", (e) => {
+                setTimeout(() => {
+                    const container = e.target.closest('.input-with-suggestions');
+                    if (container) {
+                        const dropdown = container.querySelector('.suggestions-dropdown');
+                        if (dropdown) dropdown.remove();
+                    }
+                }, 150);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".icon-search").forEach(input => {
+            input.addEventListener("input", (e) => {
+                this.updateDropdown(e.target, "icon");
+            });
+
+            input.addEventListener("focus", (e) => {
+                this.updateDropdown(e.target, "icon");
+            });
+
+            input.addEventListener("blur", (e) => {
+                setTimeout(() => {
+                    const container = e.target.closest('.input-with-suggestions');
+                    if (container) {
+                        const dropdown = container.querySelector('.suggestions-dropdown');
+                        if (dropdown) dropdown.remove();
+                    }
+                }, 150);
+            });
+        });
     }
 }
 
