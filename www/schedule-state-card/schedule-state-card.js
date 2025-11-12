@@ -1371,6 +1371,18 @@ class ScheduleStateCardEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", {
             detail: { config: this._config }
         }));
+        // AJOUT: Rafraîchir la preview de l'éditeur
+        this.requestUpdate();
+    }
+
+    requestUpdate() {
+        // Force la preview à se mettre à jour
+        setTimeout(() => {
+            const previewCard = document.querySelector('hui-card-preview');
+            if (previewCard) {
+                previewCard.requestUpdate?.();
+            }
+        }, 0);
     }
 
     addEntity() {
@@ -1389,6 +1401,7 @@ class ScheduleStateCardEditor extends HTMLElement {
         if (this._entities[index]) {
             this._entities[index][field] = value;
             this.fireConfigChanged();
+            this.requestUpdate();
         }
     }
 
@@ -1775,6 +1788,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             titleInput.addEventListener("change", (e) => {
                 this._config.title = e.target.value;
                 this.fireConfigChanged();
+                this.requestUpdate();
             });
         }
 
@@ -1802,6 +1816,7 @@ class ScheduleStateCardEditor extends HTMLElement {
                 const index = parseInt(e.target.dataset.index);
                 const field = e.target.dataset.field;
                 this.updateEntity(index, field, e.target.value);
+                this.requestUpdate();
             });
         });
 
