@@ -27,7 +27,8 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 🌍 **Multi-language** - English, French, German, Spanish
 - ⏱️ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
 - 🎭 **Wrapping Events** - Support for schedules that span across midnight
-
+- ✏️ Visual Editor Support: Configure easily using Home Assistant's built-in visual editor
+  
 ## Installations
 
 ### Card Installation
