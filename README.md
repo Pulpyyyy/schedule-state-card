@@ -24,7 +24,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 🎯 **Condition-based Layers** - Multiple schedule layers with conditions (time, entity state, numeric ranges)
 - 🎭 **Combined Layer Visualization** - See the result of all stacked conditions in one Sigma (Σ) layer
 - 📚 **Layer Stacking/Collapsing** - Click the Sigma (Σ) icon to toggle between detailed and combined view
-- 🌍 **Multi-language** - English, French, German, Spanish
+- 🌍 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
 - ⏱️ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
 - 🎭 **Wrapping Events** - Support for schedules that span across midnight
 - ✏️ Visual Editor Support: Configure easily using Home Assistant's built-in visual editor
