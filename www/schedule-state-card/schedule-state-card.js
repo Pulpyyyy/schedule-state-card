@@ -198,6 +198,106 @@ const TRANSLATIONS = {
             edit: "Editar",
             delete: "Eliminar"
         }
+    },
+    pt: {
+        state_label: "Estado",
+        condition_label: "Condição",
+        layer_label: "Regra de Agenda",
+        time_label: "Intervalos de Tempo",
+        no_specific_condition: "Sem condição específica",
+        default_state_label: "Estado padrão",
+        wrapping: "empacotamento",
+        no_schedule: "Sem agenda",
+        entity_not_found: "Entidade não encontrada",
+        dynamic_value: "Valor dinâmico",
+        dynamic_ref_schedule: "estado_agenda",
+        dynamic_ref_sensor: "sensor",
+        cond_days: "Dias",
+        cond_month: "Mês",
+        cond_and: "E",
+        cond_or: "OU",
+        cond_not: "NÃO",
+        cond_combined_result: "Agenda Combinada",
+        cond_combined_schedule_toggle: "Resultado da Agenda Combinada (Clique para mostrar/ocultar regras)",
+        days: {
+            mon: "Segunda-feira",
+            tue: "Terça-feira",
+            wed: "Quarta-feira",
+            thu: "Quinta-feira",
+            fri: "Sexta-feira",
+            sat: "Sábado",
+            sun: "Domingo"
+        },
+        // Editor Translations
+        editor_title: "Editor do Cartão de Estado da Agenda",
+        editor_card_title: "Título do Cartão",
+        editor_entities_label: "Entidades",
+        editor_add_entity: "Adicionar Entidade",
+        editor_entity_id_label: "ID da Entidade",
+        editor_name_label: "Nome",
+        editor_icon_label: "Ícone (mdi:)",
+        editor_placeholder_name: "Nome de Exibição",
+        editor_handle: "Manipulador",
+        editor_actions: "Ações",
+        // New keys for this class version
+        editor_default_entity_name: "Entidade",
+        editor_no_entities: "Sem entidades",
+        editor_title_placeholder: "Planejamento de Agenda",
+        editor_no_entities_found: "Nenhuma entidade encontrada",
+        common: {
+            edit: "Editar",
+            delete: "Excluir"
+        }
+    },
+    pt_BR: {
+        state_label: "Estado",
+        condition_label: "Condição",
+        layer_label: "Regra de Programação",
+        time_label: "Períodos de Tempo",
+        no_specific_condition: "Sem condição específica",
+        default_state_label: "Estado padrão",
+        wrapping: "empacotamento",
+        no_schedule: "Sem programação",
+        entity_not_found: "Entidade não encontrada",
+        dynamic_value: "Valor dinâmico",
+        dynamic_ref_schedule: "estado_programação",
+        dynamic_ref_sensor: "sensor",
+        cond_days: "Dias",
+        cond_month: "Mês",
+        cond_and: "E",
+        cond_or: "OU",
+        cond_not: "NÃO",
+        cond_combined_result: "Programação Combinada",
+        cond_combined_schedule_toggle: "Resultado da Programação Combinada (Clique para mostrar/ocultar regras)",
+        days: {
+            mon: "Segunda-feira",
+            tue: "Terça-feira",
+            wed: "Quarta-feira",
+            thu: "Quinta-feira",
+            fri: "Sexta-feira",
+            sat: "Sábado",
+            sun: "Domingo"
+        },
+        // Editor Translations
+        editor_title: "Editor do Cartão de Estado da Programação",
+        editor_card_title: "Título do Cartão",
+        editor_entities_label: "Entidades",
+        editor_add_entity: "Adicionar Entidade",
+        editor_entity_id_label: "ID da Entidade",
+        editor_name_label: "Nome",
+        editor_icon_label: "Ícone (mdi:)",
+        editor_placeholder_name: "Nome de Exibição",
+        editor_handle: "Manipulador",
+        editor_actions: "Ações",
+        // New keys for this class version
+        editor_default_entity_name: "Entidade",
+        editor_no_entities: "Nenhuma entidade",
+        editor_title_placeholder: "Planejamento de Programação",
+        editor_no_entities_found: "Nenhuma entidade encontrada",
+        common: {
+            edit: "Editar",
+            delete: "Excluir"
+        }
     }
 };
 
@@ -1871,3 +1971,4 @@ window.customCards.push({
     name: "Schedule State Card",
     description: "Visualizes schedules defined via AppDaemon schedule_parser."
 });
+
