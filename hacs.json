@@ -1,7 +1,12 @@
 {
   "name": "Schedule State Card",
+  "render_readme": true,
+  "homeassistant": "2023.1.0",
+  "domains": ["sensor"],
+  "category": "lovelace",
+  "filename": "schedule-state-card.js",
   "content_in_root": false,
-  "homeassistant": "2023.12.0",
+  "appdaemon": true, 
   "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
   "issues": "https://github.com/Pulpyyyy/schedule-state-card/issues",
   "render_readme": true

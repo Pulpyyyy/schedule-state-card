@@ -33,16 +33,9 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ### Card Installation
 
-1. Copy the `schedule-state-card.js` subdirectory `/config/www/schedule-state-card/`
-3. Add to your Lovelace configuration:
-
-```yaml
-resources:
-  - url: /local/schedule-state-card/schedule-state-card.js
-    type: module
-```
-
 ### Appdaemon Installation
+
+[![HACS Installation](https://img.shields.io/badge/HACS-AppDaemon%20App-03A9F4.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=appdaemon)
 
 1. Setup AppDaemon
 
@@ -84,13 +77,16 @@ The AppDaemon app will parse this configuration and create `sensor.schedule_*` e
 
 4. Add Card to Lovelace
 
+[![HACS Installation](https://img.shields.io/badge/HACS-Lovelace%20Card%20-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=lovelace)
+
+5. Copy the `schedule-state-card.js` subdirectory `/config/www/schedule-state-card/`
+
+6. Add to your Lovelace configuration:
+
 ```yaml
-type: custom:schedule-state-card
-title: "My Schedules"
-entities:
-  - entity: sensor.schedule_living_room_thermostat
-    name: "Living Room"
-    icon: mdi:thermometer
+resources:
+  - url: /local/schedule-state-card/schedule-state-card.js
+    type: module
 ```
 
 ## Card Configuration
