@@ -31,8 +31,6 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
   
 ## Installations
 
-### Card Installation
-
 ### Appdaemon Installation
 
 [![HACS Installation](https://img.shields.io/badge/HACS-AppDaemon%20App-03A9F4.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=appdaemon)
@@ -75,13 +73,15 @@ sensor:
 
 The AppDaemon app will parse this configuration and create `sensor.schedule_*` entities automatically.
 
-4. Add Card to Lovelace
+### Card Installation
 
 [![HACS Installation](https://img.shields.io/badge/HACS-Lovelace%20Card%20-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=lovelace)
 
-5. Copy the `schedule-state-card.js` subdirectory `/config/www/schedule-state-card/`
+1. Add Card to Lovelace
 
-6. Add to your Lovelace configuration:
+2. Copy the `schedule-state-card.js` subdirectory `/config/www/schedule-state-card/`
+
+3. Add to your Lovelace configuration:
 
 ```yaml
 resources:
