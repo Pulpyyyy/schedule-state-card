@@ -28,7 +28,6 @@ const TRANSLATIONS = {
             sat: "Saturday",
             sun: "Sunday"
         },
-        // Editor Translations
         editor_title: "Schedule State Card Editor",
         editor_card_title: "Card Title",
         editor_entities_label: "Entities",
@@ -39,11 +38,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Display Name",
         editor_handle: "Handle",
         editor_actions: "Actions",
-        // New keys for this class version
         editor_default_entity_name: "Entity",
         editor_no_entities: "No entities",
         editor_title_placeholder: "Schedule Planning",
         editor_no_entities_found: "No entities found",
+        editor_colors_label: "Colors Configuration",
+        editor_active_layer_label: "Active Layer Color",
+        editor_inactive_layer_label: "Inactive Layer Color",
+        editor_combined_layer_label: "Combined Layer Color (Blocks)",
+        editor_combined_folded_label: "Combined Icon Color (Folded)",
+        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_cursor_label: "Time Cursor Color",
+        editor_color_hex_label: "Hex Color",
+        editor_color_picker_label: "Color Picker",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -78,7 +85,6 @@ const TRANSLATIONS = {
             sat: "Samedi",
             sun: "Dimanche"
         },
-        // Traductions de l'éditeur (ScheduleStateCardEditor)
         editor_title: "Éditeur de Carte d'État de Planning",
         editor_card_title: "Titre de la Carte",
         editor_entities_label: "Entités",
@@ -89,11 +95,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Nom d'affichage",
         editor_handle: "Poignée",
         editor_actions: "Actions",
-        // Nouvelles clés pour cette version de classe
         editor_default_entity_name: "Entité",
         editor_no_entities: "Aucune entité",
         editor_title_placeholder: "Planning d'Horaires",
         editor_no_entities_found: "Aucune entité trouvée",
+        editor_colors_label: "Configuration des Couleurs",
+        editor_active_layer_label: "Couleur de la Couche Active",
+        editor_inactive_layer_label: "Couleur de la Couche Inactive",
+        editor_combined_layer_label: "Couleur de la Couche Combinée (Blocs)",
+        editor_combined_folded_label: "Couleur de l'Icône Combinée (Plié)",
+        editor_combined_unfolded_label: "Couleur de l'Icône Combinée (Déplié)",
+        editor_cursor_label: "Couleur du Curseur Temporel",
+        editor_color_hex_label: "Couleur Hex",
+        editor_color_picker_label: "Sélecteur de Couleur",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -128,7 +142,6 @@ const TRANSLATIONS = {
             sat: "Samstag",
             sun: "Sonntag"
         },
-        // Editor Translations
         editor_title: "Zeitplan-Status-Karten-Editor",
         editor_card_title: "Kartentitel",
         editor_entities_label: "Entitäten",
@@ -139,11 +152,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Anzeigename",
         editor_handle: "Griff",
         editor_actions: "Aktionen",
-        // New keys for this class version
         editor_default_entity_name: "Entität",
         editor_no_entities: "Keine Entitäten",
         editor_title_placeholder: "Zeitplan-Planung",
         editor_no_entities_found: "Keine Entitäten gefunden",
+        editor_colors_label: "Farbkonfiguration",
+        editor_active_layer_label: "Farbe der aktiven Schicht",
+        editor_inactive_layer_label: "Farbe der inaktiven Schicht",
+        editor_combined_layer_label: "Farbe der kombinierten Schicht (Blöcke)",
+        editor_combined_folded_label: "Combined Icon Color (Folded)",
+        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_cursor_label: "Zeitzeiger-Farbe",
+        editor_color_hex_label: "Hex-Farbe",
+        editor_color_picker_label: "Farbwähler",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -178,7 +199,6 @@ const TRANSLATIONS = {
             sat: "Sábado",
             sun: "Domingo"
         },
-        // Editor Translations
         editor_title: "Editor de Tarjeta de Estado de Horario",
         editor_card_title: "Título de la Tarjeta",
         editor_entities_label: "Entidades",
@@ -189,11 +209,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Nombre de visualización",
         editor_handle: "Mango",
         editor_actions: "Acciones",
-        // New keys for this class version
         editor_default_entity_name: "Entidad",
         editor_no_entities: "Sin entidades",
         editor_title_placeholder: "Planificación de Horarios",
         editor_no_entities_found: "No se encontraron entidades",
+        editor_colors_label: "Configuración de Colores",
+        editor_active_layer_label: "Color de Capa Activa",
+        editor_inactive_layer_label: "Color de Capa Inactiva",
+        editor_combined_layer_label: "Color de Capa Combinada (Bloques)",
+        editor_combined_folded_label: "Combined Icon Color (Folded)",
+        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_cursor_label: "Color del Cursor Temporal",
+        editor_color_hex_label: "Color Hex",
+        editor_color_picker_label: "Selector de Color",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -228,7 +256,6 @@ const TRANSLATIONS = {
             sat: "Sábado",
             sun: "Domingo"
         },
-        // Editor Translations
         editor_title: "Editor do Cartão de Estado da Agenda",
         editor_card_title: "Título do Cartão",
         editor_entities_label: "Entidades",
@@ -239,11 +266,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Nome de Exibição",
         editor_handle: "Manipulador",
         editor_actions: "Ações",
-        // New keys for this class version
         editor_default_entity_name: "Entidade",
         editor_no_entities: "Sem entidades",
         editor_title_placeholder: "Planejamento de Agenda",
         editor_no_entities_found: "Nenhuma entidade encontrada",
+        editor_colors_label: "Configuração de Cores",
+        editor_active_layer_label: "Cor da Camada Ativa",
+        editor_inactive_layer_label: "Cor da Camada Inativa",
+        editor_combined_layer_label: "Cor da Camada Combinada (Blocos)",
+        editor_combined_folded_label: "Combined Icon Color (Folded)",
+        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_cursor_label: "Cor do Cursor Temporal",
+        editor_color_hex_label: "Cor Hex",
+        editor_color_picker_label: "Seletor de Cor",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -278,7 +313,6 @@ const TRANSLATIONS = {
             sat: "Sábado",
             sun: "Domingo"
         },
-        // Editor Translations
         editor_title: "Editor do Cartão de Estado da Programação",
         editor_card_title: "Título do Cartão",
         editor_entities_label: "Entidades",
@@ -289,11 +323,19 @@ const TRANSLATIONS = {
         editor_placeholder_name: "Nome de Exibição",
         editor_handle: "Manipulador",
         editor_actions: "Ações",
-        // New keys for this class version
         editor_default_entity_name: "Entidade",
         editor_no_entities: "Nenhuma entidade",
         editor_title_placeholder: "Planejamento de Programação",
         editor_no_entities_found: "Nenhuma entidade encontrada",
+        editor_colors_label: "Configuração de Cores",
+        editor_active_layer_label: "Cor da Camada Ativa",
+        editor_inactive_layer_label: "Cor da Camada Inativa",
+        editor_combined_layer_label: "Cor da Camada Combinada (Blocos)",
+        editor_combined_folded_label: "Combined Icon Color (Folded)",
+        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_cursor_label: "Cor do Cursor Temporal",
+        editor_color_hex_label: "Cor Hex",
+        editor_color_picker_label: "Seletor de Cor",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -301,15 +343,22 @@ const TRANSLATIONS = {
     }
 };
 
+const DEFAULT_COLORS = {
+    active_layer: "var(--primary-color, #2196F3)",
+    inactive_layer: "var(--secondary-text-color, #BDBDBD)",
+    combined_layer: "var(--warning-color, #FF9800)",
+    combined_folded_layer: "var(--warning-color, #FF9800)",
+    combined_unfolded_layer: "var(--primary-color, #2196F3)",
+    cursor: "var(--label-badge-yellow, #FDD835)"
+};
+
 class ScheduleStateCard extends HTMLElement {
-    // --- CONSTANTES POUR LA MAINTENABILITÉ ---
     static get BLOCK_HEIGHT() { return 20; }
     static get VERTICAL_GAP() { return 8; }
     static get TOP_MARGIN() { return 4; }
     static get BOTTOM_MARGIN() { return 20; }
     static get ICON_COLUMN_WIDTH() { return 28; }
     static get MOUSE_STABILIZATION_DELAY() { return 200; }
-    // ------------------------------------------
 
     constructor() {
         super();
@@ -323,11 +372,10 @@ class ScheduleStateCard extends HTMLElement {
         this._layerVisibility = {};
         this._listener = null; 
         this._tooltipTimer = null; 
-        this._isToggling = false; 
+        this._isToggling = false;
+        this._colors = { ...DEFAULT_COLORS };
     }
     
-    // ... (omitting helper functions like getLanguage, t, _translateConditionText, etc., for brevity) ...
-
     getLanguage() {
         if (this._hass?.locale?.language) {
             return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
@@ -343,23 +391,19 @@ class ScheduleStateCard extends HTMLElement {
     _translateConditionText(text) {
         if (!text) return "";
         let translated = text;
-
         const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
         const dayTranslations = this.t("days");
-
         translated = translated.replace("Days:", this.t("cond_days") + ":");
         translated = translated.replace("Month:", this.t("cond_month") + ":");
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
         translated = translated.replace(/\bNOT\s/g, ` ${this.t("cond_not")} `); 
-
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
             if (translatedDay) {
                 translated = translated.replace(new RegExp(`\\b${abbr}([,\.\\s]*)`, 'g'), `${translatedDay}$1`);
             }
         }
-        
         return translated;
     }
 
@@ -384,6 +428,13 @@ class ScheduleStateCard extends HTMLElement {
             ...config,
             entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? { entity: e } : e) : []
         };
+        
+        if (config.colors) {
+            this._colors = { ...DEFAULT_COLORS, ...config.colors };
+        } else {
+            this._colors = { ...DEFAULT_COLORS };
+        }
+        
         if (this._hass) this.render();
     }
 
@@ -406,7 +457,8 @@ class ScheduleStateCard extends HTMLElement {
                 name: "RDC",
                 icon: "mdi:thermometer"
             }],
-            title: "Schedule Planning"
+            title: "Schedule Planning",
+            colors: { ...DEFAULT_COLORS }
         };
     }
 
@@ -478,6 +530,7 @@ class ScheduleStateCard extends HTMLElement {
             }
             cursor.style.display = "block";
             cursor.style.left = timePercentage + "%";
+            cursor.style.backgroundColor = this._colors.cursor;
         });
     }
 
@@ -523,7 +576,6 @@ class ScheduleStateCard extends HTMLElement {
         const numMatch = str.match(/^[\d.]+/);
         if (numMatch) str = String(parseFloat(numMatch[0]));
         if (unit) str = str + "|" + unit;
-
         let hash = 2166136261; 
         const prime = 16777619; 
         for (let i = 0; i < str.length; i++) {
@@ -532,12 +584,10 @@ class ScheduleStateCard extends HTMLElement {
         }
         hash ^= hash >>> 16;
         hash = Math.abs(hash); 
-
         const numHues = 144; 
         const step = 360 / numHues;
         const idx = hash % numHues; 
         let hue = Math.round(idx * step);
-
         const hsl = `hsl(${hue}, 75%, 50%)`;
         const textColor = this.getTextColorForBackground(hsl);
         return { color: hsl, textColor: textColor };
@@ -917,19 +967,14 @@ class ScheduleStateCard extends HTMLElement {
     
     toggleLayerVisibility(entityId) {
         if (this._isToggling) return; 
-
         this._isToggling = true; 
-
         this._layerVisibility[entityId] = !this._layerVisibility[entityId];
-        
         this.updateContent();
-        
         setTimeout(() => {
             this._isToggling = false;
         }, 300); 
     }
     
-    // Délégation d'événements combinée
     attachAllListeners() {
         const container = this.shadowRoot.querySelector("#content");
         if (!container) return;
@@ -989,7 +1034,6 @@ class ScheduleStateCard extends HTMLElement {
         this._listener = handler;
     }
 
-
     renderErrorCard(entityId, message) {
         return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
     }
@@ -999,12 +1043,10 @@ class ScheduleStateCard extends HTMLElement {
             return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
-        // Utilisation des CONSTANTES
         const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
         const verticalGap = ScheduleStateCard.VERTICAL_GAP;
         const topMargin = ScheduleStateCard.TOP_MARGIN;
         const bottomMargin = ScheduleStateCard.BOTTOM_MARGIN;
-        // const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH; // N'est plus utilisé ici, mais dans le style global
 
         let defaultLayer = allLayers.find(l => l.is_default_layer);
         let combinedLayer = allLayers.find(l => l.is_combined_layer);
@@ -1062,31 +1104,34 @@ class ScheduleStateCard extends HTMLElement {
             let iconTooltipText = "";
 
             if (isCombinedLayer) {
-                 
-                 const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
-                 let toggleClass = '';
-                 let iconStyle = 'background:var(--info-color);filter:brightness(1.1);';
-
-                 if (hasCollapsibleLayers) {
-                     toggleClass = ' combined-layer-toggle'; 
-                     if (!isCollapsed) {
-                         iconStyle = 'background:var(--primary-color);filter:brightness(1.3);';
-                     }
-                 }
-                 
-                 iconTooltipText = this.t("cond_combined_schedule_toggle");
-
-                 iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ" data-tooltip="${this.escapeHtml(iconTooltipText)}">
-                    <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
-                        Σ
-                    </span>
-                 </div>`;
-            }
-            else { 
-                const originalIndex = allLayers.findIndex(l => l === currentLayer);
-                const isActive = layerActiveStates[originalIndex];
-                const iconStyle = isActive ? "background:var(--primary-color);filter:brightness(1.3);" : "background:var(--secondary-text-color);opacity:0.5;";
+                const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
+                let toggleClass = '';
                 
+                // *** MODIFICATION ICI ***
+                // Utilise la nouvelle couleur 'plié' (folded) par défaut
+                let iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';filter:brightness(1.1);';
+           
+                if (hasCollapsibleLayers) {
+                    toggleClass = ' combined-layer-toggle'; 
+                    if (!isCollapsed) { // Si déplié (unfolded)
+                        // Utilise la nouvelle couleur 'déplié' (unfolded)
+                        iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';filter:brightness(1.3);';
+                    }
+                }
+                // *** FIN MODIFICATION ***
+                
+                iconTooltipText = this.t("cond_combined_schedule_toggle");
+           
+                iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ" data-tooltip="${this.escapeHtml(iconTooltipText)}">
+                   <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
+                       Σ
+                   </span>
+                </div>`;
+           }
+           else { 
+               const originalIndex = allLayers.findIndex(l => l === currentLayer);
+               const isActive = layerActiveStates[originalIndex];
+               const iconStyle = isActive ? "background:" + this._colors.active_layer + ";filter:brightness(1.3);" : "background:" + this._colors.inactive_layer + ";opacity:0.5;";                
                 if (isDefaultLayer) {
                     displayLayerIndex = "0";
                     iconTooltipText = this.t("layer_label") + " 0"; 
@@ -1180,7 +1225,6 @@ class ScheduleStateCard extends HTMLElement {
                 if (isDefaultBg) blockClass += " default-block";
                 if (isDynamic) blockClass += " dynamic";
 
-                // Styles en ligne optimisés: ne contient que les propriétés dynamiques
                 const style = `
                     left:${left}%;
                     width:${width}%;
@@ -1295,12 +1339,10 @@ class ScheduleStateCard extends HTMLElement {
         this.updateTimeline();
     }
 
-
     render() {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
         
-        // Utilisation des CONSTANTES pour définir les variables CSS
         const blockHeight = ScheduleStateCard.BLOCK_HEIGHT; 
         const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH;
         
@@ -1309,18 +1351,15 @@ class ScheduleStateCard extends HTMLElement {
             .icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}
             .icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}
             .combined-layer-toggle{padding-left:0;padding-right:0}
-            /* CLASSES Z-INDEX POUR RÉDUIRE LE STYLE INLINE */
             .sch-z-default{z-index:1}
             .sch-z-layer{z-index:1}
             .sch-z-combined{z-index:1}
-            /* STYLE ICONE FIXE */
             .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
         `;
         
         const styleContent = `
             :host {
                 display: block;
-                /* DÉFINITION DES VARIABLES CSS GLOBALES */
                 --sch-block-height: ${blockHeight}px;
                 --sch-icon-col-width: ${iconColumnWidth}px;
             }
@@ -1338,7 +1377,6 @@ class ScheduleStateCard extends HTMLElement {
             .room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}
             .timeline-wrapper{display:flex;gap:0;align-items:stretch}
             
-            /* UTILISATION DES VARIABLES DANS LE CSS */
             .icon-column{position:relative;width:var(--sch-icon-col-width);flex-shrink:0;display:flex;flex-direction:column;z-index:1}
             .icon-row{position:absolute;display:flex;align-items:center;justify-content:center;cursor:help;width:100%;height:var(--sch-block-height);transition:all .2s;top:0;margin-top:6px;z-index:1}
             .icon-row:hover .layer-number{filter:brightness(1.3)!important}
@@ -1350,7 +1388,6 @@ class ScheduleStateCard extends HTMLElement {
             .timeline-hour:empty{font-size:0}
             .timeline-hour:last-child{border-right:none}
             
-            /* STYLES STATIQUES DÉPLACÉS ICI POUR MOINS DE STYLE INLINE */
             .schedule-block{
                 position:absolute;
                 display:flex;
@@ -1362,7 +1399,7 @@ class ScheduleStateCard extends HTMLElement {
                 text-align:center;
                 font-size:12px;
                 overflow:hidden;
-                height: var(--sch-block-height); /* UTILISATION VARIABLE */
+                height: var(--sch-block-height);
             }
             .schedule-block.default-block{
                 background-image:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.15) 6px,rgba(0,0,0,0.15) 12px)!important;
@@ -1433,36 +1470,33 @@ class ScheduleStateCardEditor extends HTMLElement {
         this._editingIndex = null;
         this._filterText = {};
         this._iconsCache = null;
+        this._colorPickerOpen = null;
     }
 
-    // --- Ajout des fonctions de traduction ---
-
     getLanguage() {
-        // Tente de récupérer la langue de Home Assistant ou la langue par défaut "en"
         return (this._hass && this._hass.language) || (localStorage.getItem("selectedLanguage")) || "en";
     }
 
     t(key) {
         const lang = this.getLanguage();
-        // Recherche la traduction dans la langue courante, puis en "en", sinon retourne la clé
         return TRANSLATIONS[lang] && TRANSLATIONS[lang][key]
             ? TRANSLATIONS[lang][key]
             : TRANSLATIONS.en[key] || key;
     }
-
-    // ----------------------------------------
 
     setConfig(config) {
         this._config = { ...config };
         this._entities = Array.isArray(this._config.entities)
             ? this._config.entities.map(e => ({ ...e }))
             : [];
+        if (!this._config.colors) {
+            this._config.colors = { ...DEFAULT_COLORS };
+        }
         this.render();
     }
 
     set hass(hass) {
         this._hass = hass;
-        // Effacer le cache des icônes pour le recharger si nécessaire
         this._iconsCache = null;
     }
 
@@ -1471,12 +1505,10 @@ class ScheduleStateCardEditor extends HTMLElement {
         this.dispatchEvent(new CustomEvent("config-changed", {
             detail: { config: this._config }
         }));
-        // AJOUT: Rafraîchir la preview de l'éditeur
         this.requestUpdate();
     }
 
     requestUpdate() {
-        // Force la preview à se mettre à jour
         setTimeout(() => {
             const previewCard = document.querySelector('hui-card-preview');
             if (previewCard) {
@@ -1505,8 +1537,22 @@ class ScheduleStateCardEditor extends HTMLElement {
         }
     }
 
+    updateColor(colorKey, value) {
+        if (!this._config.colors) {
+            this._config.colors = { ...DEFAULT_COLORS };
+        }
+        this._config.colors[colorKey] = value;
+        this.fireConfigChanged();
+        this.render();
+    }
+
     toggleEditForm(index) {
         this._editingIndex = this._editingIndex === index ? null : index;
+        this.render();
+    }
+
+    toggleColorPicker(colorKey) {
+        this._colorPickerOpen = this._colorPickerOpen === colorKey ? null : colorKey;
         this.render();
     }
 
@@ -1516,13 +1562,74 @@ class ScheduleStateCardEditor extends HTMLElement {
         return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 
+    isValidHex(hex) {
+        return /^#[0-9A-F]{6}$/i.test(hex);
+    }
+
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    rgbToHex(r, g, b) {
+        return "#" + [r, g, b].map(x => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+        }).join("").toUpperCase();
+    }
+
+    rgbToHsv(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0, s = 0;
+        const v = max;
+        const d = max - min;
+        s = max === 0 ? 0 : d / max;
+        if (max === min) {
+            h = 0;
+        } else {
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s * 100, v: v * 100 };
+    }
+
+    hsvToRgb(h, s, v) {
+        h = h / 360;
+        s = s / 100;
+        v = v / 100;
+        const c = v * s;
+        const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+        const m = v - c;
+        let r = 0, g = 0, b = 0;
+        if (h < 1/6) { r = c; g = x; b = 0; }
+        else if (h < 2/6) { r = x; g = c; b = 0; }
+        else if (h < 3/6) { r = 0; g = c; b = x; }
+        else if (h < 4/6) { r = 0; g = x; b = c; }
+        else if (h < 5/6) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+        r = Math.round((r + m) * 255);
+        g = Math.round((g + m) * 255);
+        b = Math.round((b + m) * 255);
+        return { r, g, b };
+    }
+
     getAllMDIIcons() {
         if (this._iconsCache) return this._iconsCache;
 
         let iconList = [];
         
-        // La tentative de récupérer les icônes à partir de _hass?.resources n'est généralement
-        // pas fiable dans un custom card. On s'appuie sur la liste par défaut si échec.
         try {
             const resources = this._hass?.resources;
             if (resources) {
@@ -1538,7 +1645,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             console.log("Erreur lors de la récupération des icônes:", e);
         }
 
-        // Liste par défaut si la récupération échoue
         if (iconList.length === 0) {
             iconList = [
                 "mdi:calendar-clock", "mdi:thermometer", "mdi:lightbulb", "mdi:power",
@@ -1566,6 +1672,40 @@ class ScheduleStateCardEditor extends HTMLElement {
 
         if (!filterText) return allIcons.slice(0, 20);
         return allIcons.filter(i => i.toLowerCase().includes(filterText.toLowerCase())).slice(0, 50);
+    }
+
+    renderColorPicker(colorKey, colorLabel) {
+        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+        const isOpen = this._colorPickerOpen === colorKey;
+        
+        const rgb = this.hexToRgb(currentColor);
+        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
+        
+        const pickerHtml = isOpen ? `
+            <div class="color-picker-overlay" data-colorkey="${colorKey}"></div>
+            <div class="color-picker-popup">
+                <div class="color-wheel-container">
+                    <canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas>
+                    <div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div>
+                </div>
+                <div class="brightness-control">
+                    <label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label>
+                    <input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" />
+                </div>
+            </div>
+        ` : '';
+    
+        return `
+            <div class="color-config-row">
+                <label>${colorLabel}</label>
+                <div class="color-input-group">
+                    <div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div>
+                    <input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" />
+                    <button class="color-picker-btn" data-colorkey="${colorKey}" title="${this.t('editor_color_picker_label')}">🎨</button>
+                </div>
+                ${pickerHtml}
+            </div>
+        `;
     }
 
     renderEditForm(entityConfig, index) {
@@ -1597,7 +1737,6 @@ class ScheduleStateCardEditor extends HTMLElement {
         const t = this.t.bind(this);
         const entityId = entityConfig.entity || "";
         const entityState = this._hass?.states[entityId];
-        // Utilise une clé de traduction pour le nom par défaut de l'entité
         const name = entityConfig.name || entityState?.attributes?.friendly_name || entityId || t('editor_default_entity_name');
         const icon = entityConfig.icon || entityState?.attributes?.icon || "mdi:calendar-clock";
 
@@ -1810,7 +1949,258 @@ class ScheduleStateCardEditor extends HTMLElement {
             .add-button:hover { 
                 opacity: 0.9;
             }
+
+            .colors-section {
+                margin-top: 20px;
+                padding: 15px;
+                background: var(--secondary-background-color);
+                border-radius: 4px;
+                border: 1px solid var(--divider-color);
+            }
+
+            .colors-section-title {
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 15px;
+                color: var(--primary-text-color);
+            }
+
+            .color-config-row {
+                margin-bottom: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .color-config-row label {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--primary-text-color);
+                margin: 0;
+            }
+
+            .color-input-group {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .color-preview {
+                width: 40px;
+                height: 40px;
+                border-radius: 4px;
+                border: 2px solid var(--divider-color);
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+
+            .color-preview:hover {
+                transform: scale(1.05);
+            }
+
+            .color-hex-input {
+                flex: 1;
+                padding: 8px;
+                border: 1px solid var(--divider-color);
+                border-radius: 3px;
+                background: var(--primary-background-color);
+                color: var(--primary-text-color);
+                font-family: monospace;
+                font-size: 12px;
+            }
+
+            .color-picker-btn {
+                width: 40px;
+                height: 40px;
+                padding: 0;
+                background: var(--primary-background-color);
+                border: 1px solid var(--divider-color);
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 18px;
+                transition: all 0.2s;
+            }
+
+            .color-picker-btn:hover {
+                background: var(--secondary-background-color);
+                border-color: var(--primary-color);
+            }
+
+            .color-picker-popup {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--secondary-background-color);
+                border: 2px solid var(--primary-color);
+                border-radius: 8px;
+                padding: 20px;
+                z-index: 2000;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                width: 90%;
+                max-width: 350px;
+            }
+
+            .color-wheel-container {
+                margin-bottom: 20px;
+                text-align: center;
+            }
+
+            .rgb-cube {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .color-sliders {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .color-sliders label {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--secondary-text-color);
+                margin: 0;
+            }
+
+            .color-sliders input[type="range"] {
+                width: 100%;
+                height: 6px;
+                border-radius: 3px;
+                background: var(--primary-background-color);
+                outline: none;
+                -webkit-appearance: none;
+            }
+
+            .color-sliders input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
+
+            .color-sliders input[type="range"]::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
+
+            .color-picker-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1999;
+            }
+
+            .color-wheel-container {
+                position: relative;
+                width: 280px;
+                height: 280px;
+                margin: 0 auto 20px;
+            }
+
+            .color-wheel {
+                display: block;
+                cursor: crosshair;
+                border-radius: 50%;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            }
+
+            .color-picker-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1999;
+            }
+
+            .color-picker-popup {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--secondary-background-color);
+                border: 2px solid var(--primary-color);
+                border-radius: 8px;
+                padding: 20px;
+                z-index: 2000;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                width: 90%;
+                max-width: 350px;
+            }
+
+            .brightness-control {
+                margin-top: 15px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+
+            .brightness-control label {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--primary-text-color);
+            }
+
+            .brightness-slider {
+                width: 100%;
+                height: 6px;
+                border-radius: 3px;
+                background: linear-gradient(to right, #000000, #808080, #FFFFFF);
+                outline: none;
+                -webkit-appearance: none;
+            }
+
+            .brightness-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
+
+            .brightness-slider::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
         `;
+
+        // *** MODIFICATION ICI ***
+        // Ajout des nouvelles options de couleur à l'éditeur
+        const colorsSection = `
+            <div class="colors-section">
+                <div class="colors-section-title">${t('editor_colors_label')}</div>
+                ${this.renderColorPicker('active_layer', t('editor_active_layer_label'))}
+                ${this.renderColorPicker('inactive_layer', t('editor_inactive_layer_label'))}
+                ${this.renderColorPicker('combined_layer', t('editor_combined_layer_label'))}
+                ${this.renderColorPicker('combined_folded_layer', t('editor_combined_folded_label'))}
+                ${this.renderColorPicker('combined_unfolded_layer', t('editor_combined_unfolded_label'))}
+                ${this.renderColorPicker('cursor', t('editor_cursor_label'))}
+            </div>
+        `;
+        // *** FIN MODIFICATION ***
 
         const entitiesHtml = this._entities.length > 0
             ? this._entities.map((ent, idx) => this.renderEntityRow(ent, idx)).join('')
@@ -1832,6 +2222,8 @@ class ScheduleStateCardEditor extends HTMLElement {
                     + ${t('editor_add_entity')}
                 </button>
             </div>
+
+            ${colorsSection}
         `;
 
         this.shadowRoot.innerHTML = html;
@@ -1881,6 +2273,76 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         }
     }
+
+    drawColorWheel(canvas, colorKey) {
+        const ctx = canvas.getContext('2d');
+        const radius = 130;
+        const centerX = 140;
+        const centerY = 140;
+    
+        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+        const rgb = this.hexToRgb(currentColor);
+        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
+    
+        for (let angle = 0; angle < 360; angle += 1) {
+            const startAngle = (angle - 90) * Math.PI / 180;
+            const endAngle = (angle + 1 - 90) * Math.PI / 180;
+    
+            for (let r = 0; r < radius; r += 2) {
+                const saturation = (r / radius) * 100;
+                const rgb1 = this.hsvToRgb(angle, saturation, hsv.v);
+                const rgbColor = `rgb(${rgb1.r},${rgb1.g},${rgb1.b})`;
+    
+                ctx.fillStyle = rgbColor;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, startAngle, endAngle);
+                ctx.lineTo(centerX, centerY);
+                ctx.fill();
+            }
+        }
+    
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+        ctx.fill();
+    
+        const angle = (hsv.h - 90) * Math.PI / 180;
+        const distance = (hsv.s / 100) * radius;
+        const markerX = centerX + distance * Math.cos(angle);
+        const markerY = centerY + distance * Math.sin(angle);
+        
+        const marker = this.shadowRoot.querySelector(`#marker-${colorKey}`);
+        if (marker) {
+            marker.style.left = (markerX - 6) + 'px';
+            marker.style.top = (markerY - 6) + 'px';
+        }
+    }
+    
+    handleWheelClick(e, colorKey) {
+        const canvas = e.target;
+        const rect = canvas.getBoundingClientRect();
+        
+        const x = e.clientX - rect.left - 140;
+        const y = e.clientY - rect.top - 140;
+        
+        const distance = Math.sqrt(x * x + y * y);
+        if (distance > 130) return;
+    
+        const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
+        const h = angle < 0 ? angle + 360 : angle;
+        const s = (distance / 130) * 100;
+    
+        const brightnessSlider = this.shadowRoot.querySelector(`.brightness-slider[data-colorkey="${colorKey}"]`);
+        const v = brightnessSlider ? parseInt(brightnessSlider.value) : 100;
+    
+        const rgb = this.hsvToRgb(h, s, v);
+        const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+        
+        this.updateColor(colorKey, hex);
+        this.drawColorWheel(canvas, colorKey);
+    }
+
+
 
     attachListeners() {
         const titleInput = this.shadowRoot.querySelector("#title-input");
@@ -1959,16 +2421,131 @@ class ScheduleStateCardEditor extends HTMLElement {
                 }, 150);
             });
         });
+
+        this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const colorKey = e.currentTarget.dataset.colorkey;
+                this.toggleColorPicker(colorKey);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
+            input.addEventListener("change", (e) => {
+                const colorKey = e.target.dataset.colorkey;
+                let value = e.target.value.toUpperCase();
+                if (!this.isValidHex(value)) {
+                    value = DEFAULT_COLORS[colorKey];
+                }
+                e.target.value = value;
+                this.updateColor(colorKey, value);
+            });
+
+            input.addEventListener("input", (e) => {
+                const colorKey = e.target.dataset.colorkey;
+                const preview = this.shadowRoot.querySelector(`.color-preview[data-colorkey="${colorKey}"]`);
+                let value = e.target.value.toUpperCase();
+                if (this.isValidHex(value)) {
+                    preview.style.backgroundColor = value;
+                }
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".color-preview").forEach(preview => {
+            preview.addEventListener("click", (e) => {
+                const colorKey = e.currentTarget.dataset.colorkey;
+                this.toggleColorPicker(colorKey);
+            });
+        });
+
+        // Overlay click to close
+        this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
+            overlay.addEventListener("click", (e) => {
+                const colorKey = e.currentTarget.dataset.colorkey;
+                this._colorPickerOpen = null;
+                this.render();
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".sat-slider, .val-slider").forEach(slider => {
+            slider.addEventListener("input", (e) => {
+                const colorKey = e.target.dataset.colorkey;
+                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
+                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
+                
+                // Get current hue from color
+                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+                const rgb = this.hexToRgb(currentColor);
+                const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 75, v: 100 };
+                
+                const rgb2 = this.hsvToRgb(hsv.h, s, v);
+                const hex = this.rgbToHex(rgb2.r, rgb2.g, rgb2.b);
+                
+                this.updateColor(colorKey, hex);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".hue-picker").forEach(circle => {
+            circle.addEventListener("click", (e) => {
+                const svgRect = e.target.parentElement.getBoundingClientRect();
+                const x = e.clientX - svgRect.left - 100;
+                const y = e.clientY - svgRect.top - 100;
+                const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
+                const h = angle < 0 ? angle + 360 : angle;
+                
+                const colorKey = e.target.dataset.colorkey;
+                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
+                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
+                
+                const rgb = this.hsvToRgb(h, s, v);
+                const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+                
+                this.updateColor(colorKey, hex);
+            });
+        });
+    
+        // Color wheel
+        this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
+            const colorKey = canvas.dataset.colorkey;
+            this.drawColorWheel(canvas, colorKey);
+            canvas.addEventListener("click", (e) => this.handleWheelClick(e, colorKey));
+            canvas.addEventListener("mousemove", (e) => {
+                if (e.buttons === 1) this.handleWheelClick(e, colorKey);
+            });
+        });
+    
+        // Brightness slider
+        this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
+            slider.addEventListener("input", (e) => {
+                const colorKey = e.target.dataset.colorkey;
+                const v = parseInt(e.target.value);
+                this.shadowRoot.querySelector(`#brightness-value-${colorKey}`).textContent = v;
+                
+                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+                const rgb = this.hexToRgb(currentColor);
+                if (rgb) {
+                    const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
+                    const newRgb = this.hsvToRgb(hsv.h, hsv.s, v);
+                    const hex = this.rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                    this.updateColor(colorKey, hex);
+                }
+            });
+        });
+    
+        this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
+            overlay.addEventListener("click", () => {
+                this._colorPickerOpen = null;
+                this.render();
+            });
+        });
     }
 }
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v3.9.31 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v4.0.0 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
     name: "Schedule State Card",
-    description: "Visualizes schedules defined via AppDaemon schedule_parser."
+    description: "Visualizes schedules defined via AppDaemon schedule_parser with color customization."
 });
-

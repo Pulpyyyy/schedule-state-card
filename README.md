@@ -27,7 +27,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 🌍 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
 - ⏱️ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
 - 🎭 **Wrapping Events** - Support for schedules that span across midnight
-- ✏️ Visual Editor Support: Configure easily using Home Assistant's built-in visual editor
+- ✏️ **Visual Editor Support** : Configure easily using Home Assistant's built-in visual editor
   
 ## Installations
 
@@ -114,6 +114,30 @@ entities:
 | `entities[].entity` | string | Entity ID of the schedule sensor |
 | `entities[].name` | string | Custom display name |
 | `entities[].icon` | string | MDI icon identifier |
+
+
+### Colors Configuration
+
+You can customize timeline and layer colors with the `colors:` section:
+
+```yaml
+colors:
+  active_layer: "var(--primary-color, #2196F3)"
+  inactive_layer: "var(--secondary-text-color, #BDBDBD)"
+  cursor: "#FFA5A6"
+  combined_folded_layer: "var(--warning-color, #FF9800)"
+  combined_unfolded_layer: "#FF554C"
+```
+
+#### Color Options Reference
+
+| Key | Description |
+|-----|-------------|
+| **active_layer** | Color used when a layer is active (conditions met). |
+| **inactive_layer** | Color used when a layer is inactive. |
+| **cursor** | Color of the current-time indicator line. |
+| **combined_folded_layer** | Color of Σ (combined layer) when the card is collapsed. |
+| **combined_unfolded_layer** | Color of Σ (combined layer) when the card is expanded. |
 
 ## Understanding the Schedule Display
 
