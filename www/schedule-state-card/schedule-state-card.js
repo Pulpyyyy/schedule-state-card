@@ -45,7 +45,6 @@ const TRANSLATIONS = {
         editor_colors_label: "Colors Configuration",
         editor_active_layer_label: "Active Layer Color",
         editor_inactive_layer_label: "Inactive Layer Color",
-        editor_combined_layer_label: "Combined Layer Color (Blocks)",
         editor_combined_folded_label: "Combined Icon Color (Folded)",
         editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
         editor_cursor_label: "Time Cursor Color",
@@ -102,9 +101,8 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuration des Couleurs",
         editor_active_layer_label: "Couleur de la Couche Active",
         editor_inactive_layer_label: "Couleur de la Couche Inactive",
-        editor_combined_layer_label: "Couleur de la Couche Combinée (Blocs)",
-        editor_combined_folded_label: "Couleur de l'Icône Combinée (Plié)",
-        editor_combined_unfolded_label: "Couleur de l'Icône Combinée (Déplié)",
+        editor_combined_folded_label: "Couleur de l'Icône Combinée (Pliée)",
+        editor_combined_unfolded_label: "Couleur de l'Icône Combinée (Dépliée)",
         editor_cursor_label: "Couleur du Curseur Temporel",
         editor_color_hex_label: "Couleur Hex",
         editor_color_picker_label: "Sélecteur de Couleur",
@@ -159,9 +157,8 @@ const TRANSLATIONS = {
         editor_colors_label: "Farbkonfiguration",
         editor_active_layer_label: "Farbe der aktiven Schicht",
         editor_inactive_layer_label: "Farbe der inaktiven Schicht",
-        editor_combined_layer_label: "Farbe der kombinierten Schicht (Blöcke)",
-        editor_combined_folded_label: "Combined Icon Color (Folded)",
-        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_combined_folded_label: "Kombinierte Symbolfarbe (Zusammengeklappt)",
+        editor_combined_unfolded_label: "Kombinierte Symbolfarbe (Erweitert)",
         editor_cursor_label: "Zeitzeiger-Farbe",
         editor_color_hex_label: "Hex-Farbe",
         editor_color_picker_label: "Farbwähler",
@@ -216,9 +213,8 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuración de Colores",
         editor_active_layer_label: "Color de Capa Activa",
         editor_inactive_layer_label: "Color de Capa Inactiva",
-        editor_combined_layer_label: "Color de Capa Combinada (Bloques)",
-        editor_combined_folded_label: "Combined Icon Color (Folded)",
-        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_combined_folded_label: "Color del Icono Combinado (Plegado)",
+        editor_combined_unfolded_label: "Color del Icono Combinado (Expandido)",
         editor_cursor_label: "Color del Cursor Temporal",
         editor_color_hex_label: "Color Hex",
         editor_color_picker_label: "Selector de Color",
@@ -273,7 +269,6 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuração de Cores",
         editor_active_layer_label: "Cor da Camada Ativa",
         editor_inactive_layer_label: "Cor da Camada Inativa",
-        editor_combined_layer_label: "Cor da Camada Combinada (Blocos)",
         editor_combined_folded_label: "Combined Icon Color (Folded)",
         editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
         editor_cursor_label: "Cor do Cursor Temporal",
@@ -330,7 +325,6 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuração de Cores",
         editor_active_layer_label: "Cor da Camada Ativa",
         editor_inactive_layer_label: "Cor da Camada Inativa",
-        editor_combined_layer_label: "Cor da Camada Combinada (Blocos)",
         editor_combined_folded_label: "Combined Icon Color (Folded)",
         editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
         editor_cursor_label: "Cor do Cursor Temporal",
@@ -346,7 +340,6 @@ const TRANSLATIONS = {
 const DEFAULT_COLORS = {
     active_layer: "var(--primary-color, #2196F3)",
     inactive_layer: "var(--secondary-text-color, #BDBDBD)",
-    combined_layer: "var(--warning-color, #FF9800)",
     combined_folded_layer: "var(--warning-color, #FF9800)",
     combined_unfolded_layer: "var(--primary-color, #2196F3)",
     cursor: "var(--label-badge-yellow, #FDD835)"
@@ -1106,19 +1099,14 @@ class ScheduleStateCard extends HTMLElement {
             if (isCombinedLayer) {
                 const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
                 let toggleClass = '';
-                
-                // *** MODIFICATION ICI ***
-                // Utilise la nouvelle couleur 'plié' (folded) par défaut
                 let iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';filter:brightness(1.1);';
            
                 if (hasCollapsibleLayers) {
                     toggleClass = ' combined-layer-toggle'; 
-                    if (!isCollapsed) { // Si déplié (unfolded)
-                        // Utilise la nouvelle couleur 'déplié' (unfolded)
+                    if (!isCollapsed) {
                         iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';filter:brightness(1.3);';
                     }
                 }
-                // *** FIN MODIFICATION ***
                 
                 iconTooltipText = this.t("cond_combined_schedule_toggle");
            
@@ -2044,67 +2032,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             .color-wheel-container {
                 margin-bottom: 20px;
                 text-align: center;
-            }
-
-            .rgb-cube {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .color-sliders {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .color-sliders label {
-                font-size: 11px;
-                font-weight: 600;
-                color: var(--secondary-text-color);
-                margin: 0;
-            }
-
-            .color-sliders input[type="range"] {
-                width: 100%;
-                height: 6px;
-                border-radius: 3px;
-                background: var(--primary-background-color);
-                outline: none;
-                -webkit-appearance: none;
-            }
-
-            .color-sliders input[type="range"]::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-
-            .color-sliders input[type="range"]::-moz-range-thumb {
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-
-            .color-picker-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 1999;
-            }
-
-            .color-wheel-container {
                 position: relative;
                 width: 280px;
                 height: 280px;
@@ -2126,21 +2053,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
                 z-index: 1999;
-            }
-
-            .color-picker-popup {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: var(--secondary-background-color);
-                border: 2px solid var(--primary-color);
-                border-radius: 8px;
-                padding: 20px;
-                z-index: 2000;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                width: 90%;
-                max-width: 350px;
             }
 
             .brightness-control {
@@ -2187,20 +2099,16 @@ class ScheduleStateCardEditor extends HTMLElement {
             }
         `;
 
-        // *** MODIFICATION ICI ***
-        // Ajout des nouvelles options de couleur à l'éditeur
         const colorsSection = `
             <div class="colors-section">
                 <div class="colors-section-title">${t('editor_colors_label')}</div>
                 ${this.renderColorPicker('active_layer', t('editor_active_layer_label'))}
                 ${this.renderColorPicker('inactive_layer', t('editor_inactive_layer_label'))}
-                ${this.renderColorPicker('combined_layer', t('editor_combined_layer_label'))}
                 ${this.renderColorPicker('combined_folded_layer', t('editor_combined_folded_label'))}
                 ${this.renderColorPicker('combined_unfolded_layer', t('editor_combined_unfolded_label'))}
                 ${this.renderColorPicker('cursor', t('editor_cursor_label'))}
             </div>
         `;
-        // *** FIN MODIFICATION ***
 
         const entitiesHtml = this._entities.length > 0
             ? this._entities.map((ent, idx) => this.renderEntityRow(ent, idx)).join('')
@@ -2342,8 +2250,6 @@ class ScheduleStateCardEditor extends HTMLElement {
         this.drawColorWheel(canvas, colorKey);
     }
 
-
-
     attachListeners() {
         const titleInput = this.shadowRoot.querySelector("#title-input");
         if (titleInput) {
@@ -2457,7 +2363,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
-        // Overlay click to close
         this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
             overlay.addEventListener("click", (e) => {
                 const colorKey = e.currentTarget.dataset.colorkey;
@@ -2466,44 +2371,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
-        this.shadowRoot.querySelectorAll(".sat-slider, .val-slider").forEach(slider => {
-            slider.addEventListener("input", (e) => {
-                const colorKey = e.target.dataset.colorkey;
-                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
-                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
-                
-                // Get current hue from color
-                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
-                const rgb = this.hexToRgb(currentColor);
-                const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 75, v: 100 };
-                
-                const rgb2 = this.hsvToRgb(hsv.h, s, v);
-                const hex = this.rgbToHex(rgb2.r, rgb2.g, rgb2.b);
-                
-                this.updateColor(colorKey, hex);
-            });
-        });
-
-        this.shadowRoot.querySelectorAll(".hue-picker").forEach(circle => {
-            circle.addEventListener("click", (e) => {
-                const svgRect = e.target.parentElement.getBoundingClientRect();
-                const x = e.clientX - svgRect.left - 100;
-                const y = e.clientY - svgRect.top - 100;
-                const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
-                const h = angle < 0 ? angle + 360 : angle;
-                
-                const colorKey = e.target.dataset.colorkey;
-                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
-                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
-                
-                const rgb = this.hsvToRgb(h, s, v);
-                const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
-                
-                this.updateColor(colorKey, hex);
-            });
-        });
-    
-        // Color wheel
         this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
             const colorKey = canvas.dataset.colorkey;
             this.drawColorWheel(canvas, colorKey);
@@ -2513,7 +2380,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
     
-        // Brightness slider
         this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
             slider.addEventListener("input", (e) => {
                 const colorKey = e.target.dataset.colorkey;

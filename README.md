@@ -24,10 +24,10 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 🎯 **Condition-based Layers** - Multiple schedule layers with conditions (time, entity state, numeric ranges)
 - 🎭 **Combined Layer Visualization** - See the result of all stacked conditions in one Sigma (Σ) layer
 - 📚 **Layer Stacking/Collapsing** - Click the Sigma (Σ) icon to toggle between detailed and combined view
-- 🌍 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
-- ⏱️ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
-- 🎭 **Wrapping Events** - Support for schedules that span across midnight
-- ✏️ **Visual Editor Support** : Configure easily using Home Assistant's built-in visual editor
+- 🌐 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
+- ⏰ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
+- 🎭 **Wrapping Events** - Support for schedules that span across midnight with visual indicators
+- ✏️ **Visual Editor Support** - Configure easily using Home Assistant's built-in visual editor
   
 ## Installations
 
@@ -114,55 +114,82 @@ entities:
 | `entities[].entity` | string | Entity ID of the schedule sensor |
 | `entities[].name` | string | Custom display name |
 | `entities[].icon` | string | MDI icon identifier |
-
+| `colors` | object | Color configuration (see below) |
 
 ### Colors Configuration
 
-You can customize timeline and layer colors with the `colors:` section:
+Customize the appearance of the card with color settings:
 
 ```yaml
+type: custom:schedule-state-card
+title: "My Schedules"
+entities:
+  - entity: sensor.schedule_living_room
+
 colors:
-  active_layer: "var(--primary-color, #2196F3)"
-  inactive_layer: "var(--secondary-text-color, #BDBDBD)"
-  cursor: "#FFA5A6"
-  combined_folded_layer: "var(--warning-color, #FF9800)"
-  combined_unfolded_layer: "#FF554C"
+  active_layer: "#2196F3"              # Active conditional layer color (Bright blue)
+  inactive_layer: "#BDBDBD"            # Inactive conditional layer color (Gray)
+  combined_folded_layer: "#FF9800"     # Combined icon color when collapsed (Orange)
+  combined_unfolded_layer: "#2196F3"   # Combined icon color when expanded (Blue)
+  cursor: "#FDD835"                    # Current time indicator color (Yellow)
 ```
 
-#### Color Options Reference
+#### Color Options
 
-| Key | Description |
-|-----|-------------|
-| **active_layer** | Color used when a layer is active (conditions met). |
-| **inactive_layer** | Color used when a layer is inactive. |
-| **cursor** | Color of the current-time indicator line. |
-| **combined_folded_layer** | Color of Σ (combined layer) when the card is collapsed. |
-| **combined_unfolded_layer** | Color of Σ (combined layer) when the card is expanded. |
+| Color | Used For | Default |
+|-------|----------|---------|
+| `active_layer` | Active conditional layers (icon highlight) | `#2196F3` (Blue) |
+| `inactive_layer` | Inactive conditional layers (dimmed icon) | `#BDBDBD` (Gray) |
+| `combined_folded_layer` | Sigma (Σ) icon when layers are collapsed | `#FF9800` (Orange) |
+| `combined_unfolded_layer` | Sigma (Σ) icon when layers are expanded | `#2196F3` (Blue) |
+| `cursor` | Timeline cursor (current time line) | `#FDD835` (Yellow) |
+
+**Note:** Schedule block colors are automatically generated based on their state values, ensuring visual distinction between different states.
 
 ## Understanding the Schedule Display
 
 ### Layer System
 
-Schedules are organized in **layers** for maximum flexibility:
+Schedules are organized in **layers** - each layer represents a planning element that groups events with identical conditions. This allows stacking multiple schedules with different logic:
 
-- **Layer 0** (Default Layer) - Base background layer that provides defautl value
+- **Layer 0** (Default Layer) - Base layer that provides the default value when no other conditions match
 
-- **Layer 1+** (Conditional Layers) - Specific events with optional conditions
-- **Σ (Sigma - Combined Layer)** - Visual result of all active layers stacked together
+- **Layer 1+** (Conditional Layers) - Specific planning elements with optional conditions (time-based, state-based, numeric ranges)
+- **Σ (Sigma - Combined Layer)** - Visual result showing what value is actually active after all conditions are evaluated and layers are stacked
+
+### How Layers Work
+
+```
+Example: Smart Thermostat Schedule
+
+Layer 0 (Default):     18°C all day (base temperature)
+  ├─ Mon-Fri 08:00-18:00: 20°C (work presence)
+  └─ 22:00-06:00: 16°C (night mode)
+
+Resulting Σ (Combined):
+  ├─ 00:00-06:00: 16°C (night)
+  ├─ 06:00-08:00: 18°C (default)
+  ├─ 08:00-18:00: 20°C (work, Mon-Fri) / 18°C (weekends)
+  ├─ 18:00-22:00: 18°C (default)
+  └─ 22:00-00:00: 16°C (night)
+```
 
 ### Layer Interaction
 
-Doubleclick the **Σ (Sigma)** icon to toggle layer visibility:
+Click the **Σ (Sigma)** icon to toggle layer visibility:
 
 - **Expanded view**: See Layer 0, all conditional layers, and the combined result
 - **Collapsed view**: See only the combined result (Σ layer)
-- **Smooth debouncing**: Click handling is debounced to prevent accidental double-toggles
+- **Visual feedback**: Icon color changes based on state
+  - `combined_folded_layer` color when collapsed
+  - `combined_unfolded_layer` color when expanded
 
 ### Layer Colors and States
 
-- **Bright/Colored** - Layer is active (condition matches)
-- **Dimmed/Gray** - Layer is inactive (condition not met)
-- **Sigma (Σ)** - Shows the combined result of all active layers
+- **Bright colored icon** - Layer is active (condition matches)
+- **Dimmed/Gray icon** - Layer is inactive (condition not met)
+- **Sigma (Σ) icon** - Shows the combined result of all active layers
+  - Changes color based on `combined_folded_layer` (collapsed) or `combined_unfolded_layer` (expanded)
 
 ## Schedule YAML Configuration
 
@@ -206,8 +233,8 @@ sensor:
 | `description` | string | | Tooltip description |
 | `icon` | string | | MDI icon for dynamic value indicator |
 | `tooltip` | string | | Custom tooltip text |
-| `allow_wrap` | bool | | Allow event to wrap past midnight |
-| `condition` | list | | Conditions for this event |
+| `allow_wrap` | bool | | Event wraps past midnight (no border radius applied) |
+| `condition` | list | | Conditions for this layer to be active |
 | `months` | list | | Legacy month filter (use in time condition instead) |
 
 ### Condition Reference
@@ -279,6 +306,25 @@ The card automatically detects and displays dynamic values:
 - **📊 Icon** - Other sensor reference (templates referencing regular sensors)
 - **No Icon** - Static values
 
+## Wrapping Events
+
+Handle events that span midnight. When `allow_wrap: true` is set, the card will:
+- Split the event into two internal blocks (before and after midnight)
+- Display without rounded corners to indicate wrapping
+- Show both time ranges in the tooltip
+
+```yaml
+events:
+  - start: "22:00"
+    end: "06:00"
+    state: "night_mode"
+    allow_wrap: true
+    # Visual display will show:
+    # - 22:00 to 00:00 (no left border radius)
+    # - 00:00 to 06:00 (no right border radius)
+    # Tooltip will indicate: "22:00 - 06:00 (wrapping)"
+```
+
 ## AppDaemon Configuration Reference
 
 ### apps.yaml Setup
@@ -305,6 +351,32 @@ schedule_parser:
 - **Manual reload** - Fire `reload_schedules` event to manually trigger parsing
 - **Error handling** - Logs detailed errors for invalid configurations
 - **Partial YAML recovery** - Attempts to extract sensor blocks from malformed YAML
+
+### Data Structure
+
+The AppDaemon component generates `sensor.schedule_*` entities with the following attributes:
+
+```javascript
+{
+  state: "current_value",
+  attributes: {
+    friendly_name: "Schedule Name",
+    unit_of_measurement: "°C",
+    icon: "mdi:thermometer",
+    layers: {
+      mon: [ /* array of layer objects */ ],
+      tue: [ /* array of layer objects */ ],
+      // ... one per day
+      sun: [ /* array of layer objects */ ]
+    }
+  }
+}
+```
+
+Each layer in `layers[day]` is a planning element containing:
+- Events with identical conditions grouped together
+- Condition information for evaluation
+- Block timing and state values
 
 ### Reloading Schedules
 
@@ -347,21 +419,6 @@ sensor:
         state: "2"
         # This schedule inherits all events from Master Schedule
         # Plus adds its own overriding event
-```
-
-### Wrapping Events
-
-Handle events that span midnight:
-
-```yaml
-events:
-  - start: "22:00"
-    end: "06:00"
-    state: "night_mode"
-    allow_wrap: true
-    # This creates two internal blocks:
-    # - 22:00 to 00:00 (first day)
-    # - 00:00 to 06:00 (next day)
 ```
 
 ### Secrets Support
