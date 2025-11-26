@@ -1355,8 +1355,8 @@ class ScheduleStateCard extends HTMLElement {
             .card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
             .card-header.hidden{display:none}
             .card-title{font-size:24px;font-weight:bold;margin:0}
-            .day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-            .day-button{padding:8px 16px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}
+            .day-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;justify-content: center}
+            .day-button{padding:8px 6px;border:none;border-radius:8px;background:var(--primary-background-color);color:var(--primary-text-color);cursor:pointer;font-weight:500;transition:all .2s;border:1px solid var(--divider-color)}
             .day-button:hover{background:var(--secondary-background-color);border-color:var(--primary-color)}
             .day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}
             .schedules-container{display:flex;flex-direction:column;gap:24px}
@@ -2414,4 +2414,5 @@ window.customCards.push({
     type: "schedule-state-card",
     name: "Schedule State Card",
     description: "Visualizes schedules defined via AppDaemon schedule_parser with color customization."
+
 });
