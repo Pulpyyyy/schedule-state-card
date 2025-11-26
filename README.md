@@ -71,7 +71,23 @@ sensor:
         state: "21"
 ```
 
-The AppDaemon app will parse this configuration and create `sensor.schedule_*` entities automatically.
+The AppDaemon app will parse this configuration and shoudl create `sensor.schedule_*` entities automatically.
+
+Log examples :
+
+```
+2025-11-10 18:06:51.770075 INFO schedule_parser: Starting parsing of /homeassistant/yaml_entities/sensor.yaml...
+2025-11-10 18:06:51.814016 INFO schedule_parser: Sensor 'sensor.schedule_tarif_actuel_ttc': 14 events - Unit: '€/kWh'
+2025-11-10 18:06:51.843765 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbh': 28 events - Unit: '°C'
+2025-11-10 18:06:51.868107 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbb': 21 events - Unit: '°C'
+2025-11-10 18:06:51.919854 INFO schedule_parser: Sensor 'sensor.schedule_consigne_rdc': 38 events - Unit: '°C'
+2025-11-10 18:06:51.947501 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sam': 14 events - Unit: '°C'
+2025-11-10 18:06:51.975810 INFO schedule_parser: Sensor 'sensor.schedule_consigne_suite': 28 events - Unit: '°C'
+2025-11-10 18:06:51.999115 INFO schedule_parser: Sensor 'sensor.schedule_consigne_amis': 21 events - Unit: '°C'
+2025-11-10 18:06:52.046843 INFO schedule_parser: Sensor 'sensor.schedule_consigne_bureau': 28 events - Unit: ''
+2025-11-10 18:06:52.066508 INFO schedule_parser: Sensor 'sensor.schedule_guirlande_noel': 14 events - Unit: ''
+2025-11-10 18:06:52.067200 INFO schedule_parser: Parsing completed: 9/9 sensors processed successfully
+```
 
 ### Card Installation
 
