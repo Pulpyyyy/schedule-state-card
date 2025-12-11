@@ -2032,6 +2032,67 @@ class ScheduleStateCardEditor extends HTMLElement {
             .color-wheel-container {
                 margin-bottom: 20px;
                 text-align: center;
+            }
+
+            .rgb-cube {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .color-sliders {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .color-sliders label {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--secondary-text-color);
+                margin: 0;
+            }
+
+            .color-sliders input[type="range"] {
+                width: 100%;
+                height: 6px;
+                border-radius: 3px;
+                background: var(--primary-background-color);
+                outline: none;
+                -webkit-appearance: none;
+            }
+
+            .color-sliders input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
+
+            .color-sliders input[type="range"]::-moz-range-thumb {
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                cursor: pointer;
+                border: 2px solid var(--primary-text-color);
+            }
+
+            .color-picker-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1999;
+            }
+
+            .color-wheel-container {
                 position: relative;
                 width: 280px;
                 height: 280px;
@@ -2053,6 +2114,21 @@ class ScheduleStateCardEditor extends HTMLElement {
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
                 z-index: 1999;
+            }
+
+            .color-picker-popup {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--secondary-background-color);
+                border: 2px solid var(--primary-color);
+                border-radius: 8px;
+                padding: 20px;
+                z-index: 2000;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                width: 90%;
+                max-width: 350px;
             }
 
             .brightness-control {
@@ -2368,6 +2444,43 @@ class ScheduleStateCardEditor extends HTMLElement {
                 const colorKey = e.currentTarget.dataset.colorkey;
                 this._colorPickerOpen = null;
                 this.render();
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".sat-slider, .val-slider").forEach(slider => {
+            slider.addEventListener("input", (e) => {
+                const colorKey = e.target.dataset.colorkey;
+                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
+                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
+                
+                // Get current hue from color
+                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+                const rgb = this.hexToRgb(currentColor);
+                const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 75, v: 100 };
+                
+                const rgb2 = this.hsvToRgb(hsv.h, s, v);
+                const hex = this.rgbToHex(rgb2.r, rgb2.g, rgb2.b);
+                
+                this.updateColor(colorKey, hex);
+            });
+        });
+
+        this.shadowRoot.querySelectorAll(".hue-picker").forEach(circle => {
+            circle.addEventListener("click", (e) => {
+                const svgRect = e.target.parentElement.getBoundingClientRect();
+                const x = e.clientX - svgRect.left - 100;
+                const y = e.clientY - svgRect.top - 100;
+                const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
+                const h = angle < 0 ? angle + 360 : angle;
+                
+                const colorKey = e.target.dataset.colorkey;
+                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
+                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
+                
+                const rgb = this.hsvToRgb(h, s, v);
+                const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+                
+                this.updateColor(colorKey, hex);
             });
         });
 
