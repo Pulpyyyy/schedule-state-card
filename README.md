@@ -39,14 +39,14 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 Copy the `schedule_parser.py` file to your AppDaemon apps subdirectory `/config/apps/schedule_parser/`
 
-2. Configure AppDaemon (`apps.yaml`)
+2. Configure AppDaemon (`apps.yaml`), schedule_state definitions must be part of the file
 
 ```yaml
 schedule_parser:
   module: schedule_parser
   class: ScheduleParser
-  config_file: /config/configuration.yaml
-  secrets_file: /config/secrets.yaml
+  config_file: /homeasistant/configuration.yaml
+  secrets_file: /homeassistant/secrets.yaml
 ```
 
 3. Configure Schedules in configuration.yaml
@@ -76,7 +76,7 @@ The AppDaemon app will parse this configuration and shoudl create `sensor.schedu
 Log examples :
 
 ```
-2025-11-10 18:06:51.770075 INFO schedule_parser: Starting parsing of /homeassistant/yaml_entities/sensor.yaml...
+2025-11-10 18:06:51.770075 INFO schedule_parser: Starting parsing of /homeassistant/configuration.yaml...
 2025-11-10 18:06:51.814016 INFO schedule_parser: Sensor 'sensor.schedule_tarif_actuel_ttc': 14 events - Unit: '€/kWh'
 2025-11-10 18:06:51.843765 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbh': 28 events - Unit: '°C'
 2025-11-10 18:06:51.868107 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbb': 21 events - Unit: '°C'
@@ -476,10 +476,6 @@ sensor:
 2. Verify AppDaemon logs:
    ```bash
    tail -f /config/logs/appdaemon.log
-   ```
-3. Check YAML syntax:
-   ```bash
-   yamllint /config/schedules.yaml
    ```
 
 ### Wrong colors or values displaying
