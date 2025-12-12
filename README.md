@@ -224,11 +224,6 @@ sensor:
       - start: "06:00"
         end: "08:00"
         state: "19"
-        unit: "°C"
-        tooltip: "Morning comfort"
-        description: "Warm up before wake"
-        icon: "mdi:weather-sunny"
-        allow_wrap: false
         condition:
           - condition: time
             weekday: [mon, tue, wed, thu, fri]
