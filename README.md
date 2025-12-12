@@ -45,7 +45,7 @@ Copy the `schedule_parser.py` file to your AppDaemon apps subdirectory `/config/
 schedule_parser:
   module: schedule_parser
   class: ScheduleParser
-  config_file: /homeasistant/configuration.yaml
+  config_file: /homeassistant/configuration.yaml
   secrets_file: /homeassistant/secrets.yaml
 ```
 
