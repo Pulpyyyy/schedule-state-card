@@ -565,27 +565,53 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     getColorForState(stateValue, unit) {
-        let str = String(stateValue).trim();
-        const numMatch = str.match(/^[\d.]+/);
-        if (numMatch) str = String(parseFloat(numMatch[0]));
-        if (unit) str = str + "|" + unit;
-        let hash = 2166136261; 
-        const prime = 16777619; 
+        let valueStr = String(stateValue === null || stateValue === undefined ? "" : stateValue).trim();
+        const numMatch = valueStr.match(/^[\d.]+/);
+        if (numMatch) valueStr = String(parseFloat(numMatch[0]));
+        
+        const unitStr = String(unit === null || unit === undefined ? "" : unit).trim();
+
+        let str;
+        if (unitStr) {
+            if (valueStr) {
+                str = `V:${valueStr}|U:${unitStr}`; 
+            } else {
+                str = `V:${unitStr}|U:${unitStr}`;
+            }
+        } else {
+            if (valueStr) {
+                str = `V:${valueStr}`;
+            } else {
+                str = "";
+            }
+        }
+
+        let hash = 2166136261;
+        const prime = 16777619;
         for (let i = 0; i < str.length; i++) {
             hash ^= str.charCodeAt(i);
-            hash = (hash * prime) & 4294967295; 
+            hash = (hash * prime) >>> 0;
         }
-        hash ^= hash >>> 16;
-        hash = Math.abs(hash); 
-        const numHues = 144; 
-        const step = 360 / numHues;
-        const idx = hash % numHues; 
-        let hue = Math.round(idx * step);
-        const hsl = `hsl(${hue}, 75%, 50%)`;
+
+        hash = (hash ^ (hash >>> 16)) >>> 0;
+        hash = (Math.imul(hash, 0x85ebca6b)) >>> 0;
+        hash = (hash ^ (hash >>> 13)) >>> 0;
+        hash = (Math.imul(hash, 0xc2b2ae35)) >>> 0;
+        hash = (hash ^ (hash >>> 16)) >>> 0;
+
+        const goldenAngle = 137.507764;
+        const hueOffset = hash * 0.1;
+        const hue = ((hash * goldenAngle) + hueOffset) % 360; 
+        
+        const sat = 50 + (hash % 40); 
+        const light = 35 + ((hash >>> 8) % 30); 
+
+        const hsl = `hsl(${hue.toFixed(1)}, ${sat}%, ${light}%)`;
         const textColor = this.getTextColorForBackground(hsl);
+
         return { color: hsl, textColor: textColor };
     }
-    
+
     timeToMinutes(time) {
         if (!time || typeof time !== "string") return 0;
         const parts = time.split(":");
