@@ -65,13 +65,16 @@ class ScheduleParser(hass.Hass):
             self.log(f"Error reading config file '{self.config_file}': {e}", level="ERROR")
             return
 
+        # --- FIX: Remplacer les espaces insécables ('\xa0') par des espaces standards ---
+        raw_config = raw_config.replace('\xa0', ' ')
+
         config: Dict[str, Any] = {}
         try:
+            # Tente le chargement complet
             config = yaml.safe_load(raw_config) or {}
-        # FIX: Catch a broader 'Exception' instead of just 'yaml.YAMLError' 
-        # to handle the ValueError raised by AppDaemon's !include constructor.
+        # --- FIX: Catch toute erreur (ValueError, YAMLError, etc.) pour tomber sur le parsing partiel ---
         except Exception as e: 
-            self.log(f"Error loading global YAML (likely due to !include/secrets): {e}. Attempting extraction of sensor section...", level="WARNING")
+            self.log(f"Error loading global YAML (likely due to !include/secrets or indentation): {e}. Attempting extraction of sensor section...", level="WARNING")
             config = self._load_partial_sensors(raw_config)
         
         schedule_sensors: List[Dict[str, Any]] = self._extract_schedule_sensors(config)
@@ -108,7 +111,16 @@ class ScheduleParser(hass.Hass):
         
         sensors: List[Dict[str, Any]] = []
         for i, block in enumerate(sensor_blocks):
+            
+            # --- AJOUT: Ignorer les blocs qui contiennent une clé 'sensor:' imbriquée (e.g. template) ---
+            # Le bloc commence déjà par 'sensor:\n', nous recherchons donc une autre instance indentée.
+            if re.search(r'^\s{2,}sensor:', block, flags=re.MULTILINE):
+                 self.log(f"Sensor block #{i} skipped: Contains nested 'sensor:' key (likely from template/packages).", level="DEBUG")
+                 continue
+            # --- FIN AJOUT ---
+
             try:
+                # Le bloc est censé être lisible maintenant
                 loaded = yaml.safe_load(block)
                 if isinstance(loaded, dict) and 'sensor' in loaded:
                     s = loaded['sensor']
@@ -118,7 +130,9 @@ class ScheduleParser(hass.Hass):
                 elif isinstance(loaded, dict):
                     sensors.append(loaded)
             except yaml.YAMLError as e:
-                self.log(f"Sensor block #{i} unreadable, skipped: {e}", level="ERROR")
+                # Ce bloc capture la YAMLError, par exemple si l'indentation est incorrecte dans le bloc extrait.
+                # Nous dégradons le niveau à DEBUG pour ne pas encombrer les logs en cas d'erreur attendue.
+                self.log(f"Sensor block #{i} unreadable, skipped: {e}", level="DEBUG")
         
         return {'sensor': sensors}
 
@@ -703,6 +717,7 @@ class ScheduleParser(hass.Hass):
         
         # Group individual sensors (starting with '-')
         for line in lines:
+            # Note: The raw input is now cleaned of \xa0, so \s* is standard whitespace.
             if re.match(r'^\s*-\s', line) and current:
                 blocks.append("sensor:\n" + "\n".join(current) + "\n")
                 current = [line]
@@ -720,7 +735,7 @@ class ScheduleParser(hass.Hass):
         with unaccented equivalents or underscores.
         """
         replacements: Dict[str, str] = {
-            'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+            'é': 'e', 'è': 'e', 'e': 'e', 'ë': 'e',
             'à': 'a', 'â': 'a', 'ä': 'a',
             'ù': 'u', 'û': 'u', 'ü': 'u',
             'ô': 'o', 'ö': 'o',
