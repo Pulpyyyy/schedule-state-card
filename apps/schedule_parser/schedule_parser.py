@@ -68,8 +68,10 @@ class ScheduleParser(hass.Hass):
         config: Dict[str, Any] = {}
         try:
             config = yaml.safe_load(raw_config) or {}
-        except yaml.YAMLError as e:
-            self.log(f"Invalid global YAML: {e}, attempting extraction of sensor section...", level="WARNING")
+        # FIX: Catch a broader 'Exception' instead of just 'yaml.YAMLError' 
+        # to handle the ValueError raised by AppDaemon's !include constructor.
+        except Exception as e: 
+            self.log(f"Error loading global YAML (likely due to !include/secrets): {e}. Attempting extraction of sensor section...", level="WARNING")
             config = self._load_partial_sensors(raw_config)
         
         schedule_sensors: List[Dict[str, Any]] = self._extract_schedule_sensors(config)
@@ -183,25 +185,29 @@ class ScheduleParser(hass.Hass):
             self._extract_dynamic_entities([{'state': raw_default}])
 
     def _extract_dynamic_entities(self, items: List[Dict[str, Any]]) -> None:
-        """Extracts all entities referenced in items (events, states)."""
-        if not items:
-            return
-        
-        for item in items:
-            if not isinstance(item, dict):
-                continue
+            """Extracts all entities referenced in items (events, states)."""
+            if not items:
+                return
             
-            for key in ['state', 'state_value', 'raw_state_template', 'default_state']:
-                if key in item:
-                    value: Any = item[key]
-                    if isinstance(value, str):
-                        # Search for states() and state_attr()
-                        entities: List[str] = re.findall(r"states\s*\(\s*['\"]([^'\"]+)['\"]\s*\)", value)
-                        entities += re.findall(r"state_attr\s*\(\s*['\"]([^'\"]+)['\"]", value)
-                        self.dynamic_entities.update(entities)
-            
-            if 'events' in item:
-                self._extract_dynamic_entities(item['events'])
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                
+                for key in ['state', 'state_value', 'raw_state_template', 'default_state']:
+                    if key in item:
+                        value: Any = item[key]
+                        if isinstance(value, str):
+                            # Search for states()
+                            entities: List[str] = re.findall(r"states\s*\(\s*['\"]([^'\"]+)['\"]\s*\)", value)
+                            # Search for state_attr()
+                            entities += re.findall(r"state_attr\s*\(\s*['\"]([^'\"]+)['\"]", value)
+                            # # Search for is_state() (Ajout pour capturer les dépendances dans les conditions Jinja)
+                            # entities += re.findall(r"is_state\s*\(\s*['\"]([^'\"]+)['\"]", value)
+                            
+                            self.dynamic_entities.update(entities)
+                
+                if 'events' in item:
+                    self._extract_dynamic_entities(item['events'])
 
     def _process_sensor(self, sensor_cfg: Dict[str, Any], days: List[str]) -> None:
         """Processes a sensor configuration and updates its Home Assistant state."""
