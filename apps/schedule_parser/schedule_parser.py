@@ -180,7 +180,6 @@ class ScheduleParser(hass.Hass):
             
             # Add all variants for dynamic detection
             self.schedule_state_entities.add(f"sensor.schedule_{sensor_id}")
-            # Maintain compatibility with consigne_* naming
             self.schedule_state_entities.add(f"sensor.{sensor_id}")
 
     def _build_dynamic_entities_list(self, schedule_sensors: List[Dict[str, Any]]) -> None:
