@@ -253,7 +253,6 @@ class ScheduleParser(hass.Hass):
 
         attributes: Dict[str, Any] = {
             'platform': 'schedule_state',
-            'room': sensor_name,
             'default_state': default_state,
             'layers': layers_by_day,
             'events': events,
