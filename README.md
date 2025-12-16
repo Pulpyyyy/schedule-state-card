@@ -76,19 +76,7 @@ Follow the configuration steps as needed.
 
 ### Card Installation
 
-[![HACS Installation](https://img.shields.io/badge/HACS-Lovelace%20Card%20-41BDF5.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=lovelace)
-
-1. Add Card to Lovelace
-
-2. Copy the `schedule-state-card.js` subdirectory `/config/www/schedule-state-card/`
-
-3. Add to your Lovelace configuration:
-
-```yaml
-resources:
-  - url: /local/schedule-state-card/schedule-state-card.js
-    type: module
-```
+[![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=plugin)
 
 ## Card Configuration
 
