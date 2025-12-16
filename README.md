@@ -33,7 +33,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ### Schedule state Installation
 
-0. Remove preview Schedule state
+0. Remove previous Schedule state install
 
 In HACS, look for any `Schedule State` installed version.
 
