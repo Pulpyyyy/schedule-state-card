@@ -2,6 +2,7 @@
   "name": "Schedule State Card",
   "filename": "schedule-state-card.js",
   "render_readme": true,
+  "content_in_root": true,
   "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
   "issues": "https://github.com/Pulpyyyy/schedule-state-card/issues"
 }
