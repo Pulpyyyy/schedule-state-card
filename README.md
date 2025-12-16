@@ -7,11 +7,10 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ## ⚠️ Requirements
 
-**This card requires the Schedule State custom component:**
-- GitHub: https://github.com/aneeshd/schedule_state
+**This card requires the Schedule State custom component (modded version):**
+- GitHub: https://github.com/Pulpyyyy/schedule_state
 
-- This project includes the `schedule_parser.py` AppDaemon application and `schedule-state-card.js` card.
-- It generates `sensor.schedule_*` entities from existing schedule_state YAML configuration
+- This project includes a `schedule-state-card.js` card.
 - **No external component needed** - everything is self-contained in this repository
 
 ## Features
