@@ -1,9 +1,6 @@
 {
   "name": "Schedule State Card",
-  "category": "plugin",
   "filename": "schedule-state-card.js",
-  "content_in_root": true,
-  "homeassistant": "2023.1.0",
   "render_readme": true,
   "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
   "issues": "https://github.com/Pulpyyyy/schedule-state-card/issues"
