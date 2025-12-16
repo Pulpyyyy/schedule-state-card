@@ -33,11 +33,16 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ### Schedule state Installation
 
-0. Remove previous Schedule state install
+0. Clean Up Previous HACS Installation
+If you previously installed a version of Schedule State via HACS (e.g., from another repository):
 
-In HACS, look for any `Schedule State` installed version.
+Go to HACS > Integrations.
 
-Right click and select Uninstall.
+Locate any existing Schedule State entry.
+
+Click the three dots (⋮) and select Remove or Uninstall.
+
+Important: If you were using a different version, ensure you delete any orphaned schedule_parser.py files in your /config/appdaemon/apps/ folder.
 
 [![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
 
