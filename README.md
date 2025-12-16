@@ -33,14 +33,13 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ### Schedule state Installation
 
-[![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
-
-
 0. Remove preview Schedule state
 
 In HACS, look for any `Schedule State` installed version.
 
 Right click and select Uninstall.
+
+[![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
 
 1. Open Home Assistant and HACS
 
