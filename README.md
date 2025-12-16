@@ -31,63 +31,45 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
   
 ## Installations
 
-### Appdaemon Installation
+### Schedule state Installation
 
-[![HACS Installation](https://img.shields.io/badge/HACS-AppDaemon%20App-03A9F4.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=appdaemon)
+[![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
 
-1. Setup AppDaemon
 
-Copy the `schedule_parser.py` file to your AppDaemon apps subdirectory `/config/apps/schedule_parser/`
+0. Remove preview Schedule state
 
-2. Configure AppDaemon (`apps.yaml`), schedule_state definitions must be part of the file
+In HACS, look for any `Schedule State` installed version.
 
-```yaml
-schedule_parser:
-  module: schedule_parser
-  class: ScheduleParser
-  config_file: /homeassistant/configuration.yaml
-  secrets_file: /homeassistant/secrets.yaml
-```
+Right click and select Uninstall.
 
-3. Configure Schedules in configuration.yaml
+1. Open Home Assistant and HACS
 
-Add your schedule configuration to `/config/configuration.yaml`:
+Go to your Home Assistant dashboard. In the sidebar, click on HACS.
 
-```yaml
-sensor:
-  - platform: schedule_state
-    name: "Living Room Thermostat"
-    default_state: "{{ states('input_number.comfort_temp') }}"
-    unit_of_measurement: "°C"
-    events:
-      - start: "08:00"
-        end: "10:00"
-        state: "20"
-        condition:
-          - condition: time
-            weekday: [mon, tue, wed, thu, fri]
-      - start: "18:00"
-        end: "23:00"
-        state: "21"
-```
+2. Add the Custom Repository
 
-The AppDaemon app will parse this configuration and shoudl create `sensor.schedule_*` entities automatically.
+In HACS, click on top right (⋮).
+Scroll down to Custom repositories. In the Repository URL field, enter: `https://github.com/Pulpyyyy/schedule_state``
 
-Log examples :
+In the Category dropdown, select: `Integration``
 
-```
-2025-11-10 18:06:51.770075 INFO schedule_parser: Starting parsing of /homeassistant/configuration.yaml...
-2025-11-10 18:06:51.814016 INFO schedule_parser: Sensor 'sensor.schedule_tarif_actuel_ttc': 14 events - Unit: '€/kWh'
-2025-11-10 18:06:51.843765 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbh': 28 events - Unit: '°C'
-2025-11-10 18:06:51.868107 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sdbb': 21 events - Unit: '°C'
-2025-11-10 18:06:51.919854 INFO schedule_parser: Sensor 'sensor.schedule_consigne_rdc': 38 events - Unit: '°C'
-2025-11-10 18:06:51.947501 INFO schedule_parser: Sensor 'sensor.schedule_consigne_sam': 14 events - Unit: '°C'
-2025-11-10 18:06:51.975810 INFO schedule_parser: Sensor 'sensor.schedule_consigne_suite': 28 events - Unit: '°C'
-2025-11-10 18:06:51.999115 INFO schedule_parser: Sensor 'sensor.schedule_consigne_amis': 21 events - Unit: '°C'
-2025-11-10 18:06:52.046843 INFO schedule_parser: Sensor 'sensor.schedule_consigne_bureau': 28 events - Unit: ''
-2025-11-10 18:06:52.066508 INFO schedule_parser: Sensor 'sensor.schedule_guirlande_noel': 14 events - Unit: ''
-2025-11-10 18:06:52.067200 INFO schedule_parser: Parsing completed: 9/9 sensors processed successfully
-```
+Click Add.
+
+3. Install the Integration 
+
+Go back to the Integrations section in HACS.
+Search for schedule_state (the new one !). Click on it and then click Install.
+Wait for the installation to complete.
+
+4. Restart Home Assistant 
+
+After installation, restart Home Assistant to apply changes
+
+5. Configure the Integration
+
+Once restarted, go to Settings → Devices & Services.
+Click Add Integration and search for Schedule State.
+Follow the configuration steps as needed.
 
 ### Card Installation
 
