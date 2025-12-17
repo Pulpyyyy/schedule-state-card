@@ -309,36 +309,9 @@ events:
     # Tooltip will indicate: "22:00 - 06:00 (wrapping)"
 ```
 
-## AppDaemon Configuration Reference
-
-### apps.yaml Setup
-
-```yaml
-schedule_parser:
-  module: schedule_parser
-  class: ScheduleParser
-  config_file: /config/configuration.yaml
-  secrets_file: /config/secrets.yaml
-```
-
-### Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `config_file` | string | ✓ | Path to YAML schedules file |
-| `secrets_file` | string | /config/secrets.yaml | Path to Home Assistant secrets |
-
-### AppDaemon Features
-
-- **Auto-reload on startup** - Runs 10 seconds after AppDaemon starts
-- **Hourly refresh** - Re-parses schedules every 60 minutes
-- **Manual reload** - Fire `reload_schedules` event to manually trigger parsing
-- **Error handling** - Logs detailed errors for invalid configurations
-- **Partial YAML recovery** - Attempts to extract sensor blocks from malformed YAML
-
 ### Data Structure
 
-The AppDaemon component generates `sensor.schedule_*` entities with the following attributes:
+The modded component generates entities with the following attributes:
 
 ```javascript
 {
@@ -361,22 +334,6 @@ Each layer in `layers[day]` is a planning element containing:
 - Events with identical conditions grouped together
 - Condition information for evaluation
 - Block timing and state values
-
-### Reloading Schedules
-
-Reload schedules without restarting AppDaemon:
-
-```yaml
-# In Home Assistant automation or script
-service: automation.trigger
-target:
-  entity_id: automation.reload_schedules_automation
-
-# Or fire event directly
-service: appdaemon.call_service
-data:
-  service: "reload_schedules"
-```
 
 ## Advanced Features
 
