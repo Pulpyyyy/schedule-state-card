@@ -30,7 +30,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
   
 ## Installations
 
-### Schedule state Installationas prerequisites
+### Schedule state Installation as prerequisites
 
 1. Please refer to https://github.com/aneeshd/schedule_state for the implementation.
    
