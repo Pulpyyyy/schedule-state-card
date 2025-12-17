@@ -40,8 +40,6 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 [![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=plugin)
 
-## Card Configuration
-
 ### Basic Configuration
 
 ```yaml
