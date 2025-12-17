@@ -10,7 +10,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 **This card requires the Schedule State custom component (modded version):**
 - GitHub: https://github.com/Pulpyyyy/schedule_state
 
-- This project includes a `schedule-state-card.js` card.
+- This project includes a `schedule-state-card.js` card.a
 - **No external component needed** - everything is self-contained in this repository
 
 ## Features
@@ -40,8 +40,6 @@ Go to HACS > Integrations.
 Locate any existing Schedule State entry.
 
 Click the three dots (⋮) and select Remove or Uninstall.
-
-Important: If you were using a different version, ensure you delete any orphaned schedule_parser.py files in your /config/appdaemon/apps/ folder.
 
 [![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
 
@@ -398,10 +396,7 @@ sensor:
 ### Schedule not appearing
 
 1. Check entity ID in Home Assistant Dev Tools → States
-2. Verify AppDaemon logs:
-   ```bash
-   tail -f /config/logs/appdaemon.log
-   ```
+2. Verify your logs
 
 ### Wrong colors or values displaying
 
@@ -420,16 +415,6 @@ sensor:
 - Ensure JavaScript console is clear of errors
 - Try hard-refreshing the browser (Ctrl+Shift+R or Cmd+Shift+R)
 - Check browser compatibility (Chrome/Edge/Firefox recommended)
-
-### AppDaemon parsing errors
-
-- Enable DEBUG logging in AppDaemon:
-  ```yaml
-  logs:
-    appdaemon.schedule_parser: DEBUG
-  ```
-- Check for invalid YAML indentation
-- Verify all referenced entity IDs exist
 
 ## Browser Support
 
@@ -456,6 +441,6 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 ## Support
 
 - 📖 [Home Assistant Documentation](https://www.home-assistant.io/)
-- 📖 [AppDaemon Documentation](https://appdaemon.readthedocs.io/)
+- 📖 [Schedule State](https://github.com/aneeshd/schedule_state)
 - 🐛 [Report Issues](https://github.com/Pulpyyyy/schedule-state-card/issues)
 - 💬 [Discussions](https://github.com/Pulpyyyy/schedule-state-card/discussions)
