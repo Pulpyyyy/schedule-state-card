@@ -4,14 +4,8 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ![Schedule State Card](.img/card.gif)
 
-
-## ⚠️ Requirements
-
-**This card requires the Schedule State custom component :**
-- GitHub: [https://github.com/aneeshd/schedule_state](https://github.com/aneeshd/schedule_state)
-
 - This project includes a `schedule-state-card.js` card.
-
+- 
 ## Features
 
 - 📅 **Weekly Schedule Visualization** - View your complete schedule for each day of the week
@@ -30,6 +24,11 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 ## Installations
 
 ### Schedule state Installation as prerequisites
+
+## ⚠️ Requirements
+
+**This card requires the Schedule State custom component :**
+- GitHub: [https://github.com/aneeshd/schedule_state](https://github.com/aneeshd/schedule_state)
 
 1. Please refer to https://github.com/aneeshd/schedule_state for the implementation.
    
