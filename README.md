@@ -7,8 +7,8 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ## ⚠️ Requirements
 
-**This card requires the Schedule State custom component (modded version):**
-- GitHub: https://github.com/Pulpyyyy/schedule_state
+**This card requires the Schedule State custom component :**
+- GitHub: [https://github.com/Pulpyyyy/schedule_state](https://github.com/aneeshd/schedule_state)
 
 - This project includes a `schedule-state-card.js` card.a
 - **No external component needed** - everything is self-contained in this repository
@@ -30,47 +30,11 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
   
 ## Installations
 
-### Schedule state Installation
+### Schedule state Installationas prerequisites
 
-0. Clean Up Previous HACS Installation
-If you previously installed a version of Schedule State via HACS (e.g., from another repository):
-
-Go to HACS > Integrations.
-
-Locate any existing Schedule State entry.
-
-Click the three dots (⋮) and select Remove or Uninstall.
-
-[![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state&category=integration)
-
-1. Open Home Assistant and HACS
-
-Go to your Home Assistant dashboard. In the sidebar, click on HACS.
-
-2. Add the Custom Repository
-
-In HACS, click on top right (⋮).
-Scroll down to Custom repositories. In the Repository URL field, enter: `https://github.com/Pulpyyyy/schedule_state``
-
-In the Category dropdown, select: `Integration``
-
-Click Add.
-
-3. Install the Integration 
-
-Go back to the Integrations section in HACS.
-Search for schedule_state (the new one !). Click on it and then click Install.
-Wait for the installation to complete.
-
-4. Restart Home Assistant 
-
-After installation, restart Home Assistant to apply changes
-
-5. Configure the Integration
-
-Once restarted, go to Settings → Devices & Services.
-Click Add Integration and search for Schedule State.
-Follow the configuration steps as needed.
+1. Please refer to https://github.com/aneeshd/schedule_state for the implementation.
+   
+2. After installation, restart Home Assistant to apply changes
 
 ### Card Installation
 
