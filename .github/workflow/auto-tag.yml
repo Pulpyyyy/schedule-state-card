@@ -7,40 +7,38 @@ on:
       - master
 
 jobs:
-  build-and-tag:
+  tag-only:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Crucial: Allows the bot to create tags/releases
-    
+      contents: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract Version from JS
         id: get_version
         run: |
-          # Finds "vX.X.X" inside your specific file
-          # Replace 'schedule-state-card.js' with your actual filename
-          VERSION=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' schedule-state-card.js | head -n 1)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Found version: $VERSION"
+          # Matches the version number specifically after 'Schedule State Card %c v'
+          VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' schedule-state-card.js | head -n 1)
+          
+          # Adding 'v' prefix for the git tag (results in v1.0.0)
+          TAG="v$VERSION"
+          
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "Found version: $TAG"
 
-      - name: Check if Tag exists
-        id: check_tag
+      - name: Push Tag
         run: |
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
-            echo "EXISTS=true" >> $GITHUB_ENV
-            echo "Tag $VERSION already exists. Skipping."
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Skipping."
           else
-            echo "EXISTS=false" >> $GITHUB_ENV
+            echo "Creating and pushing tag $TAG"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag $TAG
+            git push origin $TAG
           fi
-
-      - name: Create GitHub Release
-        if: env.EXISTS == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
