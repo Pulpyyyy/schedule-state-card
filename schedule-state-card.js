@@ -950,6 +950,7 @@ class ScheduleStateCard extends HTMLElement {
         return match ? match[1] : "";
     }
 
+
     showTooltip(event, text) {
         if (!this.tooltipElement) {
             this.tooltipElement = document.createElement("div");
@@ -957,27 +958,72 @@ class ScheduleStateCard extends HTMLElement {
             this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
             document.body.appendChild(this.tooltipElement);
         }
+
         const decoded = this.decodeHtmlEntities(text);
-        this.tooltipElement.textContent = decoded.replace(/\\n/g, "\n");
+        const textWithNewlines = decoded.replace(/\\n/g, "\n");
         
+        // Colorize parentheses by pairs
+        const coloredText = this.colorizeParentheses(textWithNewlines);
+        this.tooltipElement.innerHTML = coloredText;
+
         const x = event.clientX;
-        const y = event.clientY; 
-        
+        const y = event.clientY;
         const tooltipRect = this.tooltipElement.getBoundingClientRect();
-        let left = x;
+
+        // Vertical position: above the cursor by default
         let top = y - tooltipRect.height - 10;
-        
-        if (top < 0) top = y + 25; 
+        if (top < 0) top = y + 25; // If not enough space above, show below
 
-        left = left - tooltipRect.width / 2;
+        // Horizontal position: Always to the right of the cursor (15px offset)
+        let left = x + 15;
 
-        if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width - 10;
-        if (left < 0) left = 10;
-        
+        // Safety check for the RIGHT edge of the screen only
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            // If it overflows on the right, push it back 10px from the edge
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+
         this.tooltipElement.style.left = left + "px";
         this.tooltipElement.style.top = top + "px";
-        this.tooltipElement.style.transform = "none"; 
+        this.tooltipElement.style.transform = "none";
         this.tooltipElement.style.display = "block";
+    }
+
+    colorizeParentheses(text) {
+        let result = '';
+        let depth = 0;
+        
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            
+            if (char === '(') {
+                // Dynamic color calculation:
+                // Rotate the hue by 60 degrees for each depth level
+                const hue = (depth * 60) % 360;
+                const color = `hsl(${hue}, 80%, 70%)`; // 80% saturation, 70% lightness
+                
+                result += `<span style="color:${color};font-weight:bold;">(</span>`;
+                depth++;
+            } else if (char === ')') {
+                depth = Math.max(0, depth - 1);
+                const hue = (depth * 60) % 360;
+                const color = `hsl(${hue}, 80%, 70%)`;
+                
+                result += `<span style="color:${color};font-weight:bold;">)</span>`;
+            } else if (char === '<') {
+                result += '&lt;';
+            } else if (char === '>') {
+                result += '&gt;';
+            } else if (char === '&') {
+                result += '&amp;';
+            } else if (char === '\n') {
+                result += '<br>';
+            } else {
+                result += char;
+            }
+        }
+        
+        return result;
     }
 
     hideTooltip() {
@@ -2547,7 +2593,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v4.0.0 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.1 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
