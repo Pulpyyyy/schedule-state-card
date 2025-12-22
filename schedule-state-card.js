@@ -399,10 +399,6 @@ class ScheduleStateCard extends HTMLElement {
         const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
         const dayTranslations = this.t("days");
         
-        // Translate Days: and Month: labels
-        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
-        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
-        
         // Translate AND/OR/NOT operators
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
@@ -420,13 +416,17 @@ class ScheduleStateCard extends HTMLElement {
         translated = translated.replace(/\bSunrise\s+</g, this.t("cond_sunrise") + " <");
         translated = translated.replace(/\bSunset\s+>/g, this.t("cond_sunset") + " >");
         translated = translated.replace(/\bSunset\s+</g, this.t("cond_sunset") + " <");
+
+        // Translate Days: and Month: labels
+        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
+        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
         
         // Translate day abbreviations (after Sunrise/Sunset to avoid conflict with "Sun")
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
             if (translatedDay) {
                 // Use word boundary at the start to avoid matching "Sun" in "Sunrise"/"Sunset"
-                translated = translated.replace(new RegExp(`\\b${abbr}\\b`, 'g'), translatedDay);
+                translated = translated.replace(new RegExp(`(?<![A-Za-z0-9_.])${abbr}(?![A-Za-z0-9_])`, 'g'), translatedDay);
             }
         }
         
