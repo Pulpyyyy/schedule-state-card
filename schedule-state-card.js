@@ -16,7 +16,9 @@ const TRANSLATIONS = {
         cond_month: "Month",
         cond_and: "AND",
         cond_or: "OR",
-        cond_not: "NOT", 
+        cond_not: "NOT",
+        cond_sunrise: "Sunrise",
+        cond_sunset: "Sunset",
         cond_combined_result: "Combined Schedule", 
         cond_combined_schedule_toggle: "Combined Schedule Result (Click to show/hide rules)", 
         days: {
@@ -72,7 +74,9 @@ const TRANSLATIONS = {
         cond_month: "Mois",
         cond_and: "ET",
         cond_or: "OU",
-        cond_not: "NON", 
+        cond_not: "NON",
+        cond_sunrise: "Lever du soleil",
+        cond_sunset: "Coucher du soleil",
         cond_combined_result: "Planning Combiné", 
         cond_combined_schedule_toggle: "Résultat du Planning Combiné (Cliquez pour afficher/masquer les règles)", 
         days: {
@@ -129,6 +133,8 @@ const TRANSLATIONS = {
         cond_and: "UND",
         cond_or: "ODER",
         cond_not: "NICHT", 
+        cond_sunrise: "Sonnenaufgang",
+        cond_sunset: "Sonnenuntergang",
         cond_combined_result: "Kombinierter Zeitplan", 
         cond_combined_schedule_toggle: "Ergebnis des kombinierten Zeitplans (Klicken zum Anzeigen/Ausblenden der Regeln)", 
         days: {
@@ -184,7 +190,9 @@ const TRANSLATIONS = {
         cond_month: "Mes",
         cond_and: "Y",
         cond_or: "O",
-        cond_not: "NO", 
+        cond_not: "NO",
+        cond_sunrise: "Amanecer",
+        cond_sunset: "Atardecer",
         cond_combined_result: "Horario Combinado", 
         cond_combined_schedule_toggle: "Resultado del Horario Combinado (Clic para mostrar/ocultar reglas)", 
         days: {
@@ -241,6 +249,8 @@ const TRANSLATIONS = {
         cond_and: "E",
         cond_or: "OU",
         cond_not: "NÃO",
+        cond_sunrise: "Nascer do sol",
+        cond_sunset: "Pôr do sol",
         cond_combined_result: "Agenda Combinada",
         cond_combined_schedule_toggle: "Resultado da Agenda Combinada (Clique para mostrar/ocultar regras)",
         days: {
@@ -297,6 +307,8 @@ const TRANSLATIONS = {
         cond_and: "E",
         cond_or: "OU",
         cond_not: "NÃO",
+        cond_sunrise: "Nascer do sol",
+        cond_sunset: "Pôr do sol",
         cond_combined_result: "Programação Combinada",
         cond_combined_schedule_toggle: "Resultado da Programação Combinada (Clique para mostrar/ocultar regras)",
         days: {
@@ -386,20 +398,41 @@ class ScheduleStateCard extends HTMLElement {
         let translated = text;
         const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
         const dayTranslations = this.t("days");
-        translated = translated.replace("Days:", this.t("cond_days") + ":");
-        translated = translated.replace("Month:", this.t("cond_month") + ":");
+        
+        // Translate Days: and Month: labels
+        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
+        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
+        
+        // Translate AND/OR/NOT operators
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
-        translated = translated.replace(/\bNOT\s/g, ` ${this.t("cond_not")} `); 
+        translated = translated.replace(/\bNOT\s+\(/g, `${this.t("cond_not")} (`);
+        
+        // Translate Sunrise/Sunset conditions BEFORE translating days
+        // Use word boundaries to avoid matching "Sun" in "Sunday"
+        translated = translated.replace(/\bSunrise\s+condition\b/g, this.t("cond_sunrise"));
+        translated = translated.replace(/\bSunset\s+condition\b/g, this.t("cond_sunset"));
+        translated = translated.replace(/\bSunrise\s+after\s+/g, this.t("cond_sunrise") + " après ");
+        translated = translated.replace(/\bSunrise\s+before\s+/g, this.t("cond_sunrise") + " avant ");
+        translated = translated.replace(/\bSunset\s+after\s+/g, this.t("cond_sunset") + " après ");
+        translated = translated.replace(/\bSunset\s+before\s+/g, this.t("cond_sunset") + " avant ");
+        translated = translated.replace(/\bSunrise\s+>/g, this.t("cond_sunrise") + " >");
+        translated = translated.replace(/\bSunrise\s+</g, this.t("cond_sunrise") + " <");
+        translated = translated.replace(/\bSunset\s+>/g, this.t("cond_sunset") + " >");
+        translated = translated.replace(/\bSunset\s+</g, this.t("cond_sunset") + " <");
+        
+        // Translate day abbreviations (after Sunrise/Sunset to avoid conflict with "Sun")
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
             if (translatedDay) {
-                translated = translated.replace(new RegExp(`\\b${abbr}([,\.\\s]*)`, 'g'), `${translatedDay}$1`);
+                // Use word boundary at the start to avoid matching "Sun" in "Sunrise"/"Sunset"
+                translated = translated.replace(new RegExp(`\\b${abbr}\\b`, 'g'), translatedDay);
             }
         }
+        
         return translated;
     }
-
+    
     use12HourFormat() {
         return this._hass?.locale?.time_format === "12" || this.getLanguage() === "en";
     }
@@ -2593,7 +2626,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.1 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.2 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
