@@ -399,6 +399,10 @@ class ScheduleStateCard extends HTMLElement {
         const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
         const dayTranslations = this.t("days");
         
+        // Translate Days: and Month: labels
+        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
+        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
+        
         // Translate AND/OR/NOT operators
         translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
         translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
@@ -416,17 +420,13 @@ class ScheduleStateCard extends HTMLElement {
         translated = translated.replace(/\bSunrise\s+</g, this.t("cond_sunrise") + " <");
         translated = translated.replace(/\bSunset\s+>/g, this.t("cond_sunset") + " >");
         translated = translated.replace(/\bSunset\s+</g, this.t("cond_sunset") + " <");
-
-        // Translate Days: and Month: labels
-        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
-        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
         
         // Translate day abbreviations (after Sunrise/Sunset to avoid conflict with "Sun")
         for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
             const translatedDay = dayTranslations[fullDayKey];
             if (translatedDay) {
                 // Use word boundary at the start to avoid matching "Sun" in "Sunrise"/"Sunset"
-                translated = translated.replace(new RegExp(`(?<![A-Za-z0-9_.])${abbr}(?![A-Za-z0-9_])`, 'g'), translatedDay);
+                translated = translated.replace(new RegExp(`\\b${abbr}\\b`, 'g'), translatedDay);
             }
         }
         
@@ -826,28 +826,90 @@ class ScheduleStateCard extends HTMLElement {
     _evaluateCondition(condition) {
         if (!condition || typeof condition !== "object") return true;
         const condType = condition.condition;
+        
         if (condType === "time") {
+            // Check month condition
             if (condition.month) {
                 const currentMonth = new Date().getMonth() + 1;
                 const months = condition.month;
-                if (Array.isArray(months)) return months.includes(currentMonth);
-                else if (typeof months === "number") return currentMonth === months;
+                if (Array.isArray(months)) {
+                    if (!months.includes(currentMonth)) return false;
+                } else if (typeof months === "number") {
+                    if (currentMonth !== months) return false;
+                }
             }
+            
+            // Check weekday condition
+            if (condition.weekday) {
+                const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+                const currentDay = dayMap[new Date().getDay()];
+                if (!condition.weekday.includes(currentDay)) {
+                    return false;
+                }
+            }
+
             return true;
         }
+        
         if (condType === "state") {
-            const entity = this._hass.states[condition.entity_id];
-            if (!entity) return false;
-            return entity.state === condition.state;
+            const entityId = condition.entity_id;
+            // Handle case where entity_id is an array
+            const entities = Array.isArray(entityId) ? entityId : [entityId];
+            
+            // If match: all, all entities must match the state
+            if (condition.match === "all") {
+                return entities.every(id => {
+                    const entity = this._hass.states[id];
+                    if (!entity) return false;
+                    return entity.state === condition.state;
+                });
+            }
+            
+            // Otherwise (match: any or no match specified), at least one entity must match
+            return entities.some(id => {
+                const entity = this._hass.states[id];
+                if (!entity) return false;
+                return entity.state === condition.state;
+            });
         }
+        
         if (condType === "numeric_state") {
-            const entity = this._hass.states[condition.entity_id];
-            if (!entity) return false;
-            const value = parseFloat(entity.state);
-            if (condition.above !== undefined && value <= condition.above) return false;
-            if (condition.below !== undefined && value >= condition.below) return false;
-            return true;
+            const entityId = condition.entity_id;
+            // Handle case where entity_id is an array
+            const entities = Array.isArray(entityId) ? entityId : [entityId];
+            
+            // For numeric_state, test each entity
+            return entities.some(id => {
+                const entity = this._hass.states[id];
+                if (!entity) return false;
+                const value = parseFloat(entity.state);
+                if (isNaN(value)) return false;
+                
+                if (condition.above !== undefined && value <= condition.above) return false;
+                if (condition.below !== undefined && value >= condition.below) return false;
+                
+                return true;
+            });
         }
+        
+        if (condType === "or") {
+            // OR condition: at least one sub-condition must be true
+            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+            return condition.conditions.some(subCond => this._evaluateCondition(subCond));
+        }
+        
+        if (condType === "and") {
+            // AND condition: all sub-conditions must be true
+            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+            return condition.conditions.every(subCond => this._evaluateCondition(subCond));
+        }
+        
+        if (condType === "not") {
+            // NOT condition: inverts the result of the sub-condition
+            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+            return !this._evaluateCondition(condition.conditions[0]);
+        }
+        
         return true;
     }
     
@@ -2626,7 +2688,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.2 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.4 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
