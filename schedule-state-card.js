@@ -1411,6 +1411,10 @@ class ScheduleStateCard extends HTMLElement {
             const isDefaultLayer = currentLayer.is_default_layer;
             const isCombinedLayer = currentLayer.is_combined_layer;
             
+            // Get the original index in allLayers to check activation state
+            const originalIndex = allLayers.findIndex(l => l === currentLayer);
+            const isLayerActive = layerActiveStates[originalIndex];
+            
             let displayLayerIndex = "";
             let iconTooltipText = "";
 
@@ -1442,14 +1446,20 @@ class ScheduleStateCard extends HTMLElement {
                 </div>`;
             }
             else { 
-                const originalIndex = allLayers.findIndex(l => l === currentLayer);
                 const isActive = layerActiveStates[originalIndex];
                 const iconStyle = isActive ? "background:" + this._colors.active_layer + ";filter:brightness(1.3);" : "background:" + this._colors.inactive_layer + ";opacity:0.5;";                
+                
                 if (isDefaultLayer) {
                     displayLayerIndex = "0";
                     iconTooltipText = this.t("layer_label") + " 0"; 
+                    
                     if (conditionText && conditionText !== "default") { 
-                    iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                        // Display condition with checkmark if active, or cross if inactive
+                        if (isActive) {
+                            iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                        } else {
+                            iconTooltipText += "\n❌ " + this.t("condition_label") + ": " + translatedConditionText;
+                        }
                     } else {
                         iconTooltipText += "\n" + this.t("default_state_label");
                     }
@@ -1458,8 +1468,14 @@ class ScheduleStateCard extends HTMLElement {
                     displayLayerIndex = String(condLayerIndex + 1); 
 
                     iconTooltipText = this.t("layer_label") + " " + displayLayerIndex; 
+                    
                     if (conditionText && conditionText !== "default") { 
-                    iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                        // Display condition with checkmark if active, or cross if inactive
+                        if (isActive) {
+                            iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                        } else {
+                            iconTooltipText += "\n❌ " + this.t("condition_label") + ": " + translatedConditionText;
+                        }
                     } else {
                         iconTooltipText += "\n" + this.t("no_specific_condition");
                     }
@@ -2877,7 +2893,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.7 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
