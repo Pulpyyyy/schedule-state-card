@@ -4,34 +4,35 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 ![Schedule State Card](.img/card.gif)
 
-- This project includes a `schedule-state-card.js` card.
-- 
+- This project includes a `schedule-state-card.js` card with integrated visual editor support.
+
 ## Features
 
 - 📅 **Weekly Schedule Visualization** - View your complete schedule for each day of the week
 - 🎨 **Dynamic State Colors** - Automatic color assignment based on state values (temperatures, modes, etc.)
 - 📊 **Real-time Updates** - Live timeline with current time indicator
-- 🔄 **Dynamic Values** - Support for Home Assistant templates and sensor references
+- 📄 **Dynamic Values** - Support for Home Assistant templates and sensor references
 - 🌡️ **Unit Display** - Show measurement units (°C, %, kW, etc.)
 - 🎯 **Condition-based Layers** - Multiple schedule layers with conditions (time, entity state, numeric ranges)
 - 🎭 **Combined Layer Visualization** - See the result of all stacked conditions in one Sigma (Σ) layer
 - 📚 **Layer Stacking/Collapsing** - Click the Sigma (Σ) icon to toggle between detailed and combined view
-- 🌐 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
+- 🌍 **Multi-language** - English, French, German, Spanish, Portuguese, Brazilian Portuguese
 - ⏰ **12/24 Hour Format** - Automatic detection based on Home Assistant locale
 - 🎭 **Wrapping Events** - Support for schedules that span across midnight with visual indicators
 - ✏️ **Visual Editor Support** - Configure easily using Home Assistant's built-in visual editor
+- 🎨 **Advanced Color Customization** - Interactive color wheel picker for full control over card appearance
+- 📱 **Responsive Design** - Adapts seamlessly to different screen sizes
+- 🔄 **Smart Debouncing** - Optimized performance with intelligent update handling
+- 📋 **State Display in Title** - Toggle to show current state value in card header
   
-## Installations
+## Installation
 
-### Schedule state Installation as prerequisites
+### Requirements
 
-## ⚠️ Requirements
-
-**This card requires the Schedule State custom component :**
+**This card requires the Schedule State custom component:**
 - GitHub: [https://github.com/aneeshd/schedule_state](https://github.com/aneeshd/schedule_state)
 
 1. Please refer to https://github.com/aneeshd/schedule_state for the implementation.
-   
 2. After installation, restart Home Assistant to apply changes
 
 ### Card Installation
@@ -61,6 +62,7 @@ entities:
 | `entities[].entity` | string | Entity ID of the schedule sensor |
 | `entities[].name` | string | Custom display name |
 | `entities[].icon` | string | MDI icon identifier |
+| `show_state_in_title` | boolean | Display current state value in card header (default: true) |
 | `colors` | object | Color configuration (see below) |
 
 ### Colors Configuration
@@ -137,6 +139,10 @@ Click the **Σ (Sigma)** icon to toggle layer visibility:
 - **Dimmed/Gray icon** - Layer is inactive (condition not met)
 - **Sigma (Σ) icon** - Shows the combined result of all active layers
   - Changes color based on `combined_folded_layer` (collapsed) or `combined_unfolded_layer` (expanded)
+
+### Day Selection
+
+Use the day selector buttons at the top of the card to switch between days and view day-specific schedules. The current day is highlighted, and the timeline updates to show the current time indicator only for today.
 
 ## Schedule YAML Configuration
 
@@ -248,6 +254,26 @@ The card automatically detects and displays dynamic values:
 - **📊 Icon** - Other sensor reference (templates referencing regular sensors)
 - **No Icon** - Static values
 
+## Visual Editor
+
+The card supports Home Assistant's visual editor for easy configuration:
+
+1. Add the card via UI → Edit dashboard → Add card
+2. Search for "Schedule State Card"
+3. Use the visual editor to:
+   - Set the card title
+   - Add/remove entities with custom names and icons
+   - Toggle state display in title
+   - Customize colors with an interactive color wheel picker
+4. Changes preview in real-time
+
+### Color Picker Features
+
+- **Interactive Color Wheel** - Click and drag to select hue and saturation
+- **Brightness Slider** - Adjust the brightness/value of the selected color
+- **Hex Input** - Enter hex color codes directly
+- **Live Preview** - See color changes instantly
+
 ## Wrapping Events
 
 Handle events that span midnight. When `allow_wrap: true` is set, the card will:
@@ -269,7 +295,7 @@ events:
 
 ### Data Structure
 
-The modded component generates entities with the following attributes:
+The schedule_state component generates entities with the following attributes:
 
 ```javascript
 {
@@ -342,7 +368,6 @@ sensor:
 - 📅 - Regular event
 - 🔄 - Dynamic value (schedule state reference)
 - 📊 - Dynamic value (other sensor)
-- 🎨 - Custom icon
 
 ### Layer Icons
 
@@ -356,13 +381,16 @@ sensor:
 ### Schedule not appearing
 
 1. Check entity ID in Home Assistant Dev Tools → States
-2. Verify your logs
+2. Verify the schedule_state component is properly installed
+3. Check your browser console for JavaScript errors 
+4. Verify your logs
 
 ### Wrong colors or values displaying
 
 - Check that template syntax is valid
 - Verify entity IDs exist in Home Assistant
 - Use Dev Tools → Templates to test your Jinja2 templates
+- Ensure schedule data is properly formatted
 
 ### Icons not showing
 
@@ -375,20 +403,6 @@ sensor:
 - Ensure JavaScript console is clear of errors
 - Try hard-refreshing the browser (Ctrl+Shift+R or Cmd+Shift+R)
 - Check browser compatibility (Chrome/Edge/Firefox recommended)
-
-## Browser Support
-
-- ✅ Chrome/Chromium (v90+)
-- ✅ Firefox (v88+)
-- ✅ Safari (v14+)
-- ✅ Edge (v90+)
-
-## Performance Notes
-
-- Timeline updates every **60 seconds** (configurable)
-- Tooltips stabilize after **200ms** mouse movement
-- Click debouncing: **300ms** to prevent double-toggles
-- Large schedules (100+ events) may require optimization
 
 ## License
 
@@ -403,4 +417,3 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 - 📖 [Home Assistant Documentation](https://www.home-assistant.io/)
 - 📖 [Schedule State](https://github.com/aneeshd/schedule_state)
 - 🐛 [Report Issues](https://github.com/Pulpyyyy/schedule-state-card/issues)
-- 💬 [Discussions](https://github.com/Pulpyyyy/schedule-state-card/discussions)
