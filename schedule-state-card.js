@@ -52,6 +52,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Time Cursor Color",
         editor_color_hex_label: "Hex Color",
         editor_color_picker_label: "Color Picker",
+        editor_show_state_in_title: "Show state value in header",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -110,6 +111,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Couleur du Curseur Temporel",
         editor_color_hex_label: "Couleur Hex",
         editor_color_picker_label: "Sélecteur de Couleur",
+        editor_show_state_in_title: "Afficher la valeur d'état dans l'en-tête",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -168,6 +170,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Zeitzeiger-Farbe",
         editor_color_hex_label: "Hex-Farbe",
         editor_color_picker_label: "Farbwähler",
+        editor_show_state_in_title: "Zustandswert in der Kopfzeile anzeigen",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -226,6 +229,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Color del Cursor Temporal",
         editor_color_hex_label: "Color Hex",
         editor_color_picker_label: "Selector de Color",
+        editor_show_state_in_title: "Mostrar valor de estado en el encabezado",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -284,6 +288,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Cor do Cursor Temporal",
         editor_color_hex_label: "Cor Hex",
         editor_color_picker_label: "Seletor de Cor",
+        editor_show_state_in_title: "Mostrar valor de estado no cabeçalho",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -342,6 +347,7 @@ const TRANSLATIONS = {
         editor_cursor_label: "Cor do Cursor Temporal",
         editor_color_hex_label: "Cor Hex",
         editor_color_picker_label: "Seletor de Cor",
+        editor_show_state_in_title: "Mostrar valor de estado no cabeçalho",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -379,6 +385,8 @@ class ScheduleStateCard extends HTMLElement {
         this._tooltipTimer = null; 
         this._isToggling = false;
         this._colors = { ...DEFAULT_COLORS };
+        this._lastUpdateTime = 0;
+        this._updateDebounceTimer = null;
     }
     
     getLanguage() {
@@ -452,7 +460,8 @@ class ScheduleStateCard extends HTMLElement {
         let entities = config.entities || [];
         this._config = {
             ...config,
-            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? { entity: e } : e) : []
+            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? { entity: e } : e) : [],
+            show_state_in_title: config.show_state_in_title !== false // true by default
         };
         
         if (config.colors) {
@@ -469,7 +478,21 @@ class ScheduleStateCard extends HTMLElement {
         if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
             this.render();
         }
-        this.updateContent();
+        
+        // Debounce updates to prevent excessive re-renders (SOLUTION 2)
+        const now = Date.now();
+        if (now - this._lastUpdateTime < 500) {
+            // If too soon, schedule update after delay
+            if (this._updateDebounceTimer) clearTimeout(this._updateDebounceTimer);
+            this._updateDebounceTimer = setTimeout(() => {
+                this.updateContent();
+                this._lastUpdateTime = Date.now();
+            }, 500);
+        } else {
+            // If enough time has passed, update immediately
+            this.updateContent();
+            this._lastUpdateTime = now;
+        }
     }
 
     static getConfigElement() {
@@ -502,7 +525,7 @@ class ScheduleStateCard extends HTMLElement {
 
     getCurrentTime() {
         const now = new Date();
-        const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+        const dayMap = ["sun","mon", "tue", "wed", "thu", "fri", "sat"];
         return {
             day: dayMap[now.getDay()],
             hours: String(now.getHours()).padStart(2, "0"),
@@ -797,15 +820,24 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _evaluateConditionsForLayer(layer) {
+        // Don't evaluate default layers
         if (layer.is_default_layer) return false;
+        // Don't evaluate combined layers themselves
+        if (layer.is_combined_layer) return false;
+        // If no blocks, consider it active
         if (!layer?.blocks?.length) return true;
+        
+        // Collect all conditions from all blocks in this layer
         let allConditions = [];
         for (const block of layer.blocks) {
             if (block.raw_conditions?.length) {
                 allConditions = allConditions.concat(block.raw_conditions);
             }
         }
+        // If no conditions, the layer is active
         if (allConditions.length === 0) return true;
+        
+        // Remove duplicate conditions
         const conditionStrings = new Set();
         const uniqueConditions = [];
         for (const cond of allConditions) {
@@ -816,8 +848,9 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
         
+        // All conditions must be met for the layer to be active (AND logic)
         for (const cond of uniqueConditions) {
-            if (cond.condition === "time" && !cond.month) continue; 
+            // Evaluate all conditions - treating selected day as the "current day" for condition evaluation
             if (!this._evaluateCondition(cond)) return false; 
         }
         return true;
@@ -828,9 +861,15 @@ class ScheduleStateCard extends HTMLElement {
         const condType = condition.condition;
         
         if (condType === "time") {
-            // Check month condition
-            if (condition.month) {
-                const currentMonth = new Date().getMonth() + 1;
+            // Get selected day's date context (use selectedDay instead of current day)
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1;
+            
+            // Use selectedDay as the reference day for evaluation
+            const selectedDayValue = this.selectedDay;
+            
+            // Check month condition if specified
+            if (condition.month !== undefined && condition.month !== null) {
                 const months = condition.month;
                 if (Array.isArray(months)) {
                     if (!months.includes(currentMonth)) return false;
@@ -839,15 +878,16 @@ class ScheduleStateCard extends HTMLElement {
                 }
             }
             
-            // Check weekday condition
-            if (condition.weekday) {
-                const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-                const currentDay = dayMap[new Date().getDay()];
-                if (!condition.weekday.includes(currentDay)) {
-                    return false;
+            // Check weekday condition if specified - now using selectedDay
+            if (condition.weekday !== undefined && condition.weekday !== null) {
+                const weekdays = condition.weekday;
+                if (Array.isArray(weekdays)) {
+                    // Condition applies only to specific days of the week
+                    if (!weekdays.includes(selectedDayValue)) return false;
                 }
             }
 
+            // If we reach here, all specified conditions matched
             return true;
         }
         
@@ -918,22 +958,71 @@ class ScheduleStateCard extends HTMLElement {
         
         let result = [];
         
+        // Get selected day for filtering day-specific conditions (instead of current day)
+        const selectedDayValue = this.selectedDay;
+        
+        // Collect blocks from ALL active conditional layers
         for (const activeLayer of activeConditionalLayers) {
             if (!activeLayer.blocks) continue;
             
             for (const activeBlock of activeLayer.blocks) {
-                result.push({...activeBlock, _source_layer: activeLayer});
+                // Check if block has day-specific conditions that EXCLUDE the selected day
+                let blockAppliesToday = true;
+                
+                if (activeBlock.raw_conditions && activeBlock.raw_conditions.length > 0) {
+                    for (const cond of activeBlock.raw_conditions) {
+                        if (cond.condition === "time" && cond.weekday && Array.isArray(cond.weekday)) {
+                            // This block has a weekday restriction
+                            if (!cond.weekday.includes(selectedDayValue)) {
+                                // Block does NOT apply to selected day
+                                blockAppliesToday = false;
+                                break;
+                            }
+                            // If it DOES include selected day, continue (blockAppliesToday stays true)
+                        }
+                    }
+                }
+                
+                // Add block if it applies to selected day
+                if (blockAppliesToday) {
+                    result.push({...activeBlock, _source_layer: activeLayer});
+                }
             }
         }
         
+        // Add default layer blocks at the end (they have lowest priority)
+        if (defaultLayer.blocks) {
+            for (const defBlock of defaultLayer.blocks) {
+                result.push({...defBlock, _source_layer: defaultLayer});
+            }
+        }
+        
+        // Sort by: layer priority (higher first), then start time, then event_idx (higher first)
         result.sort((a, b) => {
+            // Get layer index for each block
+            const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
+            const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
+            
+            // If one is from default layer, it has lowest priority
+            const isADefault = a._source_layer === defaultLayer;
+            const isBDefault = b._source_layer === defaultLayer;
+            
+            if (isADefault && !isBDefault) return 1;  // B is conditional, has priority
+            if (!isADefault && isBDefault) return -1; // A is conditional, has priority
+            
+            // If same layer type, sort by start time
             const startA = this.timeToMinutes(a.start);
             const startB = this.timeToMinutes(b.start);
             if (startA !== startB) return startA - startB;
-            return (a.event_idx || 0) - (b.event_idx || 0);
+            
+            // Same layer and same time, sort by event_idx (higher first)
+            const idxA = a.event_idx !== undefined ? a.event_idx : -1;
+            const idxB = b.event_idx !== undefined ? b.event_idx : -1;
+            return idxB - idxA;
         });
         
-        result = this._fillGapsWithDefaultLayer(result, defaultLayer);
+        // Now fill gaps with default layer blocks
+        result = this._fillGapsWithDefaultLayer(result, defaultLayer, activeConditionalLayers);
         
         return {
             is_combined_layer: true, 
@@ -942,82 +1031,112 @@ class ScheduleStateCard extends HTMLElement {
             blocks: result,
         };
     }
-    
-    _fillGapsWithDefaultLayer(layerBlocks, defaultLayer) {
-        if (!layerBlocks || layerBlocks.length === 0) {
-            return (defaultLayer.blocks || []).map(b => ({...b, _source_layer: 0}));
-        }
-        
-        const result = [];
-        const breakpoints = new Set([0, 1440]);
-        
-        for (const block of layerBlocks) {
-            const startMin = this.timeToMinutes(block.start);
-            let endMin = this.timeToMinutes(block.end);
-            if (block.end === '00:00' && endMin === 0) endMin = 1440;
-            breakpoints.add(startMin);
-            breakpoints.add(endMin);
-        }
-        
-        const defaultBlocks = defaultLayer.blocks || [];
-        for (const defBlock of defaultBlocks) {
-            const defStart = this.timeToMinutes(defBlock.start);
-            let defEnd = this.timeToMinutes(defBlock.end);
-            if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
-            breakpoints.add(defStart);
-            breakpoints.add(defEnd);
-        }
-        
-        const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
-        
-        for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
-            const segStart = sortedBreakpoints[i];
-            const segEnd = sortedBreakpoints[i + 1];
+
+    _fillGapsWithDefaultLayer(layerBlocks, defaultLayer, activeConditionalLayers) {
+            if (!layerBlocks || layerBlocks.length === 0) {
+                return (defaultLayer.blocks || []).map(b => ({...b, _source_layer: defaultLayer}));
+            }
             
-            let coveringBlock = null;
-            for (const block of layerBlocks) {
-                const blockStart = this.timeToMinutes(block.start);
-                let blockEnd = this.timeToMinutes(block.end);
-                if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
-                
-                if (blockStart <= segStart && segEnd <= blockEnd) {
-                    coveringBlock = block;
-                    break;
+            const result = [];
+            const breakpoints = new Set([0, 1440]);
+            
+            // Collect all breakpoints from conditional layer blocks (excluding default)
+            // Including all blocks from all active layers
+            for (const layer of activeConditionalLayers) {
+                for (const block of layerBlocks) {
+                    if (block._source_layer !== layer) continue;
+                    
+                    const startMin = this.timeToMinutes(block.start);
+                    let endMin = this.timeToMinutes(block.end);
+                    if (block.end === '00:00' && endMin === 0) endMin = 1440;
+                    breakpoints.add(startMin);
+                    breakpoints.add(endMin);
                 }
             }
             
-            if (coveringBlock) {
-                const segStartStr = this._minutesToTime(segStart);
-                const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
-                result.push({
-                    ...coveringBlock,
-                    start: segStartStr,
-                    end: segEndStr
-                });
-            } else {
-                for (const defBlock of defaultBlocks) {
-                    const defStart = this.timeToMinutes(defBlock.start);
-                    let defEnd = this.timeToMinutes(defBlock.end);
-                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+            // Collect all breakpoints from default layer
+            const defaultBlocks = defaultLayer.blocks || [];
+            for (const defBlock of defaultBlocks) {
+                const defStart = this.timeToMinutes(defBlock.start);
+                let defEnd = this.timeToMinutes(defBlock.end);
+                if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+                breakpoints.add(defStart);
+                breakpoints.add(defEnd);
+            }
+            
+            const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
+            
+            for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
+                const segStart = sortedBreakpoints[i];
+                const segEnd = sortedBreakpoints[i + 1];
+                
+                // Find ALL conditional blocks that cover this segment
+                let coveringBlocks = [];
+                for (const block of layerBlocks) {
+                    if (block._source_layer === defaultLayer) continue;
                     
-                    if (defStart <= segStart && segEnd <= defEnd) {
-                        const segStartStr = this._minutesToTime(segStart);
-                        const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
-                        result.push({
-                            ...defBlock,
-                            start: segStartStr,
-                            end: segEndStr,
-                            _source_layer: 0
-                        });
-                        break;
+                    const blockStart = this.timeToMinutes(block.start);
+                    let blockEnd = this.timeToMinutes(block.end);
+                    if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
+                    
+                    if (blockStart <= segStart && segEnd <= blockEnd) {
+                        coveringBlocks.push(block);
+                    }
+                }
+                
+                if (coveringBlocks.length > 0) {
+                    // Sort by layer priority FIRST (later layer index = higher priority)
+                    // Then by event_idx (descending) 
+                    coveringBlocks.sort((a, b) => {
+                        const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
+                        const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
+                        
+                        // Different layers: higher index = higher priority
+                        if (layerIdxA !== layerIdxB) {
+                            return layerIdxB - layerIdxA;
+                        }
+                        
+                        // Same layer: higher event_idx takes priority
+                        const aIdx = a.event_idx !== undefined ? a.event_idx : -1;
+                        const bIdx = b.event_idx !== undefined ? b.event_idx : -1;
+                        return bIdx - aIdx;
+                    });
+                    
+                    const coveringBlock = coveringBlocks[0];
+                    const segStartStr = this._minutesToTime(segStart);
+                    const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                    result.push({
+                        ...coveringBlock,
+                        start: segStartStr,
+                        end: segEndStr,
+                        is_default_bg: false  // Conditional blocks are never hatched
+                    });
+                } else {
+                    // No conditional block covers this segment, use default layer
+                    for (const defBlock of defaultBlocks) {
+                        const defStart = this.timeToMinutes(defBlock.start);
+                        let defEnd = this.timeToMinutes(defBlock.end);
+                        if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+                        
+                        if (defStart <= segStart && segEnd <= defEnd) {
+                            const segStartStr = this._minutesToTime(segStart);
+                            const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                            result.push({
+                                ...defBlock,
+                                start: segStartStr,
+                                end: segEndStr,
+                                _source_layer: defaultLayer,
+                                is_default_bg: true  // Mark as default layer block
+                            });
+                            break;
+                        }
                     }
                 }
             }
+            
+            return result;
         }
-        
-        return result;
-    }
-    
+
     _minutesToTime(minutes) {
         const hours = Math.floor(minutes / 60) % 24;
         const mins = minutes % 60;
@@ -1134,11 +1253,24 @@ class ScheduleStateCard extends HTMLElement {
             this._isToggling = false;
         }, 300); 
     }
-    
+
+    fireEvent(node, type, detail = {}, options = {}) {
+        // Fire custom event using Home Assistant pattern (CSP compliant)
+        const event = new Event(type, {
+            bubbles: options.bubbles || true,
+            cancelable: options.cancelable || true,
+            composed: options.composed || true,
+        });
+        event.detail = detail;
+        node.dispatchEvent(event);
+    }
+
     attachAllListeners() {
         const container = this.shadowRoot.querySelector("#content");
         if (!container) return;
 
+        // Remove old event listeners BEFORE adding new ones
+        // This prevents duplicate listeners and memory leaks
         if (this._listener) {
             container.removeEventListener("click", this._listener);
             container.removeEventListener("mouseover", this._listener);
@@ -1147,6 +1279,19 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         const handler = (e) => {
+            // Handle room name click - opens entity info popup
+            const roomNameTarget = e.target.closest(".room-name");
+            if (e.type === "click" && roomNameTarget) {
+                const entityId = roomNameTarget.dataset.entityId;
+                if (entityId && this._hass) {
+                    this.fireEvent(this, 'hass-more-info', { entityId: entityId });
+                }
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+
+            // Handle combined layer toggle
             const toggleTarget = e.target.closest(".combined-layer-toggle");
             if (e.type === "click" && toggleTarget) {
                 if (this._tooltipTimer) {
@@ -1160,8 +1305,10 @@ class ScheduleStateCard extends HTMLElement {
                     this.toggleLayerVisibility(entityId); 
                 }
                 e.stopPropagation();
+                return;
             }
 
+            // Handle tooltip display on hover
             const tooltipTarget = e.target.closest(".schedule-block, .icon-row[data-tooltip]");
             
             if (e.type === "mouseover" && tooltipTarget) {
@@ -1173,7 +1320,7 @@ class ScheduleStateCard extends HTMLElement {
                 }
                 
                 if (tooltip) {
-                    const eventData = { clientX: e.clientX, clientY: e.clientY, target: e.target }; 
+                    const eventData = { clientX: e.clientX, clientY: e.clientY }; 
                     this._tooltipTimer = setTimeout(() => {
                         this.showTooltip(eventData, tooltip);
                         this._tooltipTimer = null;
@@ -1188,6 +1335,7 @@ class ScheduleStateCard extends HTMLElement {
             }
         };
 
+        // Add new event listeners
         container.addEventListener("click", handler);
         container.addEventListener("mouseover", handler);
         container.addEventListener("mouseout", handler);
@@ -1195,12 +1343,12 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderErrorCard(entityId, message) {
-        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
+        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" data-entity-id="' + entityId + '" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
     }
 
-    renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId) {
+    renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState) {
         if (!allLayers?.length) {
-            return '<div class="room-timeline"><div class="room-header"><span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
+            return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) + '</div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
         const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
@@ -1224,7 +1372,7 @@ class ScheduleStateCard extends HTMLElement {
         if (combinedLayer) layersToDisplay.push(combinedLayer);
         
         if (layersToDisplay.length === 0) {
-            return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
+            return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement) + '</div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
         }
 
         const layerActiveStates = [];
@@ -1248,6 +1396,9 @@ class ScheduleStateCard extends HTMLElement {
 
         let blockHtml = "";
         let iconHtml = "";
+        
+        // Check if selected day is today for sigma icon styling
+        const isSelectedDayToday = this.isToday();
 
         for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
             const currentLayer = layersToDisplay[layerIdx];
@@ -1266,32 +1417,39 @@ class ScheduleStateCard extends HTMLElement {
             if (isCombinedLayer) {
                 const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
                 let toggleClass = '';
+                // Grey out sigma icon if selected day is not today
                 let iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';filter:brightness(1.1);';
-           
+                if (!isSelectedDayToday) {
+                    iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';opacity:0.5;filter:brightness(0.8);';
+                }
+            
                 if (hasCollapsibleLayers) {
                     toggleClass = ' combined-layer-toggle'; 
                     if (!isCollapsed) {
                         iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';filter:brightness(1.3);';
+                        if (!isSelectedDayToday) {
+                            iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';opacity:0.5;filter:brightness(0.8);';
+                        }
                     }
                 }
                 
                 iconTooltipText = this.t("cond_combined_schedule_toggle");
-           
+            
                 iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ" data-tooltip="${this.escapeHtml(iconTooltipText)}">
-                   <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
-                       Σ
-                   </span>
+                <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
+                    Σ
+                </span>
                 </div>`;
-           }
-           else { 
-               const originalIndex = allLayers.findIndex(l => l === currentLayer);
-               const isActive = layerActiveStates[originalIndex];
-               const iconStyle = isActive ? "background:" + this._colors.active_layer + ";filter:brightness(1.3);" : "background:" + this._colors.inactive_layer + ";opacity:0.5;";                
+            }
+            else { 
+                const originalIndex = allLayers.findIndex(l => l === currentLayer);
+                const isActive = layerActiveStates[originalIndex];
+                const iconStyle = isActive ? "background:" + this._colors.active_layer + ";filter:brightness(1.3);" : "background:" + this._colors.inactive_layer + ";opacity:0.5;";                
                 if (isDefaultLayer) {
                     displayLayerIndex = "0";
                     iconTooltipText = this.t("layer_label") + " 0"; 
                     if (conditionText && conditionText !== "default") { 
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                    iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
                         iconTooltipText += "\n" + this.t("default_state_label");
                     }
@@ -1301,7 +1459,7 @@ class ScheduleStateCard extends HTMLElement {
 
                     iconTooltipText = this.t("layer_label") + " " + displayLayerIndex; 
                     if (conditionText && conditionText !== "default") { 
-                        iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
+                    iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
                     } else {
                         iconTooltipText += "\n" + this.t("no_specific_condition");
                     }
@@ -1318,9 +1476,6 @@ class ScheduleStateCard extends HTMLElement {
                 let endMin = this.timeToMinutes(block.end);
                 
                 let isDefaultBg = block.is_default_bg || false;
-                if (currentLayer.is_combined_layer && block._source_layer !== 0) {
-                    isDefaultBg = false; 
-                }
 
                 if (block.end === '00:00' && endMin === 0) endMin = 1440;
                 if (block.end === '23:59') endMin = 1440;
@@ -1441,13 +1596,14 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        return '<div class="room-timeline"><div class="room-header">' + (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : "") + '<span class="room-name">' + roomName + '</span></div><div class="timeline-wrapper"><div class="icon-column" style="height:' + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
+        return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) + '</div><div class="timeline-wrapper"><div class="icon-column" style="height:' + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
     }
 
     updateContent() {
         if (!this._hass) return;
         const content = this.shadowRoot.querySelector("#content");
         if (!content) return;
+        
         let timelines = "";
         for (let i = 0; i < this._config.entities.length; i++) {
             const entityConfig = this._config.entities[i];
@@ -1475,8 +1631,12 @@ class ScheduleStateCard extends HTMLElement {
             
             const defaultLayer = dayLayers.find(l => l.is_default_layer);
             
-            const activeConditionalLayers = dayLayers.filter(layer => 
-                !layer.is_default_layer && !layer.is_combined_layer && this._evaluateConditionsForLayer(layer)
+            const allConditionalLayers = dayLayers.filter(layer => 
+                !layer.is_default_layer && !layer.is_combined_layer
+            );
+            
+            const activeConditionalLayers = allConditionalLayers.filter(layer =>
+                this._evaluateConditionsForLayer(layer)
             );
             
             const combinedLayer = this.createCombinedLayer(defaultLayer, activeConditionalLayers);
@@ -1487,11 +1647,39 @@ class ScheduleStateCard extends HTMLElement {
                 allLayers = [...allLayers, combinedLayer]; 
             }
 
-            timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId);
+            timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, state);
         }
-        content.innerHTML = '<div class="schedules-container">' + timelines + "</div>";
-        this.attachAllListeners(); 
+        
+        // SOLUTION 1: Only update DOM if content has actually changed
+        const newHTML = '<div class="schedules-container">' + timelines + "</div>";
+        const existingContent = content.innerHTML;
+        
+        if (existingContent !== newHTML) {
+            // Update only when content differs to prevent unnecessary DOM recreation
+            content.innerHTML = newHTML;
+            this.attachAllListeners(); 
+        }
+        
         this.updateTimeline();
+    }
+
+    renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) {
+        const showStateInTitle = this._config.show_state_in_title !== false;
+        let stateValue = '';
+        
+        if (showStateInTitle && entityState) {
+            const attrs = entityState.attributes || {};
+            const state = entityState.state || '';
+            const unit = unitOfMeasurement || attrs.unit_of_measurement || '';
+            stateValue = state ? (unit ? state + ' ' + unit : state) : '';
+        }
+        
+        // FIX: Use data attributes instead of onclick (CSP compliant)
+        const headerContent = (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : '') + 
+                            '<span class="room-name" data-entity-id="' + entityId + '">' + roomName + '</span>' +
+                            (stateValue ? '<span class="room-state">' + this.escapeHtml(stateValue) + '</span>' : '');
+        
+        return headerContent;
     }
 
     render() {
@@ -1528,8 +1716,10 @@ class ScheduleStateCard extends HTMLElement {
             .day-button.active{background:var(--primary-color);color:var(--text-primary-color,white);border-color:var(--primary-color)}
             .schedules-container{display:flex;flex-direction:column;gap:24px}
             .room-timeline{margin-bottom:12px}
-            .room-header{display:flex;align-items:center;gap:8px;padding:0 8px}
-            .room-name{font-weight:600;font-size:14px;color:var(--primary-text-color)}
+            .room-header{display:flex;align-items:center;gap:8px;padding:0 8px;justify-content:space-between}
+            .room-name{font-weight:600;font-size:14px;color:var(--primary-text-color);flex-grow:1;cursor:pointer;transition:color 0.2s}
+            .room-name:hover{color:var(--primary-color);text-decoration:underline}
+            .room-state{font-weight:600;font-size:14px;color:var(--primary-color);margin-left:auto}
             .timeline-wrapper{display:flex;gap:0;align-items:stretch}
             
             .icon-column{position:relative;width:var(--sch-icon-col-width);flex-shrink:0;display:flex;flex-direction:column;z-index:1}
@@ -1623,13 +1813,15 @@ class ScheduleStateCardEditor extends HTMLElement {
         this._hass = null;
         this._entities = [];
         this._editingIndex = null;
-        this._filterText = {};
-        this._iconsCache = null;
         this._colorPickerOpen = null;
+        this._iconsCache = null;
     }
 
     getLanguage() {
-        return (this._hass && this._hass.language) || (localStorage.getItem("selectedLanguage")) || "en";
+        if (this._hass?.locale?.language) {
+            return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
+        }
+        return "en";
     }
 
     t(key) {
@@ -1642,7 +1834,7 @@ class ScheduleStateCardEditor extends HTMLElement {
     setConfig(config) {
         this._config = { ...config };
         this._entities = Array.isArray(this._config.entities)
-            ? this._config.entities.map(e => ({ ...e }))
+            ? this._config.entities.map(e => typeof e === "string" ? { entity: e } : { ...e })
             : [];
         if (!this._config.colors) {
             this._config.colors = { ...DEFAULT_COLORS };
@@ -1653,6 +1845,14 @@ class ScheduleStateCardEditor extends HTMLElement {
     set hass(hass) {
         this._hass = hass;
         this._iconsCache = null;
+        
+        // Only render if config exists and not already rendered
+        if (this._config && Object.keys(this._config).length > 0) {
+            const alreadyRendered = this.shadowRoot.querySelector(".config-row");
+            if (!alreadyRendered) {
+                this.render();
+            }
+        }
     }
 
     fireConfigChanged() {
@@ -1871,17 +2071,17 @@ class ScheduleStateCardEditor extends HTMLElement {
                 <div class="input-group">
                     <label>${t('editor_entity_id_label')}:</label>
                     <div class="input-with-suggestions">
-                        <input type="text" class="entity-input entity-search" data-index="${index}" data-field="entity" value="${this.escapeHtml(entityId)}" placeholder="light.my_light">
+                        <input type="text" class="entity-input entity-search" data-index="${index}" data-field="entity" value="${this.escapeHtml(entityId)}" placeholder="light.my_light" autocomplete="off">
                     </div>
                 </div>
                 <div class="input-group">
                     <label>${t('editor_name_label')}:</label>
-                    <input type="text" class="entity-input" data-index="${index}" data-field="name" value="${this.escapeHtml(entityConfig.name || '')}" placeholder="${t('editor_placeholder_name')}">
+                    <input type="text" class="entity-input" data-index="${index}" data-field="name" value="${this.escapeHtml(entityConfig.name || '')}" placeholder="${t('editor_placeholder_name')}" autocomplete="off">
                 </div>
                 <div class="input-group">
                     <label>${t('editor_icon_label')}:</label>
                     <div class="input-with-suggestions">
-                        <input type="text" class="entity-input icon-search" data-index="${index}" data-field="icon" value="${this.escapeHtml(entityConfig.icon || '')}" placeholder="mdi:calendar-clock">
+                        <input type="text" class="entity-input icon-search" data-index="${index}" data-field="icon" value="${this.escapeHtml(entityConfig.icon || '')}" placeholder="mdi:calendar-clock" autocomplete="off">
                     </div>
                 </div>
             </div>
@@ -1919,6 +2119,11 @@ class ScheduleStateCardEditor extends HTMLElement {
     }
 
     render() {
+        // Clear all previous content and listeners
+        if (this.shadowRoot) {
+            this.shadowRoot.innerHTML = '';
+        }
+        
         const t = this.t.bind(this);
         const style = `
             :host { display: block; }
@@ -2097,8 +2302,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 cursor: pointer; 
                 font-weight: bold; 
                 transition: all 0.2s;
-                position: relative;
-                z-index: 5;
             }
             
             .add-button:hover { 
@@ -2197,69 +2400,6 @@ class ScheduleStateCardEditor extends HTMLElement {
             }
 
             .color-wheel-container {
-                margin-bottom: 20px;
-                text-align: center;
-            }
-
-            .rgb-cube {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .color-sliders {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .color-sliders label {
-                font-size: 11px;
-                font-weight: 600;
-                color: var(--secondary-text-color);
-                margin: 0;
-            }
-
-            .color-sliders input[type="range"] {
-                width: 100%;
-                height: 6px;
-                border-radius: 3px;
-                background: var(--primary-background-color);
-                outline: none;
-                -webkit-appearance: none;
-            }
-
-            .color-sliders input[type="range"]::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-
-            .color-sliders input[type="range"]::-moz-range-thumb {
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-
-            .color-picker-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 1999;
-            }
-
-            .color-wheel-container {
                 position: relative;
                 width: 280px;
                 height: 280px;
@@ -2273,6 +2413,16 @@ class ScheduleStateCardEditor extends HTMLElement {
                 filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
             }
 
+            .color-marker {
+                position: absolute;
+                width: 12px;
+                height: 12px;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 0 4px rgba(0,0,0,0.5);
+                pointer-events: none;
+            }
+
             .color-picker-overlay {
                 position: fixed;
                 top: 0;
@@ -2281,21 +2431,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
                 z-index: 1999;
-            }
-
-            .color-picker-popup {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: var(--secondary-background-color);
-                border: 2px solid var(--primary-color);
-                border-radius: 8px;
-                padding: 20px;
-                z-index: 2000;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                width: 90%;
-                max-width: 350px;
             }
 
             .brightness-control {
@@ -2365,6 +2500,13 @@ class ScheduleStateCardEditor extends HTMLElement {
             </div>
 
             <div class="config-row">
+                <label style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="show-state-input" ${this._config.show_state_in_title !== false ? 'checked' : ''} style="width:auto;cursor:pointer;"/>
+                    ${t('editor_show_state_in_title')}
+                </label>
+            </div>
+
+            <div class="config-row">
                 <label>${t('editor_entities_label')}</label>
                 <div class="entity-list" id="entity-list">
                     ${entitiesHtml}
@@ -2386,64 +2528,95 @@ class ScheduleStateCardEditor extends HTMLElement {
         const container = inputElement.closest('.input-with-suggestions');
         if (!container) return;
 
-        let existingDropdown = container.querySelector('.suggestions-dropdown');
-        if (existingDropdown) existingDropdown.remove();
-
         const filterText = inputElement.value || "";
         let items = "";
 
+        // Generate filtered suggestions based on input text
         if (type === "entity") {
             const filtered = this.getFilteredEntities(filterText);
             if (filtered.length > 0) {
-                items = filtered.map(e => `<div class="suggestion-item entity-suggestion" data-index="${index}" data-value="${this.escapeHtml(e)}">${this.escapeHtml(e)}</div>`).join('');
-            } else {
+                items = filtered.map(e => {
+                    return `<div class="suggestion-item entity-suggestion" data-index="${index}" data-value="${this.escapeHtml(e)}">${this.escapeHtml(e)}</div>`;
+                }).join('');
+            } else if (filterText.length > 0) {
                 items = `<div class="suggestion-item disabled">${this.t('editor_no_entities_found')}</div>`;
             }
         } else if (type === "icon") {
             const filtered = this.getFilteredIcons(filterText);
-            items = filtered.map(icon => `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${this.escapeHtml(icon)}"><ha-icon icon="${this.escapeHtml(icon)}"></ha-icon> ${this.escapeHtml(icon)}</div>`).join('');
+            if (filtered.length > 0) {
+                items = filtered.map(icon => {
+                    return `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${this.escapeHtml(icon)}"><ha-icon icon="${this.escapeHtml(icon)}"></ha-icon> ${this.escapeHtml(icon)}</div>`;
+                }).join('');
+            }
         }
 
+        // Remove existing dropdown
+        let existingDropdown = container.querySelector('.suggestions-dropdown');
+        if (existingDropdown) existingDropdown.remove();
+
+        // Create and insert new dropdown if there are items
         if (items) {
             const dropdown = document.createElement('div');
             dropdown.className = 'suggestions-dropdown';
             dropdown.innerHTML = items;
             container.appendChild(dropdown);
 
-            dropdown.querySelectorAll('.suggestion-item').forEach(item => {
-                if (item.classList.contains('disabled')) return;
+            // Attach click handlers to suggestion items
+            dropdown.querySelectorAll('.suggestion-item:not(.disabled)').forEach(item => {
                 item.addEventListener('click', (e) => {
-                    const idx = parseInt(e.currentTarget.dataset.index);
-                    const value = e.currentTarget.dataset.value;
+                    e.stopPropagation();
+                    const idx = parseInt(item.dataset.index);
+                    const value = item.dataset.value;
                     const field = type === "entity" ? "entity" : "icon";
+                    
+                    // Update the entity data
                     this.updateEntity(idx, field, value);
                     inputElement.value = value;
-                    existingDropdown = container.querySelector('.suggestions-dropdown');
-                    if (existingDropdown) existingDropdown.remove();
+                    
+                    // Remove dropdown after selection
+                    const dd = container.querySelector('.suggestions-dropdown');
+                    if (dd) dd.remove();
+                });
+
+                // Add hover effect
+                item.addEventListener('mouseenter', () => {
+                    dropdown.querySelectorAll('.suggestion-item').forEach(i => i.style.background = '');
+                    item.style.background = 'var(--primary-color)';
+                    item.style.color = 'white';
+                });
+
+                item.addEventListener('mouseleave', () => {
+                    item.style.background = '';
+                    item.style.color = 'var(--primary-text-color)';
                 });
             });
         }
     }
 
     drawColorWheel(canvas, colorKey) {
+        // Safety checks
+        if (!canvas || !colorKey) return;
+        
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
         const radius = 130;
         const centerX = 140;
         const centerY = 140;
-    
+
         const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
         const rgb = this.hexToRgb(currentColor);
         const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
-    
+
         for (let angle = 0; angle < 360; angle += 1) {
             const startAngle = (angle - 90) * Math.PI / 180;
             const endAngle = (angle + 1 - 90) * Math.PI / 180;
-    
+
             for (let r = 0; r < radius; r += 2) {
                 const saturation = (r / radius) * 100;
                 const rgb1 = this.hsvToRgb(angle, saturation, hsv.v);
                 const rgbColor = `rgb(${rgb1.r},${rgb1.g},${rgb1.b})`;
-    
+
                 ctx.fillStyle = rgbColor;
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, r, startAngle, endAngle);
@@ -2451,12 +2624,12 @@ class ScheduleStateCardEditor extends HTMLElement {
                 ctx.fill();
             }
         }
-    
+
         ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
         ctx.fill();
-    
+
         const angle = (hsv.h - 90) * Math.PI / 180;
         const distance = (hsv.s / 100) * radius;
         const markerX = centerX + distance * Math.cos(angle);
@@ -2494,20 +2667,38 @@ class ScheduleStateCardEditor extends HTMLElement {
     }
 
     attachListeners() {
+        // Guard: wait for shadowRoot to be fully ready
+        if (!this.shadowRoot) {
+            return;
+        }
+        
+        // Query all elements - these should exist after render()
         const titleInput = this.shadowRoot.querySelector("#title-input");
-        if (titleInput) {
-            titleInput.addEventListener("change", (e) => {
-                this._config.title = e.target.value;
-                this.fireConfigChanged();
-                this.requestUpdate();
-            });
-        }
-
+        const showStateInput = this.shadowRoot.querySelector("#show-state-input");
         const addBtn = this.shadowRoot.querySelector("#add-btn");
-        if (addBtn) {
-            addBtn.addEventListener("click", () => this.addEntity());
+        
+        // If elements don't exist, DOM isn't ready - retry with delay
+        if (!titleInput || !showStateInput || !addBtn) {
+            setTimeout(() => this.attachListeners(), 50);
+            return;
         }
 
+        // Title input listener
+        titleInput.addEventListener("change", (e) => {
+            this._config.title = e.target.value;
+            this.fireConfigChanged();
+        });
+
+        // Show state checkbox listener
+        showStateInput.addEventListener("change", (e) => {
+            this._config.show_state_in_title = e.target.checked;
+            this.fireConfigChanged();
+        });
+
+        // Add entity button listener
+        addBtn.addEventListener("click", () => this.addEntity());
+
+        // Edit button listeners
         this.shadowRoot.querySelectorAll(".edit-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 const index = parseInt(e.currentTarget.dataset.index);
@@ -2515,6 +2706,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
+        // Remove button listeners
         this.shadowRoot.querySelectorAll(".remove-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 const index = parseInt(e.currentTarget.dataset.index);
@@ -2522,24 +2714,28 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
-        this.shadowRoot.querySelectorAll(".entity-input").forEach(input => {
+        // Regular entity input listeners (non-searchable)
+        this.shadowRoot.querySelectorAll(".entity-input:not(.entity-search):not(.icon-search)").forEach(input => {
             input.addEventListener("change", (e) => {
                 const index = parseInt(e.target.dataset.index);
                 const field = e.target.dataset.field;
                 this.updateEntity(index, field, e.target.value);
-                this.requestUpdate();
             });
         });
 
+        // Entity search listeners - with REAL-TIME dropdown updates
         this.shadowRoot.querySelectorAll(".entity-search").forEach(input => {
-            input.addEventListener("input", (e) => {
-                this.updateDropdown(e.target, "entity");
-            });
-
+            // Show dropdown immediately on focus
             input.addEventListener("focus", (e) => {
                 this.updateDropdown(e.target, "entity");
             });
 
+            // Update dropdown in real-time as user types
+            input.addEventListener("input", (e) => {
+                this.updateDropdown(e.target, "entity");
+            });
+
+            // Close dropdown when leaving the field
             input.addEventListener("blur", (e) => {
                 setTimeout(() => {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2549,17 +2745,32 @@ class ScheduleStateCardEditor extends HTMLElement {
                     }
                 }, 150);
             });
+
+            // Clear dropdown on escape key
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    const container = e.target.closest('.input-with-suggestions');
+                    if (container) {
+                        const dropdown = container.querySelector('.suggestions-dropdown');
+                        if (dropdown) dropdown.remove();
+                    }
+                }
+            });
         });
 
+        // Icon search listeners - with REAL-TIME dropdown updates
         this.shadowRoot.querySelectorAll(".icon-search").forEach(input => {
-            input.addEventListener("input", (e) => {
-                this.updateDropdown(e.target, "icon");
-            });
-
+            // Show dropdown immediately on focus
             input.addEventListener("focus", (e) => {
                 this.updateDropdown(e.target, "icon");
             });
 
+            // Update dropdown in real-time as user types
+            input.addEventListener("input", (e) => {
+                this.updateDropdown(e.target, "icon");
+            });
+
+            // Close dropdown when leaving the field
             input.addEventListener("blur", (e) => {
                 setTimeout(() => {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2569,8 +2780,20 @@ class ScheduleStateCardEditor extends HTMLElement {
                     }
                 }, 150);
             });
+
+            // Clear dropdown on escape key
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    const container = e.target.closest('.input-with-suggestions');
+                    if (container) {
+                        const dropdown = container.querySelector('.suggestions-dropdown');
+                        if (dropdown) dropdown.remove();
+                    }
+                }
+            });
         });
 
+        // Color picker button listeners
         this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 const colorKey = e.currentTarget.dataset.colorkey;
@@ -2578,6 +2801,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
+        // Color hex input listeners
         this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
             input.addEventListener("change", (e) => {
                 const colorKey = e.target.dataset.colorkey;
@@ -2599,6 +2823,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
+        // Color preview listeners
         this.shadowRoot.querySelectorAll(".color-preview").forEach(preview => {
             preview.addEventListener("click", (e) => {
                 const colorKey = e.currentTarget.dataset.colorkey;
@@ -2606,65 +2831,36 @@ class ScheduleStateCardEditor extends HTMLElement {
             });
         });
 
+        // Color picker overlay close listener
         this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
-            overlay.addEventListener("click", (e) => {
-                const colorKey = e.currentTarget.dataset.colorkey;
+            overlay.addEventListener("click", () => {
                 this._colorPickerOpen = null;
                 this.render();
             });
         });
 
-        this.shadowRoot.querySelectorAll(".sat-slider, .val-slider").forEach(slider => {
-            slider.addEventListener("input", (e) => {
-                const colorKey = e.target.dataset.colorkey;
-                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
-                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
-                
-                // Get current hue from color
-                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
-                const rgb = this.hexToRgb(currentColor);
-                const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 75, v: 100 };
-                
-                const rgb2 = this.hsvToRgb(hsv.h, s, v);
-                const hex = this.rgbToHex(rgb2.r, rgb2.g, rgb2.b);
-                
-                this.updateColor(colorKey, hex);
-            });
-        });
-
-        this.shadowRoot.querySelectorAll(".hue-picker").forEach(circle => {
-            circle.addEventListener("click", (e) => {
-                const svgRect = e.target.parentElement.getBoundingClientRect();
-                const x = e.clientX - svgRect.left - 100;
-                const y = e.clientY - svgRect.top - 100;
-                const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
-                const h = angle < 0 ? angle + 360 : angle;
-                
-                const colorKey = e.target.dataset.colorkey;
-                const s = parseFloat(this.shadowRoot.querySelector(`.sat-slider[data-colorkey="${colorKey}"]`)?.value || 75);
-                const v = parseFloat(this.shadowRoot.querySelector(`.val-slider[data-colorkey="${colorKey}"]`)?.value || 100);
-                
-                const rgb = this.hsvToRgb(h, s, v);
-                const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
-                
-                this.updateColor(colorKey, hex);
-            });
-        });
-
+        // Color wheel canvas rendering and interaction
         this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
             const colorKey = canvas.dataset.colorkey;
+            // Draw the color wheel
             this.drawColorWheel(canvas, colorKey);
+            
+            // Click to select color
             canvas.addEventListener("click", (e) => this.handleWheelClick(e, colorKey));
+            
+            // Drag to select color
             canvas.addEventListener("mousemove", (e) => {
                 if (e.buttons === 1) this.handleWheelClick(e, colorKey);
             });
         });
-    
+
+        // Brightness slider listeners
         this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
             slider.addEventListener("input", (e) => {
                 const colorKey = e.target.dataset.colorkey;
                 const v = parseInt(e.target.value);
-                this.shadowRoot.querySelector(`#brightness-value-${colorKey}`).textContent = v;
+                const valueDisplay = this.shadowRoot.querySelector(`#brightness-value-${colorKey}`);
+                if (valueDisplay) valueDisplay.textContent = v;
                 
                 const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
                 const rgb = this.hexToRgb(currentColor);
@@ -2676,19 +2872,12 @@ class ScheduleStateCardEditor extends HTMLElement {
                 }
             });
         });
-    
-        this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
-            overlay.addEventListener("click", () => {
-                this._colorPickerOpen = null;
-                this.render();
-            });
-        });
     }
 }
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.4 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
