@@ -20,7 +20,9 @@ const TRANSLATIONS = {
         cond_sunrise: "Sunrise",
         cond_sunset: "Sunset",
         cond_combined_result: "Combined Schedule", 
-        cond_combined_schedule_toggle: "Combined Schedule Result (Click to show/hide rules)", 
+        cond_combined_schedule_toggle: "Combined Schedule Result (Click to show/hide rules)",
+        cond_after: "after",
+        cond_before: "before", 
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -79,7 +81,9 @@ const TRANSLATIONS = {
         cond_sunrise: "Lever du soleil",
         cond_sunset: "Coucher du soleil",
         cond_combined_result: "Planning Combiné", 
-        cond_combined_schedule_toggle: "Résultat du Planning Combiné (Cliquez pour afficher/masquer les règles)", 
+        cond_combined_schedule_toggle: "Résultat du Planning Combiné (Cliquez pour afficher/masquer les règles)",
+        cond_after: "après",
+        cond_before: "avant",
         days: {
             mon: "Lundi",
             tue: "Mardi",
@@ -138,7 +142,9 @@ const TRANSLATIONS = {
         cond_sunrise: "Sonnenaufgang",
         cond_sunset: "Sonnenuntergang",
         cond_combined_result: "Kombinierter Zeitplan", 
-        cond_combined_schedule_toggle: "Ergebnis des kombinierten Zeitplans (Klicken zum Anzeigen/Ausblenden der Regeln)", 
+        cond_combined_schedule_toggle: "Ergebnis des kombinierten Zeitplans (Klicken zum Anzeigen/Ausblenden der Regeln)",
+        cond_after: "nach",
+        cond_before: "vor",
         days: {
             mon: "Montag",
             tue: "Dienstag",
@@ -197,7 +203,9 @@ const TRANSLATIONS = {
         cond_sunrise: "Amanecer",
         cond_sunset: "Atardecer",
         cond_combined_result: "Horario Combinado", 
-        cond_combined_schedule_toggle: "Resultado del Horario Combinado (Clic para mostrar/ocultar reglas)", 
+        cond_combined_schedule_toggle: "Resultado del Horario Combinado (Clic para mostrar/ocultar reglas)",
+        cond_after: "después de",
+        cond_before: "antes de",
         days: {
             mon: "Lunes",
             tue: "Martes",
@@ -257,6 +265,8 @@ const TRANSLATIONS = {
         cond_sunset: "Pôr do sol",
         cond_combined_result: "Agenda Combinada",
         cond_combined_schedule_toggle: "Resultado da Agenda Combinada (Clique para mostrar/ocultar regras)",
+        cond_after: "después de",
+        cond_before: "antes de",
         days: {
             mon: "Segunda-feira",
             tue: "Terça-feira",
@@ -316,6 +326,8 @@ const TRANSLATIONS = {
         cond_sunset: "Pôr do sol",
         cond_combined_result: "Programação Combinada",
         cond_combined_schedule_toggle: "Resultado da Programação Combinada (Clique para mostrar/ocultar regras)",
+        cond_after: "após",
+        cond_before: "antes de",
         days: {
             mon: "Segunda-feira",
             tue: "Terça-feira",
@@ -420,10 +432,10 @@ class ScheduleStateCard extends HTMLElement {
         // Use word boundaries to avoid matching "Sun" in "Sunday"
         translated = translated.replace(/\bSunrise\s+condition\b/g, this.t("cond_sunrise"));
         translated = translated.replace(/\bSunset\s+condition\b/g, this.t("cond_sunset"));
-        translated = translated.replace(/\bSunrise\s+after\s+/g, this.t("cond_sunrise") + " après ");
-        translated = translated.replace(/\bSunrise\s+before\s+/g, this.t("cond_sunrise") + " avant ");
-        translated = translated.replace(/\bSunset\s+after\s+/g, this.t("cond_sunset") + " après ");
-        translated = translated.replace(/\bSunset\s+before\s+/g, this.t("cond_sunset") + " avant ");
+        translated = translated.replace(/\bSunrise\s+after\s+/g, this.t("cond_sunrise") + " " + this.t("cond_after") + " ");
+        translated = translated.replace(/\bSunrise\s+before\s+/g, this.t("cond_sunrise") + " " + this.t("cond_before") + " ");
+        translated = translated.replace(/\bSunset\s+after\s+/g, this.t("cond_sunset") + " " + this.t("cond_after") + " ");
+        translated = translated.replace(/\bSunset\s+before\s+/g, this.t("cond_sunset") + " " + this.t("cond_before") + " ");
         translated = translated.replace(/\bSunrise\s+>/g, this.t("cond_sunrise") + " >");
         translated = translated.replace(/\bSunrise\s+</g, this.t("cond_sunrise") + " <");
         translated = translated.replace(/\bSunset\s+>/g, this.t("cond_sunset") + " >");
@@ -2893,7 +2905,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.7 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
