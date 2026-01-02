@@ -2909,6 +2909,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
     name: "Schedule State Card",
-    description: "Visualizes schedules defined via AppDaemon schedule_parser with color customization."
+    description: "Visualizes schedules defined via Schedule_state with color customization."
 
 });
