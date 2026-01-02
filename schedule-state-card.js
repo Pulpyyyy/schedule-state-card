@@ -1389,14 +1389,13 @@ class ScheduleStateCard extends HTMLElement {
 
         const layerActiveStates = [];
         for (const layer of allLayers) {
-            layerActiveStates.push(layer.is_default_layer || layer.is_combined_layer ? null : this._evaluateConditionsForLayer(layer));
-        }
-        
-        const anyOtherLayerActive = layerActiveStates.some((active, idx) => active === true && !allLayers[idx].is_default_layer && !allLayers[idx].is_combined_layer);
-        
-        for (let i = 0; i < allLayers.length; i++) {
-            if (allLayers[i].is_default_layer) {
-                layerActiveStates[i] = !anyOtherLayerActive;
+            if (layer.is_default_layer) {
+                // Layer 0 (default) always on
+                layerActiveStates.push(true);
+            } else if (layer.is_combined_layer) {
+                layerActiveStates.push(null);
+            } else {
+                layerActiveStates.push(this._evaluateConditionsForLayer(layer));
             }
         }
         
