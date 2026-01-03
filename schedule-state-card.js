@@ -2,8 +2,8 @@ const TRANSLATIONS = {
     en: {
         state_label: "State",
         condition_label: "Condition",
-        layer_label: "Schedule Rule", 
-        time_label: "Time Slots",     
+        layer_label: "Schedule Rule",
+        time_label: "Time Slots",
         no_specific_condition: "No specific condition",
         default_state_label: "Default state",
         wrapping: "wrapping",
@@ -19,10 +19,10 @@ const TRANSLATIONS = {
         cond_not: "NOT",
         cond_sunrise: "Sunrise",
         cond_sunset: "Sunset",
-        cond_combined_result: "Combined Schedule", 
+        cond_combined_result: "Combined Schedule",
         cond_combined_schedule_toggle: "Combined Schedule Result (Click to show/hide rules)",
         cond_after: "after",
-        cond_before: "before", 
+        cond_before: "before",
         days: {
             mon: "Monday",
             tue: "Tuesday",
@@ -63,8 +63,8 @@ const TRANSLATIONS = {
     fr: {
         state_label: "État",
         condition_label: "Condition",
-        layer_label: "Règle de planning", 
-        time_label: "Plages horaires",    
+        layer_label: "Règle de planning",
+        time_label: "Plages horaires",
         no_specific_condition: "Aucune condition spécifique",
         default_state_label: "État par défaut",
         wrapping: "débordement",
@@ -80,7 +80,7 @@ const TRANSLATIONS = {
         cond_not: "NON",
         cond_sunrise: "Lever du soleil",
         cond_sunset: "Coucher du soleil",
-        cond_combined_result: "Planning Combiné", 
+        cond_combined_result: "Planning Combiné",
         cond_combined_schedule_toggle: "Résultat du Planning Combiné (Cliquez pour afficher/masquer les règles)",
         cond_after: "après",
         cond_before: "avant",
@@ -124,8 +124,8 @@ const TRANSLATIONS = {
     de: {
         state_label: "Status",
         condition_label: "Bedingung",
-        layer_label: "Zeitplanregel", 
-        time_label: "Zeitfenster",     
+        layer_label: "Zeitplanregel",
+        time_label: "Zeitfenster",
         no_specific_condition: "Keine spezifische Bedingung",
         default_state_label: "Standardstatus",
         wrapping: "Überlauf",
@@ -138,10 +138,10 @@ const TRANSLATIONS = {
         cond_month: "Monat",
         cond_and: "UND",
         cond_or: "ODER",
-        cond_not: "NICHT", 
+        cond_not: "NICHT",
         cond_sunrise: "Sonnenaufgang",
         cond_sunset: "Sonnenuntergang",
-        cond_combined_result: "Kombinierter Zeitplan", 
+        cond_combined_result: "Kombinierter Zeitplan",
         cond_combined_schedule_toggle: "Ergebnis des kombinierten Zeitplans (Klicken zum Anzeigen/Ausblenden der Regeln)",
         cond_after: "nach",
         cond_before: "vor",
@@ -185,7 +185,7 @@ const TRANSLATIONS = {
     es: {
         state_label: "Estado",
         condition_label: "Condición",
-        layer_label: "Regla de horario", 
+        layer_label: "Regla de horario",
         time_label: "Intervalos",
         no_specific_condition: "Sin condición específica",
         default_state_label: "Estado por defecto",
@@ -202,7 +202,7 @@ const TRANSLATIONS = {
         cond_not: "NO",
         cond_sunrise: "Amanecer",
         cond_sunset: "Atardecer",
-        cond_combined_result: "Horario Combinado", 
+        cond_combined_result: "Horario Combinado",
         cond_combined_schedule_toggle: "Resultado del Horario Combinado (Clic para mostrar/ocultar reglas)",
         cond_after: "después de",
         cond_before: "antes de",
@@ -375,32 +375,388 @@ const DEFAULT_COLORS = {
     cursor: "var(--label-badge-yellow, #FDD835)"
 };
 
+/**
+ * Centralized translation patterns for condition text
+ * Maps regex patterns to their translation handlers
+ */
+const CONDITION_TRANSLATION_PATTERNS = [
+    // Time-based translations (order matters: sunrise before "sun" abbreviations)
+    {
+        pattern: /\bSunrise\s+condition\b/g,
+        key: 'cond_sunrise',
+        type: 'simple'
+    },
+    {
+        pattern: /\bSunset\s+condition\b/g,
+        key: 'cond_sunset',
+        type: 'simple'
+    },
+    {
+        pattern: /\bSunrise\s+after\s+/g,
+        template: (t) => `${t('cond_sunrise')} ${t('cond_after')} `,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunrise\s+before\s+/g,
+        template: (t) => `${t('cond_sunrise')} ${t('cond_before')} `,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunset\s+after\s+/g,
+        template: (t) => `${t('cond_sunset')} ${t('cond_after')} `,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunset\s+before\s+/g,
+        template: (t) => `${t('cond_sunset')} ${t('cond_before')} `,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunrise\s+>/g,
+        template: (t) => `${t('cond_sunrise')} >`,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunrise\s+</g,
+        template: (t) => `${t('cond_sunrise')} <`,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunset\s+>/g,
+        template: (t) => `${t('cond_sunset')} >`,
+        type: 'template'
+    },
+    {
+        pattern: /\bSunset\s+</g,
+        template: (t) => `${t('cond_sunset')} <`,
+        type: 'template'
+    },
+
+    // Label translations (must come after sunrise/sunset to avoid conflicts)
+    {
+        pattern: /\bDays:/g,
+        key: 'cond_days',
+        type: 'labelSuffix'
+    },
+    {
+        pattern: /\bMonth:/g,
+        key: 'cond_month',
+        type: 'labelSuffix'
+    },
+
+    // Logic operators
+    {
+        pattern: /\sAND\s/g,
+        key: 'cond_and',
+        type: 'operator'
+    },
+    {
+        pattern: /\sOR\s/g,
+        key: 'cond_or',
+        type: 'operator'
+    },
+    {
+        pattern: /\bNOT\s+\(/g,
+        key: 'cond_not',
+        type: 'notOperator'
+    }
+];
+
+/**
+ * Day abbreviations to full day key mapping
+ * Used for translating day abbreviations in condition text
+ */
+const DAY_ABBREVIATION_MAP = {
+    "Mon": "mon",
+    "Tue": "tue",
+    "Wed": "wed",
+    "Thu": "thu",
+    "Fri": "fri",
+    "Sat": "sat",
+    "Sun": "sun"
+};
+
+/**
+ * Centralized layout constants
+ * Eliminates magic numbers throughout the codebase
+ */
+const LAYOUT_CONSTANTS = {
+    BLOCK_HEIGHT: 20,
+    VERTICAL_GAP: 8,
+    TOP_MARGIN: 4,
+    BOTTOM_MARGIN: 20,
+    ICON_COLUMN_WIDTH: 28,
+    MOUSE_STABILIZATION_DELAY: 200,
+    DEBOUNCE_DELAY_MS: 500,
+    TIMELINE_UPDATE_INTERVAL_MS: 60000, // 1 minute
+    MINUTES_PER_DAY: 1440, // 24 * 60
+    FULL_ROTATION_DEGREES: 360,
+    COLOR_HUE_INCREMENT: 60,
+    TOOLTIP_OFFSET_Y: 25,
+    TOOLTIP_MARGIN_X: 10,
+    TOOLTIP_HIDE_DELAY_MS: 50,
+    TOOLTIP_SHOW_DELAY_MS: 200
+};
+
+/**
+ * Escape HTML special characters for safe text content display
+ * "/" is NOT escaped as it's safe in text and common in units (€/kWh, m/s, etc.)
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text safe for innerHTML
+ */
+function escapeHtml(text) {
+    if (!text) return "";
+    const str = String(text);
+    const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    };
+    return str.replace(/[&<>"']/g, char => map[char]);
+}
+
+/**
+ * Escape HTML special characters for safe attribute values
+ * More strict than escapeHtml - escapes "/" to prevent attribute breakout
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text safe for HTML attributes
+ */
+function escapeHtmlAttribute(text) {
+    if (!text) return "";
+    const str = String(text);
+    const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+        "/": "&#x2F;"
+    };
+    return str.replace(/[&<>"'/]/g, char => map[char]);
+}
+
+class AppState {
+    constructor() {
+        // Layer visibility state - tracks which entity layers are expanded/collapsed
+        this.layerVisibility = new Map();
+
+        // Timer references - tracks all active timeouts
+        this.timers = {
+            debounce: null,
+            tooltip: null
+        };
+
+        // Cache storage - for expensive calculations
+        this.caches = {
+            colors: new Map(), // Color calculations by state value
+            dom: null // DOM metrics (container width, etc.)
+        };
+
+        // Timing tracking - for debounce logic
+        this.lastUpdateTime = 0;
+
+        // Event listener reference - for cleanup on disconnect
+        this.eventListener = null;
+    }
+
+    /**
+     * Check if a layer is visible (expanded) for a given entity
+     * @param {string} entityId - Home Assistant entity ID
+     * @returns {boolean} True if layer is visible
+     */
+    isLayerVisible(entityId) {
+        return this.layerVisibility.get(entityId) === true;
+    }
+
+    /**
+     * Toggle layer visibility for an entity
+     * @param {string} entityId - Home Assistant entity ID
+     */
+    toggleLayerVisibility(entityId) {
+        const current = this.layerVisibility.get(entityId);
+        this.layerVisibility.set(entityId, !current);
+    }
+
+    /**
+     * Set layer visibility state
+     * @param {string} entityId - Home Assistant entity ID
+     * @param {boolean} visible - New visibility state
+     */
+    setLayerVisibility(entityId, visible) {
+        this.layerVisibility.set(entityId, visible);
+    }
+
+    /**
+     * Initialize visibility for an entity if not already set
+     * @param {string} entityId - Home Assistant entity ID
+     * @param {boolean} defaultValue - Default visibility (typically true)
+     */
+    initializeLayerVisibility(entityId, defaultValue = true) {
+        if (!this.layerVisibility.has(entityId)) {
+            this.layerVisibility.set(entityId, defaultValue);
+        }
+    }
+
+    /**
+     * Set a timer and clear any previous timer with same key
+     * @param {string} timerKey - Timer identifier ('debounce', 'tooltip', etc.)
+     * @param {number} timeoutId - Timeout ID to track
+     */
+    setTimer(timerKey, timeoutId) {
+        if (this.timers[timerKey]) {
+            clearTimeout(this.timers[timerKey]);
+        }
+        this.timers[timerKey] = timeoutId;
+    }
+
+    /**
+     * Clear a specific timer
+     * @param {string} timerKey - Timer identifier
+     */
+    clearTimer(timerKey) {
+        if (this.timers[timerKey]) {
+            clearTimeout(this.timers[timerKey]);
+            this.timers[timerKey] = null;
+        }
+    }
+
+    /**
+     * Clear all active timers
+     */
+    clearAllTimers() {
+        Object.keys(this.timers).forEach(key => this.clearTimer(key));
+    }
+
+    /**
+     * Invalidate DOM cache to force recalculation
+     */
+    invalidateDOMCache() {
+        this.caches.dom = null;
+    }
+
+    /**
+     * Set cached DOM metrics
+     * @param {object} metrics - Object containing {containerWidth: number}
+     */
+    setDOMMetrics(metrics) {
+        this.caches.dom = metrics;
+    }
+
+    /**
+     * Get cached DOM metrics or null if not cached
+     * @returns {object|null} Cached metrics or null
+     */
+    getDOMMetrics() {
+        return this.caches.dom;
+    }
+
+    /**
+     * Invalidate all caches to force recalculation
+     */
+    invalidateAllCaches() {
+        this.caches.colors.clear();
+        this.caches.dom = null;
+    }
+
+    /**
+     * Update timing information for debounce logic
+     * @param {number} timestamp - Current timestamp (from Date.now())
+     */
+    updateLastUpdateTime(timestamp) {
+        this.lastUpdateTime = timestamp;
+    }
+
+    /**
+     * Get elapsed time since last update
+     * @returns {number} Milliseconds elapsed
+     */
+    getTimeSinceLastUpdate() {
+        return Date.now() - this.lastUpdateTime;
+    }
+
+    /**
+     * Complete cleanup for disconnection
+     * Clears all timers, caches, and resets state
+     */
+    resetOnDisconnect() {
+        this.clearAllTimers();
+        this.invalidateAllCaches();
+        this.layerVisibility.clear();
+        this.eventListener = null;
+        this.lastUpdateTime = 0;
+    }
+
+    /**
+     * Log current state for debugging
+     */
+    debug() {
+        console.log('AppState Debug:', {
+            visibleLayers: Array.from(this.layerVisibility.entries()),
+            timers: Object.keys(this.timers).reduce((acc, key) => {
+                acc[key] = this.timers[key] !== null ? 'active' : 'null';
+                return acc;
+            }, {}),
+            cachedDOMMetrics: this.caches.dom !== null,
+            colorCacheSize: this.caches.colors.size,
+            lastUpdateTime: this.lastUpdateTime
+        });
+    }
+}
+
 class ScheduleStateCard extends HTMLElement {
-    static get BLOCK_HEIGHT() { return 20; }
-    static get VERTICAL_GAP() { return 8; }
-    static get TOP_MARGIN() { return 4; }
-    static get BOTTOM_MARGIN() { return 20; }
-    static get ICON_COLUMN_WIDTH() { return 28; }
-    static get MOUSE_STABILIZATION_DELAY() { return 200; }
+    static get BLOCK_HEIGHT() {
+        return 20;
+    }
+    static get VERTICAL_GAP() {
+        return 8;
+    }
+    static get TOP_MARGIN() {
+        return 4;
+    }
+    static get BOTTOM_MARGIN() {
+        return 20;
+    }
+    static get ICON_COLUMN_WIDTH() {
+        return 28;
+    }
+    static get MOUSE_STABILIZATION_DELAY() {
+        return 200;
+    }
 
     constructor() {
         super();
-        this.attachShadow({ mode: "open" });
+        this.attachShadow({
+            mode: "open"
+        });
+
+        // ✅ CENTRALIZED STATE - Single source of truth
+        this._state = new AppState();
+
+        // Configuration and runtime references
         this._config = {};
         this._hass = null;
+
+        // Timeline update interval
+        this.updateInterval = null;
+
+        // UI elements
+        this.tooltipElement = null;
+
+        // Color and styling
+        this._colors = {
+            ...DEFAULT_COLORS
+        };
+
+        // Toggle lock to prevent rapid successive toggles
+        this._isToggling = false;
+
+        // Current time and selected day - REQUIRED for timeline display
         this.currentTime = this.getCurrentTime();
         this.selectedDay = this.currentTime.day;
-        this.updateInterval = null;
-        this.tooltipElement = null;
-        this._layerVisibility = {};
-        this._listener = null; 
-        this._tooltipTimer = null; 
-        this._isToggling = false;
-        this._colors = { ...DEFAULT_COLORS };
-        this._lastUpdateTime = 0;
-        this._updateDebounceTimer = null;
     }
-    
+
     getLanguage() {
         if (this._hass?.locale?.language) {
             return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
@@ -412,47 +768,61 @@ class ScheduleStateCard extends HTMLElement {
         const lang = this.getLanguage();
         return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
     }
-    
+
+    /**
+     * Translate condition text by applying all translation patterns sequentially
+     * Patterns are applied in order to avoid conflicts (e.g., sunrise before sun)
+     * Replace the old _translateConditionText method with this one
+     * 
+     * @param {string} text - Raw condition text to translate
+     * @returns {string} Fully translated condition text
+     */
     _translateConditionText(text) {
         if (!text) return "";
+
         let translated = text;
-        const dayAbbrs = { "Mon": "mon", "Tue": "tue", "Wed": "wed", "Thu": "thu", "Fri": "fri", "Sat": "sat", "Sun": "sun" };
-        const dayTranslations = this.t("days");
-        
-        // Translate Days: and Month: labels
-        translated = translated.replace(/\bDays:/g, this.t("cond_days") + ":");
-        translated = translated.replace(/\bMonth:/g, this.t("cond_month") + ":");
-        
-        // Translate AND/OR/NOT operators
-        translated = translated.replace(/\sAND\s/g, ` ${this.t("cond_and")} `);
-        translated = translated.replace(/\sOR\s/g, ` ${this.t("cond_or")} `);
-        translated = translated.replace(/\bNOT\s+\(/g, `${this.t("cond_not")} (`);
-        
-        // Translate Sunrise/Sunset conditions BEFORE translating days
-        // Use word boundaries to avoid matching "Sun" in "Sunday"
-        translated = translated.replace(/\bSunrise\s+condition\b/g, this.t("cond_sunrise"));
-        translated = translated.replace(/\bSunset\s+condition\b/g, this.t("cond_sunset"));
-        translated = translated.replace(/\bSunrise\s+after\s+/g, this.t("cond_sunrise") + " " + this.t("cond_after") + " ");
-        translated = translated.replace(/\bSunrise\s+before\s+/g, this.t("cond_sunrise") + " " + this.t("cond_before") + " ");
-        translated = translated.replace(/\bSunset\s+after\s+/g, this.t("cond_sunset") + " " + this.t("cond_after") + " ");
-        translated = translated.replace(/\bSunset\s+before\s+/g, this.t("cond_sunset") + " " + this.t("cond_before") + " ");
-        translated = translated.replace(/\bSunrise\s+>/g, this.t("cond_sunrise") + " >");
-        translated = translated.replace(/\bSunrise\s+</g, this.t("cond_sunrise") + " <");
-        translated = translated.replace(/\bSunset\s+>/g, this.t("cond_sunset") + " >");
-        translated = translated.replace(/\bSunset\s+</g, this.t("cond_sunset") + " <");
-        
-        // Translate day abbreviations (after Sunrise/Sunset to avoid conflict with "Sun")
-        for (const [abbr, fullDayKey] of Object.entries(dayAbbrs)) {
-            const translatedDay = dayTranslations[fullDayKey];
-            if (translatedDay) {
-                // Use word boundary at the start to avoid matching "Sun" in "Sunrise"/"Sunset"
-                translated = translated.replace(new RegExp(`\\b${abbr}\\b`, 'g'), translatedDay);
+
+        // Apply all translation patterns in sequence
+        for (const pattern of CONDITION_TRANSLATION_PATTERNS) {
+            if (pattern.type === 'simple') {
+                // Simple key translation: replace with t(key) + ":"
+                const replacement = this.t(pattern.key) + ":";
+                translated = translated.replace(pattern.pattern, replacement);
+            } else if (pattern.type === 'template') {
+                // Template translation: use function to generate replacement
+                const replacement = pattern.template(this.t.bind(this));
+                translated = translated.replace(pattern.pattern, replacement);
+            } else if (pattern.type === 'labelSuffix') {
+                // Label suffix: replace with t(key) + ":"
+                const replacement = this.t(pattern.key) + ":";
+                translated = translated.replace(pattern.pattern, replacement);
+            } else if (pattern.type === 'operator') {
+                // Operator: add spaces around translated operator
+                const replacement = ` ${this.t(pattern.key)} `;
+                translated = translated.replace(pattern.pattern, replacement);
+            } else if (pattern.type === 'notOperator') {
+                // NOT operator: no space after
+                const replacement = `${this.t(pattern.key)} (`;
+                translated = translated.replace(pattern.pattern, replacement);
             }
         }
-        
+
+        // Translate day abbreviations (after sunrise/sunset to avoid "Sun" conflicts)
+        const dayTranslations = this.t("days");
+        for (const [abbr, dayKey] of Object.entries(DAY_ABBREVIATION_MAP)) {
+            const translatedDay = dayTranslations[dayKey];
+            if (translatedDay) {
+                // Use word boundary to avoid matching "Sun" in "Sunrise"
+                translated = translated.replace(
+                    new RegExp(`\\b${abbr}\\b`, 'g'),
+                    translatedDay
+                );
+            }
+        }
+
         return translated;
     }
-    
+
     use12HourFormat() {
         return this._hass?.locale?.time_format === "12" || this.getLanguage() === "en";
     }
@@ -472,16 +842,23 @@ class ScheduleStateCard extends HTMLElement {
         let entities = config.entities || [];
         this._config = {
             ...config,
-            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? { entity: e } : e) : [],
+            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? {
+                entity: e
+            } : e) : [],
             show_state_in_title: config.show_state_in_title !== false // true by default
         };
-        
+
         if (config.colors) {
-            this._colors = { ...DEFAULT_COLORS, ...config.colors };
+            this._colors = {
+                ...DEFAULT_COLORS,
+                ...config.colors
+            };
         } else {
-            this._colors = { ...DEFAULT_COLORS };
+            this._colors = {
+                ...DEFAULT_COLORS
+            };
         }
-        
+
         if (this._hass) this.render();
     }
 
@@ -490,20 +867,25 @@ class ScheduleStateCard extends HTMLElement {
         if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
             this.render();
         }
-        
-        // Debounce updates to prevent excessive re-renders (SOLUTION 2)
+
+        // ✅ DEBOUNCE WITH CENTRALIZED STATE
+        // Use state's timing tracking instead of local variable
         const now = Date.now();
-        if (now - this._lastUpdateTime < 500) {
-            // If too soon, schedule update after delay
-            if (this._updateDebounceTimer) clearTimeout(this._updateDebounceTimer);
-            this._updateDebounceTimer = setTimeout(() => {
+        const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
+
+        if (timeSinceLastUpdate < 500) {
+            // Schedule delayed update
+            const newTimer = setTimeout(() => {
                 this.updateContent();
-                this._lastUpdateTime = Date.now();
+                this._state.updateLastUpdateTime(Date.now());
             }, 500);
+
+            // Store timer reference in centralized state
+            this._state.setTimer('debounce', newTimer);
         } else {
-            // If enough time has passed, update immediately
+            // Update immediately
             this.updateContent();
-            this._lastUpdateTime = now;
+            this._state.updateLastUpdateTime(now);
         }
     }
 
@@ -519,7 +901,9 @@ class ScheduleStateCard extends HTMLElement {
                 icon: "mdi:thermometer"
             }],
             title: "Schedule Planning",
-            colors: { ...DEFAULT_COLORS }
+            colors: {
+                ...DEFAULT_COLORS
+            }
         };
     }
 
@@ -537,7 +921,7 @@ class ScheduleStateCard extends HTMLElement {
 
     getCurrentTime() {
         const now = new Date();
-        const dayMap = ["sun","mon", "tue", "wed", "thu", "fri", "sat"];
+        const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
         return {
             day: dayMap[now.getDay()],
             hours: String(now.getHours()).padStart(2, "0"),
@@ -549,20 +933,35 @@ class ScheduleStateCard extends HTMLElement {
         return this.selectedDay === this.currentTime.day;
     }
 
+    /**
+     * Updated getCurrentTimePercentage method
+     * Replace the existing getCurrentTimePercentage method with this one
+     */
     getCurrentTimePercentage() {
-        const hours = parseInt(this.currentTime.hours);
-        const minutes = parseInt(this.currentTime.minutes);
-        return (hours * 60 + minutes) / 1440 * 100;
+        return this._getTimePercentage(this.currentTime);
     }
 
+    /**
+     * Updated startTimelineUpdate method - use LAYOUT_CONSTANTS
+     * Replace the existing startTimelineUpdate method with this one
+     */
     startTimelineUpdate() {
-        if (this.updateInterval) clearInterval(this.updateInterval);
+        // Always stop existing interval first to prevent duplicates
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+        }
+
+        // Create new interval using centralized constant
         this.updateInterval = setInterval(() => {
             this.currentTime = this.getCurrentTime();
             this.updateTimeline();
-        }, 60000); 
+        }, LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
     }
 
+    /**
+     * Updated stopTimelineUpdate method
+     * This is already correct but keep it as-is
+     */
     stopTimelineUpdate() {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
@@ -570,9 +969,13 @@ class ScheduleStateCard extends HTMLElement {
         }
     }
 
+    /**
+     * Updated updateTimeline method
+     * Replace the existing updateTimeline method with this one
+     */
     updateTimeline() {
         const containers = this.shadowRoot.querySelectorAll(".timeline-container");
-        
+
         if (!this.isToday()) {
             containers.forEach(container => {
                 const cursor = container.querySelector(".time-cursor");
@@ -580,19 +983,9 @@ class ScheduleStateCard extends HTMLElement {
             });
             return;
         }
-        
+
         const timePercentage = this.getCurrentTimePercentage();
-        containers.forEach(container => {
-            let cursor = container.querySelector(".time-cursor");
-            if (!cursor) {
-                cursor = document.createElement("div");
-                cursor.className = "time-cursor";
-                container.appendChild(cursor);
-            }
-            cursor.style.display = "block";
-            cursor.style.left = timePercentage + "%";
-            cursor.style.backgroundColor = this._colors.cursor;
-        });
+        this._updateTimelineCursors(timePercentage);
     }
 
     getPerceivedLuminance(h, s, l) {
@@ -600,25 +993,37 @@ class ScheduleStateCard extends HTMLElement {
         const h_prime = h / 60;
         let r_prime, g_prime, b_prime;
         if (h_prime <= 1) {
-            r_prime = c; g_prime = c * h_prime; b_prime = 0;
+            r_prime = c;
+            g_prime = c * h_prime;
+            b_prime = 0;
         } else if (h_prime <= 2) {
-            r_prime = c * (2 - h_prime); g_prime = c; b_prime = 0;
+            r_prime = c * (2 - h_prime);
+            g_prime = c;
+            b_prime = 0;
         } else if (h_prime <= 3) {
-            r_prime = 0; g_prime = c; b_prime = c * (h_prime - 2);
+            r_prime = 0;
+            g_prime = c;
+            b_prime = c * (h_prime - 2);
         } else if (h_prime <= 4) {
-            r_prime = 0; g_prime = c * (4 - h_prime); b_prime = c;
+            r_prime = 0;
+            g_prime = c * (4 - h_prime);
+            b_prime = c;
         } else if (h_prime <= 5) {
-            r_prime = c * (h_prime - 4); g_prime = 0; b_prime = c;
+            r_prime = c * (h_prime - 4);
+            g_prime = 0;
+            b_prime = c;
         } else {
-            r_prime = c; g_prime = 0; b_prime = c * (6 - h_prime);
+            r_prime = c;
+            g_prime = 0;
+            b_prime = c * (6 - h_prime);
         }
         const m = (l / 100) - c / 2;
         const r = r_prime + m;
         const g = g_prime + m;
         const b = b_prime + m;
         const luminance = 0.2126 * (r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4)) +
-                         0.7152 * (g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4)) +
-                         0.0722 * (b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4));
+            0.7152 * (g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4)) +
+            0.0722 * (b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4));
         return luminance;
     }
 
@@ -633,25 +1038,25 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     getColorForState(stateValue, unit) {
+        const cacheKey = `${stateValue}|${unit}`;
+
+        // ✅ USE CENTRALIZED COLOR CACHE
+        if (this._state.caches.colors.has(cacheKey)) {
+            return this._state.caches.colors.get(cacheKey);
+        }
+
+        // Calculate color (existing logic)
         let valueStr = String(stateValue === null || stateValue === undefined ? "" : stateValue).trim();
         const numMatch = valueStr.match(/^[\d.]+/);
         if (numMatch) valueStr = String(parseFloat(numMatch[0]));
-        
+
         const unitStr = String(unit === null || unit === undefined ? "" : unit).trim();
 
         let str;
         if (unitStr) {
-            if (valueStr) {
-                str = `V:${valueStr}|U:${unitStr}`; 
-            } else {
-                str = `V:${unitStr}|U:${unitStr}`;
-            }
+            str = valueStr ? `V:${valueStr}|U:${unitStr}` : `V:${unitStr}|U:${unitStr}`;
         } else {
-            if (valueStr) {
-                str = `V:${valueStr}`;
-            } else {
-                str = "";
-            }
+            str = valueStr ? `V:${valueStr}` : "";
         }
 
         let hash = 2166136261;
@@ -669,43 +1074,447 @@ class ScheduleStateCard extends HTMLElement {
 
         const goldenAngle = 137.507764;
         const hueOffset = hash * 0.1;
-        const hue = ((hash * goldenAngle) + hueOffset) % 360; 
-        
-        const sat = 50 + (hash % 40); 
-        const light = 35 + ((hash >>> 8) % 30); 
+        const hue = ((hash * goldenAngle) + hueOffset) % 360;
+        const sat = 50 + (hash % 40);
+        const light = 35 + ((hash >>> 8) % 30);
 
         const hsl = `hsl(${hue.toFixed(1)}, ${sat}%, ${light}%)`;
         const textColor = this.getTextColorForBackground(hsl);
 
-        return { color: hsl, textColor: textColor };
+        const result = {
+            color: hsl,
+            textColor: textColor
+        };
+
+        // ✅ STORE IN CENTRALIZED COLOR CACHE
+        this._state.caches.colors.set(cacheKey, result);
+
+        return result;
     }
 
+    /**
+     * Convert HH:MM time string to minutes since midnight
+     * Centralizes conversion to use consistent MINUTES_PER_DAY constant
+     * Add this method to replace the old timeToMinutes method
+     * 
+     * @param {string} time - Time string in HH:MM format
+     * @returns {number} Minutes since midnight (0-1440)
+     */
     timeToMinutes(time) {
         if (!time || typeof time !== "string") return 0;
         const parts = time.split(":");
         if (parts.length < 2) return 0;
-        const hours = parseInt(parts[0]);
-        const minutes = parseInt(parts[1]);
-        return (isNaN(hours) ? 0 : hours) * 60 + (isNaN(minutes) ? 0 : minutes);
+
+        const hours = parseInt(parts[0]) || 0;
+        const minutes = parseInt(parts[1]) || 0;
+        return hours * 60 + minutes;
     }
 
-    escapeHtml(text) {
-        const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
+    /**
+     * Calculate percentage of day elapsed
+     * Centralizes time percentage calculation
+     * Add this as a new helper method
+     * 
+     * @param {Object} timeObj - Object with hours and minutes
+     * @returns {number} Percentage of day (0-100)
+     */
+    _getTimePercentage(timeObj) {
+        if (!timeObj?.hours || !timeObj?.minutes) return 0;
+
+        const hours = parseInt(timeObj.hours);
+        const minutes = parseInt(timeObj.minutes);
+        const totalMinutes = hours * 60 + minutes;
+
+        return (totalMinutes / LAYOUT_CONSTANTS.MINUTES_PER_DAY) * 100;
+    }
+
+    /**
+     * Validate and normalize time bounds for a block
+     * Centralizes time validation logic
+     * Add this as a new helper method
+     * 
+     * @param {Object} block - Block object with start and end times
+     * @returns {Object} Normalized block with startMin and endMin
+     */
+    _normalizeBlockTimes(block) {
+        let startMin = this.timeToMinutes(block.start);
+        let endMin = this.timeToMinutes(block.end);
+
+        // Handle day-wrapping blocks (end time is 00:00)
+        if (block.end === "00:00" && endMin === 0) {
+            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
+        }
+        if (block.end === "23:59") {
+            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
+        }
+
+        return {
+            startMin,
+            endMin
+        };
+    }
+
+    /**
+     * Calculate block position and width as percentages
+     * Centralizes block dimension calculations
+     * Add this as a new helper method
+     * 
+     * @param {number} startMin - Start time in minutes
+     * @param {number} endMin - End time in minutes
+     * @returns {Object} Object with left and width percentages
+     */
+    _calculateBlockDimensions(startMin, endMin) {
+        const left = (startMin / LAYOUT_CONSTANTS.MINUTES_PER_DAY) * 100;
+        const width = ((endMin - startMin) / LAYOUT_CONSTANTS.MINUTES_PER_DAY) * 100;
+
+        return {
+            left,
+            width
+        };
+    }
+
+    /**
+     * Determine border radius based on block position and type
+     * Centralizes border radius logic
+     * Add this as a new helper method
+     * 
+     * @param {number} width - Block width percentage
+     * @param {number} startMin - Block start time in minutes
+     * @param {number} endMin - Block end time in minutes
+     * @param {boolean} isDefaultBg - Whether this is a default background block
+     * @returns {string} CSS border-radius value
+     */
+    _calculateBorderRadius(width, startMin, endMin, isDefaultBg = false) {
+        const MIN_PER_DAY = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
+
+        // Full-width blocks
+        if (width === 100) {
+            return isDefaultBg ? "0" : "4px";
+        }
+
+        // Wrapped blocks
+        if (isDefaultBg) {
+            if (startMin === 0 && endMin < MIN_PER_DAY) {
+                return "0 4px 4px 0";
+            } else if (startMin > 0 && endMin === MIN_PER_DAY) {
+                return "4px 0 0 4px";
+            }
+            return "0";
+        }
+
+        // Regular blocks
+        if (endMin <= startMin) {
+            return "4px"; // Wrapped block
+        } else if (startMin === 0) {
+            return "0 4px 4px 0";
+        } else if (endMin === MIN_PER_DAY) {
+            return "4px 0 0 4px";
+        }
+
+        return "4px";
+    }
+
+    /**
+     * Generate container height based on number of layers
+     * Centralizes height calculation logic
+     * Add this as a new helper method
+     * 
+     * @param {number} layerCount - Number of visible layers
+     * @returns {number} Total container height in pixels
+     */
+    _calculateContainerHeight(layerCount) {
+        const {
+            BLOCK_HEIGHT,
+            VERTICAL_GAP,
+            TOP_MARGIN,
+            BOTTOM_MARGIN
+        } = LAYOUT_CONSTANTS;
+
+        if (layerCount === 0) return TOP_MARGIN + BOTTOM_MARGIN;
+
+        return TOP_MARGIN +
+            layerCount * BLOCK_HEIGHT +
+            (layerCount - 1) * VERTICAL_GAP +
+            BOTTOM_MARGIN;
+    }
+
+    /**
+     * Build CSS style string for a schedule block
+     * Centralizes block styling logic
+     * Add this as a new helper method
+     * 
+     * @param {Object} params - Style parameters object
+     * @returns {string} CSS style string
+     */
+    _buildBlockStyle(params) {
+        const {
+            left,
+            width,
+            top,
+            borderRadius,
+            textColor,
+            backgroundColor
+        } = params;
+
+        const validatedBgColor = this.validateStyleValue(backgroundColor);
+        const validatedTextColor = this.validateStyleValue(textColor);
+
+        return `left:${left}%;width:${width}%;top:${top}px;border-radius:${borderRadius};color:${validatedTextColor};background-color:${validatedBgColor};`;
+    }
+
+    /**
+     * Generate tooltip text for a schedule block
+     * Centralizes tooltip generation logic
+     * Add this as a new helper method
+     * 
+     * @param {Object} params - Tooltip parameters object
+     * @returns {string} Formatted tooltip text
+     */
+    _buildBlockTooltip(params) {
+        const {
+            block,
+            isWrapped,
+            isDynamic,
+            isCombined,
+            isDefault,
+            escapedState,
+            escapedUnit
+        } = params;
+
+        let tooltipText = this.t("time_label") + ": ";
+
+        // Time portion
+        if (isWrapped) {
+            const originalStart = block.original_start || block.start;
+            const originalEnd = block.original_end || block.end;
+            tooltipText += `${originalStart} - ${originalEnd} (${this.t("wrapping")})`;
+        } else {
+            tooltipText += `${block.start} - ${block.end}`;
+        }
+
+        // State portion
+        tooltipText += `\n🌡️ ${this.t("state_label")}: ${escapedState}`;
+        if (escapedUnit) tooltipText += ` ${escapedUnit}`;
+
+        // Layer source
+        if (isCombined) {
+            tooltipText += `\n(${this.t("cond_combined_result")})`;
+        } else if (isDefault) {
+            tooltipText += `\n(${this.t("default_state_label")})`;
+        }
+
+        // Dynamic value reference
+        if (isDynamic) {
+            const entity = this.extractEntityFromTemplate(block.raw_state_template || block.state_value);
+            const blockIcon = block.icon || "mdi:calendar";
+
+            if (blockIcon === "mdi:refresh") {
+                const refText = entity ? ` (${this.t("dynamic_ref_schedule")}: ${escapeHtml(entity)})` : "";
+                tooltipText += `\n🔄 ${this.t("dynamic_value")}${refText}`;
+            } else {
+                const refText = entity ? ` (${this.t("dynamic_ref_sensor")}: ${escapeHtml(entity)})` : "";
+                tooltipText += `\n📊 ${this.t("dynamic_value")}${refText}`;
+            }
+        }
+
+        // Block description
+        if (block.description) {
+            tooltipText += `\n💬 ${escapeHtml(block.description)}`;
+        }
+
+        return tooltipText;
+    }
+
+    sanitizeUrl(url) {
+        // Handle empty/null
+        if (!url) return "";
+
+        const str = String(url).trim().toLowerCase();
+
+        // Block dangerous protocols
+        if (str.startsWith("javascript:") ||
+            str.startsWith("data:") ||
+            str.startsWith("vbscript:") ||
+            str.startsWith("file:")) {
+            console.warn("Blocked unsafe URL protocol:", url);
+            return "";
+        }
+
+        // Allow safe URLs
+        if (str.startsWith("http://") ||
+            str.startsWith("https://") ||
+            str.startsWith("/") ||
+            str.startsWith("./") ||
+            str.startsWith("../")) {
+            return url;
+        }
+
+        // Default: allow if no protocol (relative URLs)
+        return url;
+    }
+
+    createSafeElement(tagName, attributes = {}, textContent = "") {
+        // Create the element
+        const element = document.createElement(tagName);
+
+        // Set attributes safely
+        for (const [key, value] of Object.entries(attributes)) {
+            // Skip dangerous attributes
+            if (key.toLowerCase().startsWith("on")) {
+                console.warn("Blocked event handler attribute:", key);
+                continue;
+            }
+
+            // Sanitize URLs in href/src
+            if (key.toLowerCase() === "href" || key.toLowerCase() === "src") {
+                const sanitized = this.sanitizeUrl(value);
+                if (sanitized) {
+                    element.setAttribute(key, sanitized);
+                }
+                continue;
+            }
+
+            // Set other attributes
+            element.setAttribute(key, String(value));
+        }
+
+        // Set text content (NOT innerHTML) to prevent XSS
+        if (textContent) {
+            element.textContent = textContent;
+        }
+
+        return element;
+    }
+
+    /**
+     * Generate CSS style string for layer icon
+     * Centralizes icon styling logic
+     * Add this as a new helper method
+     * 
+     * @param {Object} params - Icon style parameters object
+     * @returns {string} CSS style string
+     */
+    _buildIconStyle(params) {
+        const {
+            isActive,
+            isCombined,
+            isUnfolded,
+            isSelectedDayToday
+        } = params;
+
+        let bgColor;
+        let filter = "filter:brightness(1.1);";
+
+        if (isCombined) {
+            bgColor = isUnfolded ?
+                this._colors.combined_unfolded_layer :
+                this._colors.combined_folded_layer;
+            filter = isUnfolded ? "filter:brightness(1.3);" : "filter:brightness(1.1);";
+        } else {
+            bgColor = isActive ?
+                this._colors.active_layer :
+                this._colors.inactive_layer;
+            filter = isActive ? "filter:brightness(1.3);" : "";
+        }
+
+        const opacity = !isSelectedDayToday ? "opacity:0.5;" : "";
+        const brightnessAdjust = !isSelectedDayToday ? "filter:brightness(0.8);" : filter;
+
+        return `background:${bgColor};${opacity}${brightnessAdjust}`;
+    }
+
+    /**
+     * Update timeline cursor position if today is selected
+     * Centralizes cursor update logic with bounds checking
+     * Add this as a new helper method
+     * 
+     * @param {number} timePercentage - Current time as percentage of day
+     */
+    _updateTimelineCursors(timePercentage) {
+        if (!this.isToday()) {
+            // Hide all cursors if not today
+            this.shadowRoot?.querySelectorAll(".time-cursor").forEach(cursor => {
+                cursor.style.display = "none";
+            });
+            return;
+        }
+
+        // Show and position cursors
+        const containers = this.shadowRoot?.querySelectorAll(".timeline-container");
+        if (!containers) return;
+
+        containers.forEach(container => {
+            let cursor = container.querySelector(".time-cursor");
+
+            if (!cursor) {
+                cursor = document.createElement("div");
+                cursor.className = "time-cursor";
+                container.appendChild(cursor);
+            }
+
+            cursor.style.display = "block";
+            cursor.style.left = timePercentage + "%";
+            cursor.style.backgroundColor = this._colors.cursor;
+        });
+    }
+
+    validateStyleValue(value) {
+        if (!value) return "";
+
+        const str = String(value).trim().toLowerCase();
+
+        // Block dangerous CSS
+        if (str.includes("expression(") || // IE expression
+            str.includes("javascript:") ||
+            str.includes("behavior:") ||
+            str.includes("binding(") ||
+            str.includes("@import") ||
+            str.includes("-webkit-binding") ||
+            str.includes("<") || // Block HTML-like content
+            str.includes(">") ||
+            str.includes("'") || // Block quotes to prevent attribute breakout
+            str.includes('"') ||
+            str.includes("\\") || // Block escape sequences
+            str.includes(";") && !str.match(/^[0-9]+(px|em|rem|%|vh|vw|ch)$/i)) { // Allow units with semicolon context
+            console.warn("Blocked dangerous CSS value:", value);
+            return "";
+        }
+
+        // Allow safe values (colors, dimensions, etc)
+        // For HSL colors, ensure format is strict
+        if (str.includes("hsl")) {
+            // Validate HSL format: hsl(number, number%, number%)
+            if (!/^hsl\(\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?%\s*,\s*\d+(\.\d+)?%\s*\)$/.test(String(value).trim())) {
+                console.warn("Invalid HSL color format:", value);
+                return "";
+            }
+        }
+
+        return String(value);
     }
 
     decodeHtmlEntities(text) {
-        const map = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
+        const map = {
+            "&amp;": "&",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&quot;": '"',
+            "&#39;": "'"
+        };
         return String(text).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => map[m]);
     }
 
     truncateText(text, maxWidthPx) {
         if (!text || typeof text !== "string") return text;
         if (maxWidthPx < 30) return "...";
+
         const charWidth = 6;
         const maxChars = Math.floor(maxWidthPx / charWidth) - 2;
+
         if (maxChars <= 0) return "...";
         if (text.length <= maxChars) return text;
+
+        // Return truncated text (caller will escape)
         return text.substring(0, maxChars) + "...";
     }
 
@@ -732,6 +1541,47 @@ class ScheduleStateCard extends HTMLElement {
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
         result = this._evalMath(result);
         return String(result).trim();
+    }
+
+    _clearCaches() {
+        this._colorCache.clear();
+        this._domCache = null;
+    }
+
+    getCachedDOMMetrics() {
+        // Get from centralized cache
+        let metrics = this._state.getDOMMetrics();
+
+        if (metrics) {
+            return metrics;
+        }
+
+        // Calculate metrics if not cached
+        const container = this.shadowRoot.querySelector(".timeline-container");
+
+        // Safety check: if container doesn't exist, use default width
+        if (!container) {
+            console.warn("Timeline container not found, using default width");
+            metrics = {
+                containerWidth: 800
+            };
+        } else {
+            // Get actual container width from DOM
+            const containerWidth = container.offsetWidth || 800;
+            metrics = {
+                containerWidth
+            };
+        }
+
+        // Store in centralized cache
+        this._state.setDOMMetrics(metrics);
+
+        return metrics;
+    }
+
+    invalidateDOMMetrics() {
+        // ✅ INVALIDATE CENTRALIZED CACHE
+        this._state.invalidateDOMCache();
     }
 
     _evalMath(expr) {
@@ -838,7 +1688,7 @@ class ScheduleStateCard extends HTMLElement {
         if (layer.is_combined_layer) return false;
         // If no blocks, consider it active
         if (!layer?.blocks?.length) return true;
-        
+
         // Collect all conditions from all blocks in this layer
         let allConditions = [];
         for (const block of layer.blocks) {
@@ -848,7 +1698,7 @@ class ScheduleStateCard extends HTMLElement {
         }
         // If no conditions, the layer is active
         if (allConditions.length === 0) return true;
-        
+
         // Remove duplicate conditions
         const conditionStrings = new Set();
         const uniqueConditions = [];
@@ -859,11 +1709,11 @@ class ScheduleStateCard extends HTMLElement {
                 uniqueConditions.push(cond);
             }
         }
-        
+
         // All conditions must be met for the layer to be active (AND logic)
         for (const cond of uniqueConditions) {
             // Evaluate all conditions - treating selected day as the "current day" for condition evaluation
-            if (!this._evaluateCondition(cond)) return false; 
+            if (!this._evaluateCondition(cond)) return false;
         }
         return true;
     }
@@ -871,15 +1721,15 @@ class ScheduleStateCard extends HTMLElement {
     _evaluateCondition(condition) {
         if (!condition || typeof condition !== "object") return true;
         const condType = condition.condition;
-        
+
         if (condType === "time") {
             // Get selected day's date context (use selectedDay instead of current day)
             const today = new Date();
             const currentMonth = today.getMonth() + 1;
-            
+
             // Use selectedDay as the reference day for evaluation
             const selectedDayValue = this.selectedDay;
-            
+
             // Check month condition if specified
             if (condition.month !== undefined && condition.month !== null) {
                 const months = condition.month;
@@ -889,7 +1739,7 @@ class ScheduleStateCard extends HTMLElement {
                     if (currentMonth !== months) return false;
                 }
             }
-            
+
             // Check weekday condition if specified - now using selectedDay
             if (condition.weekday !== undefined && condition.weekday !== null) {
                 const weekdays = condition.weekday;
@@ -902,12 +1752,12 @@ class ScheduleStateCard extends HTMLElement {
             // If we reach here, all specified conditions matched
             return true;
         }
-        
+
         if (condType === "state") {
             const entityId = condition.entity_id;
             // Handle case where entity_id is an array
             const entities = Array.isArray(entityId) ? entityId : [entityId];
-            
+
             // If match: all, all entities must match the state
             if (condition.match === "all") {
                 return entities.every(id => {
@@ -916,7 +1766,7 @@ class ScheduleStateCard extends HTMLElement {
                     return entity.state === condition.state;
                 });
             }
-            
+
             // Otherwise (match: any or no match specified), at least one entity must match
             return entities.some(id => {
                 const entity = this._hass.states[id];
@@ -924,63 +1774,63 @@ class ScheduleStateCard extends HTMLElement {
                 return entity.state === condition.state;
             });
         }
-        
+
         if (condType === "numeric_state") {
             const entityId = condition.entity_id;
             // Handle case where entity_id is an array
             const entities = Array.isArray(entityId) ? entityId : [entityId];
-            
+
             // For numeric_state, test each entity
             return entities.some(id => {
                 const entity = this._hass.states[id];
                 if (!entity) return false;
                 const value = parseFloat(entity.state);
                 if (isNaN(value)) return false;
-                
+
                 if (condition.above !== undefined && value <= condition.above) return false;
                 if (condition.below !== undefined && value >= condition.below) return false;
-                
+
                 return true;
             });
         }
-        
+
         if (condType === "or") {
             // OR condition: at least one sub-condition must be true
             if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
             return condition.conditions.some(subCond => this._evaluateCondition(subCond));
         }
-        
+
         if (condType === "and") {
             // AND condition: all sub-conditions must be true
             if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
             return condition.conditions.every(subCond => this._evaluateCondition(subCond));
         }
-        
+
         if (condType === "not") {
             // NOT condition: inverts the result of the sub-condition
             if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
             return !this._evaluateCondition(condition.conditions[0]);
         }
-        
+
         return true;
     }
-    
+
     createCombinedLayer(defaultLayer, activeConditionalLayers) {
         if (!defaultLayer) return null;
-        
+
         let result = [];
-        
+
         // Get selected day for filtering day-specific conditions (instead of current day)
         const selectedDayValue = this.selectedDay;
-        
+
         // Collect blocks from ALL active conditional layers
         for (const activeLayer of activeConditionalLayers) {
             if (!activeLayer.blocks) continue;
-            
+
             for (const activeBlock of activeLayer.blocks) {
                 // Check if block has day-specific conditions that EXCLUDE the selected day
                 let blockAppliesToday = true;
-                
+
                 if (activeBlock.raw_conditions && activeBlock.raw_conditions.length > 0) {
                     for (const cond of activeBlock.raw_conditions) {
                         if (cond.condition === "time" && cond.weekday && Array.isArray(cond.weekday)) {
@@ -994,161 +1844,175 @@ class ScheduleStateCard extends HTMLElement {
                         }
                     }
                 }
-                
+
                 // Add block if it applies to selected day
                 if (blockAppliesToday) {
-                    result.push({...activeBlock, _source_layer: activeLayer});
+                    result.push({
+                        ...activeBlock,
+                        _source_layer: activeLayer
+                    });
                 }
             }
         }
-        
+
         // Add default layer blocks at the end (they have lowest priority)
         if (defaultLayer.blocks) {
             for (const defBlock of defaultLayer.blocks) {
-                result.push({...defBlock, _source_layer: defaultLayer});
+                result.push({
+                    ...defBlock,
+                    _source_layer: defaultLayer
+                });
             }
         }
-        
+
         // Sort by: layer priority (higher first), then start time, then event_idx (higher first)
         result.sort((a, b) => {
             // Get layer index for each block
             const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
             const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
-            
+
             // If one is from default layer, it has lowest priority
             const isADefault = a._source_layer === defaultLayer;
             const isBDefault = b._source_layer === defaultLayer;
-            
-            if (isADefault && !isBDefault) return 1;  // B is conditional, has priority
+
+            if (isADefault && !isBDefault) return 1; // B is conditional, has priority
             if (!isADefault && isBDefault) return -1; // A is conditional, has priority
-            
+
             // If same layer type, sort by start time
             const startA = this.timeToMinutes(a.start);
             const startB = this.timeToMinutes(b.start);
             if (startA !== startB) return startA - startB;
-            
+
             // Same layer and same time, sort by event_idx (higher first)
             const idxA = a.event_idx !== undefined ? a.event_idx : -1;
             const idxB = b.event_idx !== undefined ? b.event_idx : -1;
             return idxB - idxA;
         });
-        
+
         // Now fill gaps with default layer blocks
         result = this._fillGapsWithDefaultLayer(result, defaultLayer, activeConditionalLayers);
-        
+
         return {
-            is_combined_layer: true, 
-            condition_text: this.t("cond_combined_result"), 
+            is_combined_layer: true,
+            condition_text: this.t("cond_combined_result"),
             is_default_layer: false,
             blocks: result,
         };
     }
 
     _fillGapsWithDefaultLayer(layerBlocks, defaultLayer, activeConditionalLayers) {
-            if (!layerBlocks || layerBlocks.length === 0) {
-                return (defaultLayer.blocks || []).map(b => ({...b, _source_layer: defaultLayer}));
-            }
-            
-            const result = [];
-            const breakpoints = new Set([0, 1440]);
-            
-            // Collect all breakpoints from conditional layer blocks (excluding default)
-            // Including all blocks from all active layers
-            for (const layer of activeConditionalLayers) {
-                for (const block of layerBlocks) {
-                    if (block._source_layer !== layer) continue;
-                    
-                    const startMin = this.timeToMinutes(block.start);
-                    let endMin = this.timeToMinutes(block.end);
-                    if (block.end === '00:00' && endMin === 0) endMin = 1440;
-                    breakpoints.add(startMin);
-                    breakpoints.add(endMin);
-                }
-            }
-            
-            // Collect all breakpoints from default layer
-            const defaultBlocks = defaultLayer.blocks || [];
-            for (const defBlock of defaultBlocks) {
-                const defStart = this.timeToMinutes(defBlock.start);
-                let defEnd = this.timeToMinutes(defBlock.end);
-                if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
-                breakpoints.add(defStart);
-                breakpoints.add(defEnd);
-            }
-            
-            const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
-            
-            for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
-                const segStart = sortedBreakpoints[i];
-                const segEnd = sortedBreakpoints[i + 1];
-                
-                // Find ALL conditional blocks that cover this segment
-                let coveringBlocks = [];
-                for (const block of layerBlocks) {
-                    if (block._source_layer === defaultLayer) continue;
-                    
-                    const blockStart = this.timeToMinutes(block.start);
-                    let blockEnd = this.timeToMinutes(block.end);
-                    if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
-                    
-                    if (blockStart <= segStart && segEnd <= blockEnd) {
-                        coveringBlocks.push(block);
-                    }
-                }
-                
-                if (coveringBlocks.length > 0) {
-                    // Sort by layer priority FIRST (later layer index = higher priority)
-                    // Then by event_idx (descending) 
-                    coveringBlocks.sort((a, b) => {
-                        const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
-                        const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
-                        
-                        // Different layers: higher index = higher priority
-                        if (layerIdxA !== layerIdxB) {
-                            return layerIdxB - layerIdxA;
-                        }
-                        
-                        // Same layer: higher event_idx takes priority
-                        const aIdx = a.event_idx !== undefined ? a.event_idx : -1;
-                        const bIdx = b.event_idx !== undefined ? b.event_idx : -1;
-                        return bIdx - aIdx;
-                    });
-                    
-                    const coveringBlock = coveringBlocks[0];
-                    const segStartStr = this._minutesToTime(segStart);
-                    const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
-                    result.push({
-                        ...coveringBlock,
-                        start: segStartStr,
-                        end: segEndStr,
-                        is_default_bg: false  // Conditional blocks are never hatched
-                    });
-                } else {
-                    // No conditional block covers this segment, use default layer
-                    for (const defBlock of defaultBlocks) {
-                        const defStart = this.timeToMinutes(defBlock.start);
-                        let defEnd = this.timeToMinutes(defBlock.end);
-                        if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
-                        
-                        if (defStart <= segStart && segEnd <= defEnd) {
-                            const segStartStr = this._minutesToTime(segStart);
-                            const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
-                            result.push({
-                                ...defBlock,
-                                start: segStartStr,
-                                end: segEndStr,
-                                _source_layer: defaultLayer,
-                                is_default_bg: true  // Mark as default layer block
-                            });
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            return result;
+        if (!layerBlocks || layerBlocks.length === 0) {
+            return (defaultLayer.blocks || []).map(b => ({
+                ...b,
+                _source_layer: defaultLayer
+            }));
         }
 
+        const result = [];
+        const breakpoints = new Set([0, 1440]);
+
+        // Collect all breakpoints from conditional layer blocks (excluding default)
+        // Including all blocks from all active layers
+        for (const layer of activeConditionalLayers) {
+            for (const block of layerBlocks) {
+                if (block._source_layer !== layer) continue;
+
+                const startMin = this.timeToMinutes(block.start);
+                let endMin = this.timeToMinutes(block.end);
+                if (block.end === '00:00' && endMin === 0) endMin = 1440;
+                breakpoints.add(startMin);
+                breakpoints.add(endMin);
+            }
+        }
+
+        // Collect all breakpoints from default layer
+        const defaultBlocks = defaultLayer.blocks || [];
+        for (const defBlock of defaultBlocks) {
+            const defStart = this.timeToMinutes(defBlock.start);
+            let defEnd = this.timeToMinutes(defBlock.end);
+            if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+            breakpoints.add(defStart);
+            breakpoints.add(defEnd);
+        }
+
+        const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
+
+        for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
+            const segStart = sortedBreakpoints[i];
+            const segEnd = sortedBreakpoints[i + 1];
+
+            // Find ALL conditional blocks that cover this segment
+            let coveringBlocks = [];
+            for (const block of layerBlocks) {
+                if (block._source_layer === defaultLayer) continue;
+
+                const blockStart = this.timeToMinutes(block.start);
+                let blockEnd = this.timeToMinutes(block.end);
+                if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
+
+                if (blockStart <= segStart && segEnd <= blockEnd) {
+                    coveringBlocks.push(block);
+                }
+            }
+
+            if (coveringBlocks.length > 0) {
+                // Sort by layer priority FIRST (later layer index = higher priority)
+                // Then by event_idx (descending) 
+                coveringBlocks.sort((a, b) => {
+                    const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
+                    const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
+
+                    // Different layers: higher index = higher priority
+                    if (layerIdxA !== layerIdxB) {
+                        return layerIdxB - layerIdxA;
+                    }
+
+                    // Same layer: higher event_idx takes priority
+                    const aIdx = a.event_idx !== undefined ? a.event_idx : -1;
+                    const bIdx = b.event_idx !== undefined ? b.event_idx : -1;
+                    return bIdx - aIdx;
+                });
+
+                const coveringBlock = coveringBlocks[0];
+                const segStartStr = this._minutesToTime(segStart);
+                const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                result.push({
+                    ...coveringBlock,
+                    start: segStartStr,
+                    end: segEndStr,
+                    is_default_bg: false // Conditional blocks are never hatched
+                });
+            } else {
+                // No conditional block covers this segment, use default layer
+                for (const defBlock of defaultBlocks) {
+                    const defStart = this.timeToMinutes(defBlock.start);
+                    let defEnd = this.timeToMinutes(defBlock.end);
+                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+
+                    if (defStart <= segStart && segEnd <= defEnd) {
+                        const segStartStr = this._minutesToTime(segStart);
+                        const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                        result.push({
+                            ...defBlock,
+                            start: segStartStr,
+                            end: segEndStr,
+                            _source_layer: defaultLayer,
+                            is_default_bg: true // Mark as default layer block
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+    /**
+     * Format a time value in minutes to HH:MM format
+     * Centralizes time formatting to ensure consistency
+     * @param {number} minutes - Minutes since midnight
+     * @returns {string} Time formatted as HH:MM
+     */
     _minutesToTime(minutes) {
         const hours = Math.floor(minutes / 60) % 24;
         const mins = minutes % 60;
@@ -1176,94 +2040,165 @@ class ScheduleStateCard extends HTMLElement {
         return match ? match[1] : "";
     }
 
-
-    showTooltip(event, text) {
+    ensureTooltipElement() {
+        // Check if tooltip already exists in memory
         if (!this.tooltipElement) {
+            // Create tooltip element only once
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
-            this.tooltipElement.style.cssText = "position:fixed;background:var(--primary-background-color,#1a1a1a);color:var(--primary-text-color,white);padding:8px 12px;border-radius:4px;border:1px solid var(--divider-color,#333);font-size:12px;z-index:3;max-width:300px;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:none;white-space:pre-line;";
+
+            // Set all styles as inline CSS to avoid FOUC (Flash of Unstyled Content)
+            this.tooltipElement.style.cssText = `
+                position:fixed;
+                background:var(--primary-background-color,#1a1a1a);
+                color:var(--primary-text-color,white);
+                padding:8px 12px;
+                border-radius:4px;
+                border:1px solid var(--divider-color,#333);
+                font-size:12px;
+                z-index:3;
+                max-width:300px;
+                word-wrap:break-word;
+                box-shadow:0 2px 8px rgba(0,0,0,0.3);
+                pointer-events:none;
+                white-space:pre-line;
+                display:none;
+            `;
+
+            // Append to document body (do this only once)
             document.body.appendChild(this.tooltipElement);
         }
 
-        const decoded = this.decodeHtmlEntities(text);
-        const textWithNewlines = decoded.replace(/\\n/g, "\n");
-        
-        // Colorize parentheses by pairs
-        const coloredText = this.colorizeParentheses(textWithNewlines);
-        this.tooltipElement.innerHTML = coloredText;
-
-        const x = event.clientX;
-        const y = event.clientY;
-        const tooltipRect = this.tooltipElement.getBoundingClientRect();
-
-        // Vertical position: above the cursor by default
-        let top = y - tooltipRect.height - 10;
-        if (top < 0) top = y + 25; // If not enough space above, show below
-
-        // Horizontal position: Always to the right of the cursor (15px offset)
-        let left = x + 15;
-
-        // Safety check for the RIGHT edge of the screen only
-        if (left + tooltipRect.width > window.innerWidth - 10) {
-            // If it overflows on the right, push it back 10px from the edge
-            left = window.innerWidth - tooltipRect.width - 10;
-        }
-
-        this.tooltipElement.style.left = left + "px";
-        this.tooltipElement.style.top = top + "px";
-        this.tooltipElement.style.transform = "none";
-        this.tooltipElement.style.display = "block";
+        // Return the reused element
+        return this.tooltipElement;
     }
 
     colorizeParentheses(text) {
-        let result = '';
+        let result = "";
         let depth = 0;
-        
+
         for (let i = 0; i < text.length; i++) {
             const char = text[i];
-            
-            if (char === '(') {
-                // Dynamic color calculation:
-                // Rotate the hue by 60 degrees for each depth level
+
+            if (char === "(") {
                 const hue = (depth * 60) % 360;
-                const color = `hsl(${hue}, 80%, 70%)`; // 80% saturation, 70% lightness
-                
-                result += `<span style="color:${color};font-weight:bold;">(</span>`;
+                // Validate hue value to prevent CSS injection
+                const safeHue = this.validateStyleValue(String(hue));
+                const color = `hsl(${safeHue}, 80%, 70%)`;
+
+                // Use single quotes for style attribute to avoid double escaping issues
+                result += `<span style='color:${this.validateStyleValue(color)};font-weight:bold;'>(</span>`;
                 depth++;
-            } else if (char === ')') {
+            } else if (char === ")") {
                 depth = Math.max(0, depth - 1);
                 const hue = (depth * 60) % 360;
-                const color = `hsl(${hue}, 80%, 70%)`;
-                
-                result += `<span style="color:${color};font-weight:bold;">)</span>`;
-            } else if (char === '<') {
-                result += '&lt;';
-            } else if (char === '>') {
-                result += '&gt;';
-            } else if (char === '&') {
-                result += '&amp;';
-            } else if (char === '\n') {
-                result += '<br>';
+                // Validate hue value to prevent CSS injection
+                const safeHue = this.validateStyleValue(String(hue));
+                const color = `hsl(${safeHue}, 80%, 70%)`;
+
+                // Use single quotes for style attribute
+                result += `<span style='color:${this.validateStyleValue(color)};font-weight:bold;'>)</span>`;
+            } else if (char === "<") {
+                result += "&lt;";
+            } else if (char === ">") {
+                result += "&gt;";
+            } else if (char === "&") {
+                result += "&amp;";
+            } else if (char === '"') {
+                result += "&quot;";
+            } else if (char === "'") {
+                result += "&#39;";
+            } else if (char === "\n") {
+                result += "<br>";
             } else {
                 result += char;
             }
         }
-        
+
         return result;
     }
 
-    hideTooltip() {
-        if (this.tooltipElement) this.tooltipElement.style.display = "none";
+    showTooltip(event, text) {
+        const tooltip = this.ensureTooltipElement();
+
+        const decoded = this.decodeHtmlEntities(text);
+        const textWithNewlines = decoded.replace(/\\n/g, "\n");
+        // Sanitize the HTML before setting innerHTML
+        const coloredHtml = this.colorizeParentheses(textWithNewlines);
+
+        // Additional safety: strip any script tags or event handlers that might have slipped through
+        const sanitized = coloredHtml
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+            .replace(/on\w+\s*=\s*[^\s>]*/gi, '');
+
+        // Set innerHTML with sanitized content
+        tooltip.innerHTML = sanitized;
+
+        const x = event.clientX;
+        const y = event.clientY;
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        // Use centralized constants for positioning
+        let top = y - tooltipRect.height - LAYOUT_CONSTANTS.TOOLTIP_OFFSET_Y;
+        if (top < 0) top = y + LAYOUT_CONSTANTS.TOOLTIP_OFFSET_Y;
+
+        let left = x + 15;
+        if (left + tooltipRect.width > window.innerWidth - LAYOUT_CONSTANTS.TOOLTIP_MARGIN_X) {
+            left = window.innerWidth - tooltipRect.width - LAYOUT_CONSTANTS.TOOLTIP_MARGIN_X;
+        }
+
+        if (typeof left === "number" && isFinite(left)) {
+            tooltip.style.left = left + "px";
+        }
+        if (typeof top === "number" && isFinite(top)) {
+            tooltip.style.top = top + "px";
+        }
+
+        tooltip.style.display = "block";
     }
-    
+
+    hideTooltip() {
+        if (this.tooltipElement) {
+            this.tooltipElement.style.display = "none";
+        }
+    }
+
+    clearTooltipTimer() {
+        // ✅ USE CENTRALIZED STATE for timer management
+        this._state.clearTimer('tooltip');
+    }
+
     toggleLayerVisibility(entityId) {
-        if (this._isToggling) return; 
-        this._isToggling = true; 
-        this._layerVisibility[entityId] = !this._layerVisibility[entityId];
+        if (this._isToggling) return;
+
+        this._isToggling = true;
+
+        // Use centralized state API
+        this._state.toggleLayerVisibility(entityId);
+
         this.updateContent();
+
         setTimeout(() => {
             this._isToggling = false;
-        }, 300); 
+        }, 300);
+    }
+
+    /**
+     * Updated scheduleTooltipDisplay method - use LAYOUT_CONSTANTS
+     * Replace the existing scheduleTooltipDisplay method with this one
+     */
+    scheduleTooltipDisplay(event, text) {
+        // Clear any pending tooltip timer
+        this.clearTooltipTimer();
+
+        // Schedule new tooltip with stabilization delay
+        const timerId = setTimeout(() => {
+            this.showTooltip(event, text);
+        }, LAYOUT_CONSTANTS.MOUSE_STABILIZATION_DELAY);
+
+        // Store timer reference in centralized state
+        this._state.setTimer('tooltip', timerId);
     }
 
     fireEvent(node, type, detail = {}, options = {}) {
@@ -1279,79 +2214,74 @@ class ScheduleStateCard extends HTMLElement {
 
     attachAllListeners() {
         const container = this.shadowRoot.querySelector("#content");
+
         if (!container) return;
 
-        // Remove old event listeners BEFORE adding new ones
-        // This prevents duplicate listeners and memory leaks
-        if (this._listener) {
-            container.removeEventListener("click", this._listener);
-            container.removeEventListener("mouseover", this._listener);
-            container.removeEventListener("mouseout", this._listener);
-            this._listener = null;
+        // Remove old listener if it exists (CRITICAL: prevents memory leaks)
+        if (this._state.eventListener) {
+            container.removeEventListener("click", this._state.eventListener);
+            container.removeEventListener("mouseover", this._state.eventListener);
+            container.removeEventListener("mouseout", this._state.eventListener);
         }
 
+        // Define unified event handler
         const handler = (e) => {
-            // Handle room name click - opens entity info popup
+            // Room name click - open entity info dialog
             const roomNameTarget = e.target.closest(".room-name");
             if (e.type === "click" && roomNameTarget) {
                 const entityId = roomNameTarget.dataset.entityId;
                 if (entityId && this._hass) {
-                    this.fireEvent(this, 'hass-more-info', { entityId: entityId });
+                    this.fireEvent(this, 'hass-more-info', {
+                        entityId: entityId
+                    });
                 }
                 e.stopPropagation();
                 e.preventDefault();
                 return;
             }
 
-            // Handle combined layer toggle
+            // Combined layer toggle click
             const toggleTarget = e.target.closest(".combined-layer-toggle");
             if (e.type === "click" && toggleTarget) {
-                if (this._tooltipTimer) {
-                    clearTimeout(this._tooltipTimer);
-                    this._tooltipTimer = null;
-                    this.hideTooltip(); 
-                }
-                
+                this.clearTooltipTimer();
+                this.hideTooltip();
                 const entityId = toggleTarget.dataset.entityId;
                 if (entityId) {
-                    this.toggleLayerVisibility(entityId); 
+                    this.toggleLayerVisibility(entityId);
                 }
                 e.stopPropagation();
                 return;
             }
 
-            // Handle tooltip display on hover
+            // Tooltip hover display
             const tooltipTarget = e.target.closest(".schedule-block, .icon-row[data-tooltip]");
-            
+
             if (e.type === "mouseover" && tooltipTarget) {
                 const tooltip = tooltipTarget.dataset.tooltip;
-                
-                if (this._tooltipTimer) {
-                    clearTimeout(this._tooltipTimer);
-                    this._tooltipTimer = null;
-                }
-                
+                this.clearTooltipTimer();
+
                 if (tooltip) {
-                    const eventData = { clientX: e.clientX, clientY: e.clientY }; 
-                    this._tooltipTimer = setTimeout(() => {
-                        this.showTooltip(eventData, tooltip);
-                        this._tooltipTimer = null;
-                    }, ScheduleStateCard.MOUSE_STABILIZATION_DELAY);
+                    const eventData = {
+                        clientX: e.clientX,
+                        clientY: e.clientY
+                    };
+                    this.scheduleTooltipDisplay(eventData, tooltip);
                 }
-            } else if (e.type === "mouseout") {
-                if (this._tooltipTimer) {
-                    clearTimeout(this._tooltipTimer);
-                    this._tooltipTimer = null;
-                }
-                setTimeout(() => this.hideTooltip(), 50); 
+            }
+            // Tooltip hide on mouse leave
+            else if (e.type === "mouseout") {
+                this.clearTooltipTimer();
+                setTimeout(() => this.hideTooltip(), 50);
             }
         };
 
-        // Add new event listeners
+        // Attach handler to all events
         container.addEventListener("click", handler);
         container.addEventListener("mouseover", handler);
         container.addEventListener("mouseout", handler);
-        this._listener = handler;
+
+        // Store listener reference in centralized state for cleanup
+        this._state.eventListener = handler;
     }
 
     renderErrorCard(entityId, message) {
@@ -1359,363 +2289,448 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState) {
-        if (!allLayers?.length) {
-            return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) + '</div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
+        // Validate inputs first
+        if (!this._validateTimelineInputs(roomName, allLayers, entityId)) {
+            return this.renderErrorCard(entityId, "Invalid timeline data");
         }
 
-        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
-        const verticalGap = ScheduleStateCard.VERTICAL_GAP;
-        const topMargin = ScheduleStateCard.TOP_MARGIN;
-        const bottomMargin = ScheduleStateCard.BOTTOM_MARGIN;
-
-        let defaultLayer = allLayers.find(l => l.is_default_layer);
-        let combinedLayer = allLayers.find(l => l.is_combined_layer);
-        let conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
-        
-        const isCollapsed = this._layerVisibility[entityId] === true;
-        
-        let layersToDisplay = [];
-
-        if (!isCollapsed) {
-            if (defaultLayer) layersToDisplay.push(defaultLayer);
-            layersToDisplay = layersToDisplay.concat(conditionalLayers);
+        // Handle empty layers case
+        if (!allLayers || allLayers.length === 0) {
+            return this._renderEmptyTimeline(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
         }
-        
-        if (combinedLayer) layersToDisplay.push(combinedLayer);
-        
+
+        // Prepare metadata once (reuse everywhere)
+        const layersMetadata = this._prepareLayersMetadata(allLayers);
+        const layersToDisplay = this._filterLayersForDisplay(allLayers, entityId, layersMetadata);
+
+        // If nothing to display, show empty state
         if (layersToDisplay.length === 0) {
-            return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement) + '</div><div class="timeline-container"><div class="no-schedule">' + this.t("no_schedule") + '</div></div></div>';
+            return this._renderEmptyTimeline(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
         }
 
-        const layerActiveStates = [];
+        // Pre-calculate all dimensions
+        const containerHeight = this._calculateContainerHeight(layersToDisplay.length);
+        const {
+            containerWidth
+        } = this.getCachedDOMMetrics();
+
+        // Render components
+        const headerHtml = this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
+        const hourLabels = this._renderHourLabels();
+        const {
+            blockHtml,
+            iconHtml
+        } = this._renderAllBlocksAndIcons(
+            layersToDisplay,
+            allLayers,
+            layersMetadata,
+            containerWidth,
+            unitOfMeasurement,
+            entityId // Pass entityId for collapse state lookup
+        );
+
+        // Assembly - simple concatenation
+        return `<div class="room-timeline"><div class="room-header">${headerHtml}</div><div class="timeline-wrapper"><div class="icon-column" style="height:${containerHeight}px;position:relative;">${iconHtml}</div><div class="timeline-container" style="height:${containerHeight}px;flex:1;"><div class="timeline-grid">${hourLabels}</div><div class="blocks-container" style="position:relative;height:${containerHeight}px;">${blockHtml}</div></div></div></div>`;
+    }
+
+    _validateTimelineInputs(roomName, allLayers, entityId) {
+        if (!roomName || typeof roomName !== "string") return false;
+        if (!Array.isArray(allLayers)) return false;
+        if (!entityId || typeof entityId !== "string") return false;
+        return true;
+    }
+
+    _renderEmptyTimeline(roomName, roomIcon, entityState, unitOfMeasurement, entityId) {
+        const headerHtml = this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
+        return `<div class="room-timeline"><div class="room-header">${headerHtml}</div><div class="timeline-container"><div class="no-schedule">${this.t("no_schedule")}</div></div></div>`;
+    }
+
+    _prepareLayersMetadata(allLayers) {
+        const metadata = new Map();
+
+        allLayers.forEach((layer, idx) => {
+            const isDefault = layer.is_default_layer === true;
+            const isCombined = layer.is_combined_layer === true;
+            const isActive = !isDefault && !isCombined ?
+                this._evaluateConditionsForLayer(layer) :
+                null;
+
+            metadata.set(layer, {
+                index: idx,
+                isDefault,
+                isCombined,
+                isActive,
+                conditionText: this._translateConditionText(layer.condition_text || "")
+            });
+        });
+
+        return metadata;
+    }
+
+    _filterLayersForDisplay(allLayers, entityId, layersMetadata) {
+        // Initialize with default COLLAPSED state (false = collapsed)
+        this._state.initializeLayerVisibility(entityId, false);
+        const isExpanded = this._state.isLayerVisible(entityId);
+        const result = [];
+
+        // When collapsed (false), show ONLY the combined layer (Σ)
+        if (!isExpanded) {
+            return allLayers.filter(l => l.is_combined_layer === true);
+        }
+
+        // When expanded (true), show default + conditional layers
+        // (combined layer is added at the end)
         for (const layer of allLayers) {
-            if (layer.is_default_layer) {
-                // Layer 0 (default) always on
-                layerActiveStates.push(true);
-            } else if (layer.is_combined_layer) {
-                layerActiveStates.push(null);
-            } else {
-                layerActiveStates.push(this._evaluateConditionsForLayer(layer));
+            if (!layer.is_combined_layer) {
+                result.push(layer);
             }
         }
-        
-        const layersCount = layersToDisplay.length;
-        const containerHeight = topMargin + layersCount * blockHeight + (layersCount > 0 ? (layersCount - 1) * verticalGap : 0) + bottomMargin;
-        
-        const hours = Array.from({ length: 24 }, (v, i) => i);
-        const hourLabels = hours.map(h => h === 6 || h === 12 || h === 18 ? '<div class="timeline-hour">' + this.formatHour(h) + "</div>" : '<div class="timeline-hour"></div>').join("");
 
-        let blockHtml = "";
-        let iconHtml = "";
-        
-        // Check if selected day is today for sigma icon styling
+        // Add combined layer at the end
+        const combinedLayer = allLayers.find(l => l.is_combined_layer);
+        if (combinedLayer) {
+            result.push(combinedLayer);
+        }
+
+        return result;
+    }
+
+    _renderHourLabels() {
+        const use12HourFormat = this.use12HourFormat();
+        const hours = Array.from({
+            length: 24
+        }, (_, i) => i);
+
+        // In 12-hour format, show labels at different hours for better spacing
+        const hoursToShow = use12HourFormat ? [6, 12, 18] // 6 AM, 12 PM, 6 PM
+            :
+            [6, 12, 18]; // Same spacing for 24h, but formatHour will render as "6h", "12h", "18h"
+
+        return hours.map(h =>
+            hoursToShow.includes(h) ?
+            `<div class="timeline-hour">${escapeHtml(this.formatHour(h))}</div>` :
+            '<div class="timeline-hour"></div>'
+        ).join("");
+    }
+
+    _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, containerWidth, unitOfMeasurement, entityId) {
+        const blockParts = [];
+        const iconParts = [];
         const isSelectedDayToday = this.isToday();
 
         for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
             const currentLayer = layersToDisplay[layerIdx];
-            if (!currentLayer?.blocks) continue;
+            const meta = layersMetadata.get(currentLayer);
 
-            const top = topMargin + layerIdx * (blockHeight + verticalGap);
-            const conditionText = currentLayer.condition_text || "(default)";
-            const translatedConditionText = this._translateConditionText(conditionText);
+            if (!meta || !currentLayer.blocks) continue;
 
-            const isDefaultLayer = currentLayer.is_default_layer;
-            const isCombinedLayer = currentLayer.is_combined_layer;
-            
-            // Get the original index in allLayers to check activation state
-            const originalIndex = allLayers.findIndex(l => l === currentLayer);
-            const isLayerActive = layerActiveStates[originalIndex];
-            
-            let displayLayerIndex = "";
-            let iconTooltipText = "";
+            // Calculate vertical position
+            const top = LAYOUT_CONSTANTS.TOP_MARGIN +
+                layerIdx * (LAYOUT_CONSTANTS.BLOCK_HEIGHT + LAYOUT_CONSTANTS.VERTICAL_GAP);
 
-            if (isCombinedLayer) {
-                const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
-                let toggleClass = '';
-                // Grey out sigma icon if selected day is not today
-                let iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';filter:brightness(1.1);';
-                if (!isSelectedDayToday) {
-                    iconStyle = 'background:' + (this._colors.combined_folded_layer || DEFAULT_COLORS.combined_folded_layer) + ';opacity:0.5;filter:brightness(0.8);';
-                }
-            
-                if (hasCollapsibleLayers) {
-                    toggleClass = ' combined-layer-toggle'; 
-                    if (!isCollapsed) {
-                        iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';filter:brightness(1.3);';
-                        if (!isSelectedDayToday) {
-                            iconStyle = 'background:' + (this._colors.combined_unfolded_layer || DEFAULT_COLORS.combined_unfolded_layer) + ';opacity:0.5;filter:brightness(0.8);';
-                        }
-                    }
-                }
-                
-                iconTooltipText = this.t("cond_combined_schedule_toggle");
-            
-                iconHtml += `<div class="icon-row combined-icon-row" style="top:${top}px;" data-layer-index="Σ" data-tooltip="${this.escapeHtml(iconTooltipText)}">
-                <span class="layer-number${toggleClass}" data-entity-id="${entityId}" style="${iconStyle}">
-                    Σ
-                </span>
-                </div>`;
-            }
-            else { 
-                const isActive = layerActiveStates[originalIndex];
-                const iconStyle = isActive ? "background:" + this._colors.active_layer + ";filter:brightness(1.3);" : "background:" + this._colors.inactive_layer + ";opacity:0.5;";                
-                
-                if (isDefaultLayer) {
-                    displayLayerIndex = "0";
-                    iconTooltipText = this.t("layer_label") + " 0"; 
-                    
-                    if (conditionText && conditionText !== "default") { 
-                        // Display condition with checkmark if active, or cross if inactive
-                        if (isActive) {
-                            iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
-                        } else {
-                            iconTooltipText += "\n❌ " + this.t("condition_label") + ": " + translatedConditionText;
-                        }
-                    } else {
-                        iconTooltipText += "\n" + this.t("default_state_label");
-                    }
-                } else {
-                    const condLayerIndex = conditionalLayers.findIndex(l => l === currentLayer);
-                    displayLayerIndex = String(condLayerIndex + 1); 
+            // Render icon for this layer
+            const iconHtml = this._renderLayerIcon(
+                currentLayer,
+                meta,
+                allLayers,
+                layersToDisplay,
+                top,
+                isSelectedDayToday,
+                entityId // Pass entityId to icon renderer
+            );
+            if (iconHtml) iconParts.push(iconHtml);
 
-                    iconTooltipText = this.t("layer_label") + " " + displayLayerIndex; 
-                    
-                    if (conditionText && conditionText !== "default") { 
-                        // Display condition with checkmark if active, or cross if inactive
-                        if (isActive) {
-                            iconTooltipText += "\n✔️ " + this.t("condition_label") + ": " + translatedConditionText;
-                        } else {
-                            iconTooltipText += "\n❌ " + this.t("condition_label") + ": " + translatedConditionText;
-                        }
-                    } else {
-                        iconTooltipText += "\n" + this.t("no_specific_condition");
-                    }
-                }
-
-                iconHtml += `<div class="icon-row" style="top:${top}px;" data-tooltip="${this.escapeHtml(iconTooltipText)}" data-layer-index="${displayLayerIndex}">
-                    <span class="layer-number" style="${iconStyle}">${displayLayerIndex}</span>
-                </div>`;
-            }
-
-            for (let i = 0; i < currentLayer.blocks.length; i++) {
-                const block = currentLayer.blocks[i];
-                const startMin = this.timeToMinutes(block.start);
-                let endMin = this.timeToMinutes(block.end);
-                
-                let isDefaultBg = block.is_default_bg || false;
-
-                if (block.end === '00:00' && endMin === 0) endMin = 1440;
-                if (block.end === '23:59') endMin = 1440;
-
-                let zClass = 'sch-z-layer'; 
-                if (isDefaultBg) zClass = 'sch-z-default';
-                
-                let blockClass = "schedule-block";
-
-                if (currentLayer.is_combined_layer) {
-                    zClass = 'sch-z-combined'; 
-                    blockClass += " combined-layer-block";
-                }
-                
-                blockClass += " " + zClass;
-
-                const left = startMin / 1440 * 100;
-                const width = (endMin - startMin) / 1440 * 100;
-                const rawState = block.state_value || "";
-                const rawTemplate = block.raw_state_template || rawState;
-                const isDynamic = this.isDynamicTemplate(rawTemplate);
-                const isScheduleState = this.isScheduleStateSensor(rawTemplate);
-                const resolvedState = this.resolveTemplate(rawState);
-                const unit = block.unit || unitOfMeasurement || "";
-                const stateWithUnit = resolvedState?.trim() ? (unit ? resolvedState + " " + unit : (unitOfMeasurement ? resolvedState + " " + unitOfMeasurement : resolvedState)) : "";
-                
-                const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
-                const color = block.color || colorData.color; 
-                let textColor = colorData.textColor; 
-
-                const wrapsStart = block.wraps_start || false;
-                const wrapsEnd = block.wraps_end || false;
-
-                let borderRadius = "4px";
-                if (width === 100) {
-                    borderRadius = "4px";
-                } else if (wrapsStart && !wrapsEnd) {
-                    borderRadius = "0 4px 4px 0";
-                } else if (!wrapsStart && wrapsEnd) {
-                    borderRadius = "4px 0 0 4px";
-                }
-                
-                if (isDefaultBg) {
-                    if (width === 100) {
-                        borderRadius = "0";
-                    } else if (startMin === 0 && endMin < 1440) {
-                        borderRadius = "0 4px 4px 0";
-                    } else if (startMin > 0 && endMin === 1440) {
-                        borderRadius = "4px 0 0 4px";
-                    }
-                }
-
-                const originalStart = block.original_start || block.start;
-                const originalEnd = block.original_end || block.end;
-
-                
-                if (isDefaultBg) blockClass += " default-block";
-                if (isDynamic) blockClass += " dynamic";
-
-                const style = `
-                    left:${left}%;
-                    width:${width}%;
-                    top:${top}px;
-                    border-radius:${borderRadius};
-                    color:${textColor};
-                    background-color:${color};
-                `;
-                
-                const containerWidth = this.shadowRoot.querySelector(".timeline-container")?.offsetWidth || 800;
-                const bWidthPx = width / 100 * containerWidth;
-                const displayText = this.truncateText(stateWithUnit, bWidthPx);
-                const escapedState = this.escapeHtml(displayText);
-
-                let dynamicIcon = "";
-                if (isDynamic) {
-                    const blockIcon = block.icon || 'mdi:calendar';
-                    if (blockIcon === 'mdi:refresh') {
-                        dynamicIcon = "🔄";
-                    } else {
-                        dynamicIcon = "";
-                    }
-                }
-                
-                const finalText = isDynamic && dynamicIcon ? escapedState + " " + dynamicIcon : escapedState;
-
-                let blockTooltipText = this.t("time_label") + ": "; 
-                if (wrapsStart || wrapsEnd) {
-                    blockTooltipText += originalStart + " - " + originalEnd + " (" + this.t("wrapping") + ")";
-                } else {
-                    blockTooltipText += block.start + " - " + block.end;
-                }
-                blockTooltipText += "\n🌡️ " + this.t("state_label") + ": " + this.escapeHtml(resolvedState) + (unit ? " " + unit : "");
-                
-                if (currentLayer.is_combined_layer) {
-                    blockTooltipText += "\n(" + this.t("cond_combined_result") + ")"; 
-                } else if (isDefaultBg) {
-                    blockTooltipText += "\n(" + this.t("default_state_label") + ")";
-                }
-
-                if (isDynamic) {
-                    const entity = this.extractEntityFromTemplate(rawTemplate);
-                    const blockIcon = block.icon || 'mdi:calendar';
-                    
-                    let refText = "";
-                    if (blockIcon === 'mdi:refresh') {
-                        refText = entity ? " (" + this.t("dynamic_ref_schedule") + ": " + entity + ")" : "";
-                        blockTooltipText += "\n🔄 " + this.t("dynamic_value") + refText;
-                    } else {
-                        refText = entity ? " (" + this.t("dynamic_ref_sensor") + ": " + entity + ")" : "";
-                        blockTooltipText += "\n📊 " + this.t("dynamic_value") + refText;
-                    }
-                }
-                if (block.description) {
-                    blockTooltipText += "\n💬 " + this.escapeHtml(block.description);
-                }
-
-                blockHtml += '<div class="' + blockClass + '" style="' + style + '" data-tooltip="' + this.escapeHtml(blockTooltipText) + '"><span class="block-center">' + finalText + "</span></div>";
+            // Render all blocks in this layer
+            for (const block of currentLayer.blocks) {
+                const blockHtml = this._renderBlock(
+                    block,
+                    currentLayer,
+                    meta,
+                    top,
+                    containerWidth,
+                    unitOfMeasurement,
+                    isSelectedDayToday
+                );
+                if (blockHtml) blockParts.push(blockHtml);
             }
         }
 
-        return '<div class="room-timeline"><div class="room-header">' + this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) + '</div><div class="timeline-wrapper"><div class="icon-column" style="height:' + containerHeight + 'px;position:relative;">' + iconHtml + '</div><div class="timeline-container" style="height:' + containerHeight + 'px;flex:1;"><div class="timeline-grid">' + hourLabels + '</div><div class="blocks-container" style="position:relative;height:' + containerHeight + 'px;">' + blockHtml + '</div></div></div></div>';
+        return {
+            blockHtml: blockParts.join(""),
+            iconHtml: iconParts.join("")
+        };
+    }
+
+    _renderLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday, entityId) {
+        if (meta.isCombined) {
+            return this._renderCombinedLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday, entityId);
+        } else {
+            return this._renderConditionalLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday);
+        }
+    }
+
+    _renderCombinedLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday, entityId) {
+        const defaultLayer = allLayers.find(l => l.is_default_layer);
+        const conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
+        const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
+
+        let toggleClass = "";
+        let iconStyle = `background:${this._colors.combined_folded_layer};filter:brightness(1.1);`;
+
+        // Adjust for non-today selected
+        if (!isSelectedDayToday) {
+            iconStyle = `background:${this._colors.combined_folded_layer};opacity:0.5;filter:brightness(0.8);`;
+        }
+
+        // If there are collapsible layers, add toggle class and check collapsed state
+        if (hasCollapsibleLayers) {
+            toggleClass = " combined-layer-toggle";
+
+            // Check if layers are expanded using entityId
+            const isExpanded = this._state.isLayerVisible(entityId);
+
+            if (isExpanded) {
+                // Layers are expanded = show unfolded color
+                iconStyle = `background:${this._colors.combined_unfolded_layer};filter:brightness(1.3);`;
+                if (!isSelectedDayToday) {
+                    iconStyle = `background:${this._colors.combined_unfolded_layer};opacity:0.5;filter:brightness(0.8);`;
+                }
+            }
+        }
+
+        const iconTooltip = escapeHtml(this.t("cond_combined_schedule_toggle"));
+
+        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number${toggleClass}" data-entity-id="${escapeHtml(entityId)}" style="${iconStyle}">Σ</span></div>`;
+    }
+
+
+    _renderConditionalLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday) {
+        const conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
+
+        let displayLayerIndex = "";
+        let iconTooltipText = "";
+
+        if (meta.isDefault) {
+            displayLayerIndex = "0";
+            iconTooltipText = this.t("layer_label") + " 0";
+
+            if (meta.conditionText) {
+                iconTooltipText += meta.isActive ? "\n✅ " : "\n❌ ";
+                iconTooltipText += this.t("condition_label") + ": " + meta.conditionText;
+            } else {
+                iconTooltipText += "\n" + this.t("default_state_label");
+            }
+        } else {
+            const condLayerIndex = conditionalLayers.findIndex(l => l === currentLayer);
+            displayLayerIndex = String(condLayerIndex + 1);
+
+            iconTooltipText = this.t("layer_label") + " " + displayLayerIndex;
+            if (meta.conditionText) {
+                iconTooltipText += meta.isActive ? "\n✅ " : "\n❌ ";
+                iconTooltipText += this.t("condition_label") + ": " + meta.conditionText;
+            } else {
+                iconTooltipText += "\n" + this.t("no_specific_condition");
+            }
+        }
+
+        const iconStyle = meta.isActive ?
+            `background:${this._colors.active_layer};filter:brightness(1.3);` :
+            `background:${this._colors.inactive_layer};opacity:0.5;`;
+
+        const opacityAdjust = !isSelectedDayToday ? "opacity:0.5;" : "";
+        const finalStyle = opacityAdjust ? `${iconStyle}${opacityAdjust}` : iconStyle;
+
+        return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
+    }
+
+    _renderBlock(block, currentLayer, meta, top, containerWidth, unitOfMeasurement, isSelectedDayToday) {
+        // Normalize block times
+        const {
+            startMin,
+            endMin
+        } = this._normalizeBlockTimes(block);
+
+        // Calculate dimensions
+        const {
+            left,
+            width
+        } = this._calculateBlockDimensions(startMin, endMin);
+        const borderRadius = this._calculateBorderRadius(width, startMin, endMin, block.is_default_bg);
+
+        // Get state and color
+        const rawState = block.state_value || "";
+        const rawTemplate = block.raw_state_template || rawState;
+        const isDynamic = this.isDynamicTemplate(rawTemplate);
+        const resolvedState = this.resolveTemplate(rawState);
+        const unit = block.unit || unitOfMeasurement || "";
+
+        // Use escapeHtml for text content (preserves "/" for units like €/kWh)
+        const escapedState = escapeHtml(resolvedState);
+        const escapedUnit = escapeHtml(unit);
+        const stateDisplay = escapedState?.trim() ?
+            (escapedUnit ? escapedState + " " + escapedUnit : escapedState) :
+            "";
+
+        // Get colors
+        const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
+        const color = block.color || colorData.color;
+        const textColor = colorData.textColor;
+
+        // Build CSS classes
+        let blockClass = "schedule-block";
+        if (meta.isCombined) {
+            blockClass += " combined-layer-block sch-z-combined";
+        } else if (block.is_default_bg) {
+            blockClass += " default-block sch-z-default";
+        } else {
+            blockClass += " sch-z-layer";
+        }
+        if (isDynamic) blockClass += " dynamic";
+
+        // Build styles
+        const style = `left:${left}%;width:${width}%;top:${top}px;border-radius:${borderRadius};color:${this.validateStyleValue(textColor)};background-color:${this.validateStyleValue(color)};`;
+
+        // Truncate text to fit block width
+        const blockWidthPx = (width / 100) * containerWidth;
+        const displayText = this.truncateText(stateDisplay, blockWidthPx);
+
+        // Build tooltip (with escapeHtmlAttribute for data attribute)
+        const tooltip = this._buildBlockTooltip({
+            block,
+            isWrapped: block.wraps_start || block.wraps_end,
+            isDynamic,
+            isCombined: meta.isCombined,
+            isDefault: block.is_default_bg,
+            escapedState,
+            escapedUnit
+        });
+
+        // Display only text on block (no icon)
+        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${escapeHtml(displayText)}</span></div>`;
     }
 
     updateContent() {
         if (!this._hass) return;
+
         const content = this.shadowRoot.querySelector("#content");
         if (!content) return;
-        
+
+        // CLEANUP: Remove old listeners before creating new content
+        if (this._state.eventListener) {
+            content.removeEventListener("click", this._state.eventListener);
+            content.removeEventListener("mouseover", this._state.eventListener);
+            content.removeEventListener("mouseout", this._state.eventListener);
+            this._state.eventListener = null;
+        }
+
+        // Invalidate DOM cache for next render
+        this._state.invalidateDOMCache();
+
         let timelines = "";
+
         for (let i = 0; i < this._config.entities.length; i++) {
             const entityConfig = this._config.entities[i];
             const entityId = typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
+
             if (!entityId) continue;
-            
-            if (this._layerVisibility[entityId] === undefined) {
-                this._layerVisibility[entityId] = true; 
-            }
-            
+
+            // Initialize visibility in centralized state
+            this._state.initializeLayerVisibility(entityId, false);
+
             const state = this._hass.states[entityId];
+
             if (!state) {
                 timelines += this.renderErrorCard(entityId, this.t("entity_not_found"));
                 continue;
             }
+
             const attrs = state.attributes || {};
             const layers = attrs.layers || {};
+
             const customName = typeof entityConfig === "object" ? entityConfig.name : null;
             const customIcon = typeof entityConfig === "object" ? entityConfig.icon : null;
             const roomName = customName || attrs.room || attrs.friendly_name || entityId;
             const roomIcon = customIcon || attrs.icon || "mdi:thermometer";
             const unitOfMeasurement = attrs.unit_of_measurement || "";
-            
+
             let dayLayers = layers[this.selectedDay] || [];
-            
+
             const defaultLayer = dayLayers.find(l => l.is_default_layer);
-            
-            const allConditionalLayers = dayLayers.filter(layer => 
+            const allConditionalLayers = dayLayers.filter(layer =>
                 !layer.is_default_layer && !layer.is_combined_layer
             );
-            
+
             const activeConditionalLayers = allConditionalLayers.filter(layer =>
                 this._evaluateConditionsForLayer(layer)
             );
-            
+
             const combinedLayer = this.createCombinedLayer(defaultLayer, activeConditionalLayers);
-            
-            let allLayers = dayLayers.filter(l => !l.is_combined_layer); 
-            
+
+            let allLayers = dayLayers.filter(l => !l.is_combined_layer);
+
             if (combinedLayer) {
-                allLayers = [...allLayers, combinedLayer]; 
+                allLayers = [...allLayers, combinedLayer];
             }
 
             timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, state);
         }
-        
-        // SOLUTION 1: Only update DOM if content has actually changed
-        const newHTML = '<div class="schedules-container">' + timelines + "</div>";
-        const existingContent = content.innerHTML;
-        
-        if (existingContent !== newHTML) {
-            // Update only when content differs to prevent unnecessary DOM recreation
+
+        const newHTML = `<div class="schedules-container">${timelines}</div>`;
+
+        if (content.innerHTML !== newHTML) {
             content.innerHTML = newHTML;
-            this.attachAllListeners(); 
+            // Attach listeners AFTER DOM is updated (prevents listener duplication)
+            this.attachAllListeners();
         }
-        
+
         this.updateTimeline();
     }
 
     renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId) {
         const showStateInTitle = this._config.show_state_in_title !== false;
-        let stateValue = '';
-        
+        let stateValue = "";
+
         if (showStateInTitle && entityState) {
             const attrs = entityState.attributes || {};
-            const state = entityState.state || '';
-            const unit = unitOfMeasurement || attrs.unit_of_measurement || '';
-            stateValue = state ? (unit ? state + ' ' + unit : state) : '';
+            const state = entityState.state || "";
+            const unit = unitOfMeasurement || attrs.unit_of_measurement || "";
+
+            // Use escapeHtml (not escapeHtmlAttribute) for text content
+            const escapedState = escapeHtml(state);
+            const escapedUnit = escapeHtml(unit);
+
+            stateValue = escapedState ?
+                (escapedUnit ? escapedState + " " + escapedUnit : escapedState) : "";
         }
-        
-        // FIX: Use data attributes instead of onclick (CSP compliant)
-        const headerContent = (roomIcon ? '<ha-icon icon="' + roomIcon + '"></ha-icon>' : '') + 
-                            '<span class="room-name" data-entity-id="' + entityId + '">' + roomName + '</span>' +
-                            (stateValue ? '<span class="room-state">' + this.escapeHtml(stateValue) + '</span>' : '');
-        
-        return headerContent;
+
+        // Use escapeHtmlAttribute for attribute values
+        const escapedRoomName = escapeHtml(roomName);
+        const escapedRoomIcon = escapeHtmlAttribute(roomIcon || "");
+        const escapedEntityId = escapeHtmlAttribute(entityId);
+
+        // Build header HTML with proper escaping
+        let headerHtml = "";
+
+        if (escapedRoomIcon) {
+            headerHtml += '<ha-icon icon="' + escapedRoomIcon + '"></ha-icon>';
+        }
+
+        headerHtml += '<span class="room-name" data-entity-id="' + escapedEntityId + '">' + escapedRoomName + '</span>';
+
+        if (stateValue) {
+            headerHtml += '<span class="room-state">' + stateValue + '</span>';
+        }
+
+        return headerHtml;
     }
 
     render() {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
-        
-        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT; 
+
+        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
         const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH;
-        
+
         const additionalStyle = `
             .schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:1!important}
             .icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}
@@ -1726,7 +2741,7 @@ class ScheduleStateCard extends HTMLElement {
             .sch-z-combined{z-index:1}
             .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
         `;
-        
+
         const styleContent = `
             :host {
                 display: block;
@@ -1782,12 +2797,12 @@ class ScheduleStateCard extends HTMLElement {
             .no-schedule{font-size:14px;color:var(--secondary-text-color);text-align:center;padding:12px 0}
             .time-cursor{position:absolute;top:0;bottom:0;width:2px;background-color:var(--label-badge-yellow);z-index:2}
         ` + additionalStyle;
-        
+
         const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + (this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + day.label + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
         this.startTimelineUpdate();
-        
+
         requestAnimationFrame(() => {
             const dayButtons = this.shadowRoot.querySelectorAll(".day-button");
             dayButtons.forEach(button => {
@@ -1796,9 +2811,9 @@ class ScheduleStateCard extends HTMLElement {
                     if (newDay !== this.selectedDay) {
                         dayButtons.forEach(btn => btn.classList.remove("active"));
                         e.target.classList.add("active");
-                        
+
                         this.selectedDay = newDay;
-                        this.updateContent(); 
+                        this.updateContent();
                     }
                 });
             });
@@ -1810,38 +2825,50 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     disconnectedCallback() {
+        // Stop timeline updates
         this.stopTimelineUpdate();
+
+        // ✅ COMPLETE CLEANUP VIA CENTRALIZED STATE
+        this._state.resetOnDisconnect();
+
+        // Clean up UI elements
         if (this.tooltipElement) {
             this.tooltipElement.remove();
             this.tooltipElement = null;
         }
-        
-        if (this._tooltipTimer) {
-            clearTimeout(this._tooltipTimer);
-            this._tooltipTimer = null;
-        }
-        
-        const container = this.shadowRoot.querySelector("#content");
-        if (container && this._listener) {
-            container.removeEventListener("click", this._listener);
-            container.removeEventListener("mouseover", this._listener);
-            container.removeEventListener("mouseout", this._listener);
-            this._listener = null;
+
+        // Detach remaining listeners
+        const container = this.shadowRoot?.querySelector("#content");
+        if (container && this._state.eventListener) {
+            container.removeEventListener("click", this._state.eventListener);
+            container.removeEventListener("mouseover", this._state.eventListener);
+            container.removeEventListener("mouseout", this._state.eventListener);
         }
     }
 }
 
 class ScheduleStateCardEditor extends HTMLElement {
-
     constructor() {
         super();
-        this.attachShadow({ mode: "open" });
+        this.attachShadow({
+            mode: "open"
+        });
         this._config = {};
         this._hass = null;
         this._entities = [];
         this._editingIndex = null;
         this._colorPickerOpen = null;
         this._iconsCache = null;
+        this._lastUpdateTime = 0;
+        this._updateDebounceTimer = null;
+    }
+
+    getDays() {
+        const dayTranslations = TRANSLATIONS[this.getLanguage()]?.days || TRANSLATIONS.en.days;
+        return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(id => ({
+            id,
+            label: dayTranslations[id]
+        }));
     }
 
     getLanguage() {
@@ -1853,54 +2880,95 @@ class ScheduleStateCardEditor extends HTMLElement {
 
     t(key) {
         const lang = this.getLanguage();
-        return TRANSLATIONS[lang] && TRANSLATIONS[lang][key]
-            ? TRANSLATIONS[lang][key]
-            : TRANSLATIONS.en[key] || key;
+        return TRANSLATIONS[lang] && TRANSLATIONS[lang][key] ? TRANSLATIONS[lang][key] : TRANSLATIONS.en[key] || key;
     }
 
     setConfig(config) {
-        this._config = { ...config };
-        this._entities = Array.isArray(this._config.entities)
-            ? this._config.entities.map(e => typeof e === "string" ? { entity: e } : { ...e })
-            : [];
-        if (!this._config.colors) {
-            this._config.colors = { ...DEFAULT_COLORS };
+        if (!config) throw new Error("Invalid configuration");
+        let entities = config.entities || [];
+        this._config = {
+            ...config,
+            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? {
+                entity: e
+            } : e) : [],
+            show_state_in_title: config.show_state_in_title !== false
+        };
+        if (config.colors) {
+            this._colors = {
+                ...DEFAULT_COLORS,
+                ...config.colors
+            };
+        } else {
+            this._colors = {
+                ...DEFAULT_COLORS
+            };
         }
-        this.render();
+        this._clearCaches();
+        if (this._hass) this.render();
     }
 
     set hass(hass) {
         this._hass = hass;
-        this._iconsCache = null;
-        
-        // Only render if config exists and not already rendered
-        if (this._config && Object.keys(this._config).length > 0) {
-            const alreadyRendered = this.shadowRoot.querySelector(".config-row");
-            if (!alreadyRendered) {
-                this.render();
-            }
+        if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
+            this.render();
         }
+    }
+
+    _clearCaches() {
+        this._iconsCache = null;
+    }
+
+    getFilteredEntities(filterText) {
+        const allEntities = Object.keys(this._hass?.states || {}).sort();
+        if (!filterText) return allEntities.slice(0, 10);
+        return allEntities.filter(e => e.toLowerCase().includes(filterText.toLowerCase()));
+    }
+
+    getFilteredIcons(filterText) {
+        const allIcons = this.getAllMDIIcons();
+        if (!filterText) return allIcons.slice(0, 20);
+        return allIcons.filter(i => i.toLowerCase().includes(filterText.toLowerCase())).slice(0, 50);
+    }
+
+    getAllMDIIcons() {
+        if (this._iconsCache) return this._iconsCache;
+        let iconList = [];
+        try {
+            const resources = this._hass?.resources;
+            if (resources) {
+                for (const [key, value] of Object.entries(resources)) {
+                    if (typeof value === 'object' && value !== null) {
+                        const icons = Object.keys(value).filter(icon => icon.startsWith('mdi:'));
+                        iconList.push(...icons);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log("Error retrieving icons:", e);
+        }
+        if (iconList.length === 0) {
+            iconList = ["mdi:calendar-clock", "mdi:thermometer", "mdi:lightbulb", "mdi:power", "mdi:weather-sunny", "mdi:water", "mdi:motion-sensor", "mdi:door", "mdi:window-closed", "mdi:fan", "mdi:air-conditioner", "mdi:television", "mdi:music", "mdi:lock", "mdi:shield", "mdi:alarm", "mdi:clock", "mdi:timer", "mdi:play", "mdi:stop", "mdi:pause", "mdi:volume-high", "mdi:brightness-7", "mdi:home", "mdi:sofa", "mdi:bed", "mdi:check", "mdi:close"];
+        }
+        const uniqueIcons = [...new Set(iconList)].sort();
+        this._iconsCache = uniqueIcons;
+        return uniqueIcons;
     }
 
     fireConfigChanged() {
         this._config.entities = this._entities;
         this.dispatchEvent(new CustomEvent("config-changed", {
-            detail: { config: this._config }
-        }));
-        this.requestUpdate();
-    }
-
-    requestUpdate() {
-        setTimeout(() => {
-            const previewCard = document.querySelector('hui-card-preview');
-            if (previewCard) {
-                previewCard.requestUpdate?.();
+            detail: {
+                config: this._config
             }
-        }, 0);
+        }));
     }
 
     addEntity() {
-        this._entities.push({ entity: "", name: "", icon: "" });
+        this._entities.push({
+            entity: "",
+            name: "",
+            icon: ""
+        });
         this.fireConfigChanged();
         this.render();
     }
@@ -1915,13 +2983,14 @@ class ScheduleStateCardEditor extends HTMLElement {
         if (this._entities[index]) {
             this._entities[index][field] = value;
             this.fireConfigChanged();
-            this.requestUpdate();
         }
     }
 
     updateColor(colorKey, value) {
         if (!this._config.colors) {
-            this._config.colors = { ...DEFAULT_COLORS };
+            this._config.colors = {
+                ...DEFAULT_COLORS
+            };
         }
         this._config.colors[colorKey] = value;
         this.fireConfigChanged();
@@ -1936,12 +3005,6 @@ class ScheduleStateCardEditor extends HTMLElement {
     toggleColorPicker(colorKey) {
         this._colorPickerOpen = this._colorPickerOpen === colorKey ? null : colorKey;
         this.render();
-    }
-
-    escapeHtml(text) {
-        if (!text) return "";
-        const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 
     isValidHex(hex) {
@@ -1970,7 +3033,8 @@ class ScheduleStateCardEditor extends HTMLElement {
         b /= 255;
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
-        let h = 0, s = 0;
+        let h = 0,
+            s = 0;
         const v = max;
         const d = max - min;
         s = max === 0 ? 0 : d / max;
@@ -1978,13 +3042,23 @@ class ScheduleStateCardEditor extends HTMLElement {
             h = 0;
         } else {
             switch (max) {
-                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                case g: h = (b - r) / d + 2; break;
-                case b: h = (r - g) / d + 4; break;
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                case b:
+                    h = (r - g) / d + 4;
+                    break;
             }
             h /= 6;
         }
-        return { h: h * 360, s: s * 100, v: v * 100 };
+        return {
+            h: h * 360,
+            s: s * 100,
+            v: v * 100
+        };
     }
 
     hsvToRgb(h, s, v) {
@@ -1994,125 +3068,48 @@ class ScheduleStateCardEditor extends HTMLElement {
         const c = v * s;
         const x = c * (1 - Math.abs((h * 6) % 2 - 1));
         const m = v - c;
-        let r = 0, g = 0, b = 0;
-        if (h < 1/6) { r = c; g = x; b = 0; }
-        else if (h < 2/6) { r = x; g = c; b = 0; }
-        else if (h < 3/6) { r = 0; g = c; b = x; }
-        else if (h < 4/6) { r = 0; g = x; b = c; }
-        else if (h < 5/6) { r = x; g = 0; b = c; }
-        else { r = c; g = 0; b = x; }
+        let r = 0,
+            g = 0,
+            b = 0;
+        if (h < 1 / 6) {
+            r = c;
+            g = x;
+            b = 0;
+        } else if (h < 2 / 6) {
+            r = x;
+            g = c;
+            b = 0;
+        } else if (h < 3 / 6) {
+            r = 0;
+            g = c;
+            b = x;
+        } else if (h < 4 / 6) {
+            r = 0;
+            g = x;
+            b = c;
+        } else if (h < 5 / 6) {
+            r = x;
+            g = 0;
+            b = c;
+        } else {
+            r = c;
+            g = 0;
+            b = x;
+        }
         r = Math.round((r + m) * 255);
         g = Math.round((g + m) * 255);
         b = Math.round((b + m) * 255);
-        return { r, g, b };
-    }
-
-    getAllMDIIcons() {
-        if (this._iconsCache) return this._iconsCache;
-
-        let iconList = [];
-        
-        try {
-            const resources = this._hass?.resources;
-            if (resources) {
-                for (const [key, value] of Object.entries(resources)) {
-                    if (typeof value === 'object' && value !== null) {
-                        const icons = Object.keys(value)
-                            .filter(icon => icon.startsWith('mdi:'));
-                        iconList.push(...icons);
-                    }
-                }
-            }
-        } catch (e) {
-            console.log("Erreur lors de la récupération des icônes:", e);
-        }
-
-        if (iconList.length === 0) {
-            iconList = [
-                "mdi:calendar-clock", "mdi:thermometer", "mdi:lightbulb", "mdi:power",
-                "mdi:weather-sunny", "mdi:water", "mdi:motion-sensor", "mdi:door",
-                "mdi:window-closed", "mdi:fan", "mdi:air-conditioner", "mdi:television",
-                "mdi:music", "mdi:lock", "mdi:shield", "mdi:alarm", "mdi:clock",
-                "mdi:timer", "mdi:play", "mdi:stop", "mdi:pause", "mdi:volume-high",
-                "mdi:brightness-7", "mdi:home", "mdi:sofa", "mdi:bed", "mdi:check", "mdi:close"
-            ];
-        }
-
-        const uniqueIcons = [...new Set(iconList)].sort();
-        this._iconsCache = uniqueIcons;
-        return uniqueIcons;
-    }
-
-    getFilteredEntities(filterText) {
-        const allEntities = Object.keys(this._hass?.states || {}).sort();
-        if (!filterText) return allEntities.slice(0, 10);
-        return allEntities.filter(e => e.toLowerCase().includes(filterText.toLowerCase()));
-    }
-
-    getFilteredIcons(filterText) {
-        const allIcons = this.getAllMDIIcons();
-
-        if (!filterText) return allIcons.slice(0, 20);
-        return allIcons.filter(i => i.toLowerCase().includes(filterText.toLowerCase())).slice(0, 50);
-    }
-
-    renderColorPicker(colorKey, colorLabel) {
-        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
-        const isOpen = this._colorPickerOpen === colorKey;
-        
-        const rgb = this.hexToRgb(currentColor);
-        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
-        
-        const pickerHtml = isOpen ? `
-            <div class="color-picker-overlay" data-colorkey="${colorKey}"></div>
-            <div class="color-picker-popup">
-                <div class="color-wheel-container">
-                    <canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas>
-                    <div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div>
-                </div>
-                <div class="brightness-control">
-                    <label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label>
-                    <input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" />
-                </div>
-            </div>
-        ` : '';
-    
-        return `
-            <div class="color-config-row">
-                <label>${colorLabel}</label>
-                <div class="color-input-group">
-                    <div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div>
-                    <input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" />
-                    <button class="color-picker-btn" data-colorkey="${colorKey}" title="${this.t('editor_color_picker_label')}">🎨</button>
-                </div>
-                ${pickerHtml}
-            </div>
-        `;
+        return {
+            r,
+            g,
+            b
+        };
     }
 
     renderEditForm(entityConfig, index) {
         const t = this.t.bind(this);
         const entityId = entityConfig.entity || "";
-        return `
-            <div class="entity-edit-form">
-                <div class="input-group">
-                    <label>${t('editor_entity_id_label')}:</label>
-                    <div class="input-with-suggestions">
-                        <input type="text" class="entity-input entity-search" data-index="${index}" data-field="entity" value="${this.escapeHtml(entityId)}" placeholder="light.my_light" autocomplete="off">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>${t('editor_name_label')}:</label>
-                    <input type="text" class="entity-input" data-index="${index}" data-field="name" value="${this.escapeHtml(entityConfig.name || '')}" placeholder="${t('editor_placeholder_name')}" autocomplete="off">
-                </div>
-                <div class="input-group">
-                    <label>${t('editor_icon_label')}:</label>
-                    <div class="input-with-suggestions">
-                        <input type="text" class="entity-input icon-search" data-index="${index}" data-field="icon" value="${this.escapeHtml(entityConfig.icon || '')}" placeholder="mdi:calendar-clock" autocomplete="off">
-                    </div>
-                </div>
-            </div>
-        `;
+        return `<div class="entity-edit-form"><div class="input-group"><label>${t('editor_entity_id_label')}:</label><div class="input-with-suggestions"><input type="text" class="entity-input entity-search" data-index="${index}" data-field="entity" value="${escapeHtml(entityId)}" placeholder="light.my_light" autocomplete="off"></div></div><div class="input-group"><label>${t('editor_name_label')}:</label><input type="text" class="entity-input" data-index="${index}" data-field="name" value="${escapeHtml(entityConfig.name || '')}" placeholder="${t('editor_placeholder_name')}" autocomplete="off"></div><div class="input-group"><label>${t('editor_icon_label')}:</label><div class="input-with-suggestions"><input type="text" class="entity-input icon-search" data-index="${index}" data-field="icon" value="${escapeHtml(entityConfig.icon || '')}" placeholder="mdi:calendar-clock" autocomplete="off"></div></div></div>`;
     }
 
     renderEntityRow(entityConfig, index) {
@@ -2121,497 +3118,152 @@ class ScheduleStateCardEditor extends HTMLElement {
         const entityState = this._hass?.states[entityId];
         const name = entityConfig.name || entityState?.attributes?.friendly_name || entityId || t('editor_default_entity_name');
         const icon = entityConfig.icon || entityState?.attributes?.icon || "mdi:calendar-clock";
-
         const isEditing = this._editingIndex === index;
+        return `<div class="entity-row"><div class="handle">≡</div><div class="icon-name"><ha-icon icon="${escapeHtml(icon)}"></ha-icon><span>${escapeHtml(name)}</span></div><div class="entity-id">${escapeHtml(entityId)}</div><div class="actions"><button class="action-button edit-btn" data-index="${index}" title="${t('common.edit') || 'Edit'}"><ha-icon icon="mdi:pencil"></ha-icon></button><button class="action-button remove-btn" data-index="${index}" title="${t('common.delete') || 'Delete'}"><ha-icon icon="mdi:close"></ha-icon></button></div></div>${isEditing ? this.renderEditForm(entityConfig, index) : ''}`;
+    }
 
-        return `
-            <div class="entity-row">
-                <div class="handle">≡</div>
-                <div class="icon-name">
-                    <ha-icon icon="${this.escapeHtml(icon)}"></ha-icon>
-                    <span>${this.escapeHtml(name)}</span>
-                </div>
-                <div class="entity-id">${this.escapeHtml(entityId)}</div>
-                <div class="actions">
-                    <button class="action-button edit-btn" data-index="${index}" title="${t('common.edit') || 'Edit'}">
-                        <ha-icon icon="mdi:pencil"></ha-icon>
-                    </button>
-                    <button class="action-button remove-btn" data-index="${index}" title="${t('common.delete') || 'Delete'}">
-                        <ha-icon icon="mdi:close"></ha-icon>
-                    </button>
-                </div>
-            </div>
-            ${isEditing ? this.renderEditForm(entityConfig, index) : ''}
-        `;
+    renderColorPicker(colorKey, colorLabel) {
+        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+        const isOpen = this._colorPickerOpen === colorKey;
+        const rgb = this.hexToRgb(currentColor);
+        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : {
+            h: 0,
+            s: 100,
+            v: 100
+        };
+        const pickerHtml = isOpen ? `<div class="color-picker-overlay" data-colorkey="${colorKey}"></div><div class="color-picker-popup"><div class="color-wheel-container"><canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas><div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div></div><div class="brightness-control"><label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label><input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" /></div></div>` : '';
+        return `<div class="color-config-row"><label>${colorLabel}</label><div class="color-input-group"><div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div><input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" /><button class="color-picker-btn" data-colorkey="${colorKey}" title="${this.t('editor_color_picker_label')}">🎨</button></div>${pickerHtml}</div>`;
     }
 
     render() {
-        // Clear all previous content and listeners
-        if (this.shadowRoot) {
-            this.shadowRoot.innerHTML = '';
-        }
-        
         const t = this.t.bind(this);
-        const style = `
-            :host { display: block; }
-            
-            .config-row { margin-bottom: 15px; }
-            .config-row label { font-weight: bold; display: block; margin-bottom: 5px; color: var(--primary-text-color); }
-            .config-row input { width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); box-sizing: border-box; }
-            
-            .entity-list { border: 1px solid var(--divider-color); border-radius: 4px; overflow: visible; margin-bottom: 10px; }
-            
-            .entity-row { 
-                display: flex; 
-                align-items: center; 
-                padding: 10px; 
-                background: var(--card-background-color); 
-                border-bottom: 1px solid var(--divider-color); 
-                gap: 10px;
-            }
-            
-            .handle { 
-                cursor: grab; 
-                color: var(--secondary-text-color); 
-                flex-shrink: 0;
-                width: 20px;
-            }
-            
-            .icon-name { 
-                display: flex; 
-                align-items: center; 
-                gap: 8px;
-                flex-grow: 0;
-                flex-basis: 120px;
-                font-weight: 500; 
-                min-width: 0;
-            }
-            
-            .icon-name ha-icon { 
-                color: var(--primary-color); 
-                flex-shrink: 0;
-            }
-            
-            .icon-name span {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            
-            .entity-id { 
-                flex-grow: 1;
-                flex-basis: auto;
-                color: var(--secondary-text-color); 
-                font-family: monospace; 
-                font-size: 12px; 
-                text-align: right; 
-                overflow: hidden; 
-                text-overflow: ellipsis; 
-                white-space: nowrap;
-            }
-            
-            .actions { 
-                display: flex; 
-                gap: 5px;
-                flex-shrink: 0;
-            }
-            
-            .action-button { 
-                background: none; 
-                border: none; 
-                cursor: pointer; 
-                color: var(--primary-text-color); 
-                padding: 4px;
-                display: flex;
-                align-items: center;
-            }
-            
-            .action-button:hover ha-icon { 
-                color: var(--primary-color); 
-            }
-            
-            .entity-edit-form { 
-                display: flex;
-                padding: 10px; 
-                background: var(--secondary-background-color); 
-                border-bottom: 1px solid var(--divider-color); 
-                gap: 10px; 
-                flex-wrap: wrap;
-                position: relative;
-                z-index: 10;
-            }
-            
-            .input-group { 
-                flex: 1 1 calc(33.333% - 10px); 
-                min-width: 150px;
-                display: flex;
-                flex-direction: column;
-                position: relative;
-            }
-            
-            .input-group label { 
-                font-size: 12px; 
-                margin-bottom: 3px; 
-                font-weight: 600;
-                color: var(--primary-text-color);
-            }
-            
-            .entity-input {
-                padding: 6px !important;
-                border: 1px solid var(--divider-color) !important;
-                border-radius: 3px !important;
-                background: var(--primary-background-color) !important;
-                color: var(--primary-text-color) !important;
-                font-size: 12px !important;
-                width: 100%;
-                box-sizing: border-box;
-            }
+        if (this._config?.entities) this._entities = this._config.entities;
+        const entityRows = this._entities.map((entity, index) => this.renderEntityRow(entity, index)).join('');
+        const colorConfigsHtml = [
+            this.renderColorPicker('active_layer', t('editor_active_layer_label')),
+            this.renderColorPicker('inactive_layer', t('editor_inactive_layer_label')),
+            this.renderColorPicker('combined_folded_layer', t('editor_combined_folded_label')),
+            this.renderColorPicker('combined_unfolded_layer', t('editor_combined_unfolded_label')),
+            this.renderColorPicker('cursor', t('editor_cursor_label'))
+        ].join('');
 
-            .input-with-suggestions {
-                position: relative;
-                width: 100%;
-            }
+        const styleContent = `:host { display: block; } ha-card { padding: 16px; } .editor-header { font-size: 20px; font-weight: bold; margin-bottom: 16px; } .form-section { margin-bottom: 24px; } .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--primary-text-color); } .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; } .input-group label { font-weight: 500; font-size: 14px; color: var(--primary-text-color); } .input-group input[type="text"], .input-group input[type="checkbox"] { padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; } .input-group input[type="checkbox"] { width: auto; margin-top: 4px; } .input-group input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-color)33; } .input-with-suggestions { position: relative; width: 100%; } .suggestions-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-top: none; border-radius: 0 0 4px 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); } .suggestion-item { padding: 8px 12px; cursor: pointer; color: var(--primary-text-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s; } .suggestion-item:hover:not(.disabled) { background: var(--primary-color); color: white; } .suggestion-item.disabled { opacity: 0.5; cursor: default; } .entity-row { display: flex; gap: 12px; align-items: center; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .handle { cursor: grab; color: var(--secondary-text-color); font-weight: bold; user-select: none; } .icon-name { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; } .entity-id { flex: 1; font-size: 12px; color: var(--secondary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .actions { display: flex; gap: 4px; } .action-button { background: transparent; border: 1px solid var(--divider-color); border-radius: 4px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; color: var(--primary-text-color); transition: all 0.2s; } .action-button:hover { background: var(--primary-color); border-color: var(--primary-color); color: white; } .entity-edit-form { background: var(--primary-background-color); padding: 12px; border-radius: 4px; margin-top: 8px; border: 1px solid var(--primary-color); } .entity-input { width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; box-sizing: border-box; } .entity-input:focus { outline: none; border-color: var(--primary-color); } .add-button { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; width: 100%; } .add-button:hover { opacity: 0.9; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); } .color-config-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .color-config-row label { font-weight: 500; font-size: 13px; } .color-input-group { display: flex; gap: 8px; align-items: center; } .color-preview { width: 40px; height: 40px; border: 1px solid var(--divider-color); border-radius: 4px; cursor: pointer; transition: all 0.2s; } .color-preview:hover { box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); } .color-hex-input { flex: 1; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; font-family: monospace; } .color-hex-input:focus { outline: none; border-color: var(--primary-color); } .color-picker-btn { background: transparent; border: 1px solid var(--divider-color); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 18px; transition: all 0.2s; } .color-picker-btn:hover { background: var(--primary-color); border-color: var(--primary-color); } .color-picker-popup { position: absolute; top: 100%; left: 0; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; padding: 12px; z-index: 1001; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); margin-top: 4px; } .color-picker-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999; } .color-wheel-container { position: relative; width: 280px; height: 280px; margin-bottom: 12px; } .color-wheel { cursor: crosshair; border-radius: 50%; } .brightness-control { display: flex; flex-direction: column; gap: 6px; } .brightness-control label { font-size: 13px; } .brightness-slider { width: 100%; height: 6px; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; } .brightness-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; } .brightness-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; border: none; } .divider { height: 1px; background: var(--divider-color); margin: 16px 0; }`;
 
-            .suggestions-dropdown {
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: var(--secondary-background-color);
-                border: 1px solid var(--divider-color);
-                border-top: none;
-                border-radius: 0 0 3px 3px;
-                max-height: 200px;
-                overflow-y: auto;
-                z-index: 1001;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-                margin-top: 2px;
-            }
+        const htmlContent = `<div class="editor-header">${t('editor_title')}</div><div class="form-section"><div class="section-title">${t('editor_card_title')}</div><div class="input-group"><input type="text" id="title-input" value="${escapeHtml(this._config.title || '')}" placeholder="${t('editor_title_placeholder')}"></div></div><div class="form-section"><div class="input-group"><label><input type="checkbox" id="show-state-input" ${this._config.show_state_in_title ? 'checked' : ''}>${t('editor_show_state_in_title')}</label></div></div><div class="divider"></div><div class="form-section"><div class="section-title">${t('editor_entities_label')}</div><div id="entities-list">${entityRows || '<div style="color: var(--secondary-text-color); text-align: center; padding: 20px;">' + t('editor_no_entities') + '</div>'}</div><button class="add-button" id="add-btn">+ ${t('editor_add_entity')}</button></div><div class="divider"></div><div class="form-section"><div class="section-title">${t('editor_colors_label')}</div>${colorConfigsHtml}</div>`;
 
-            .suggestion-item {
-                padding: 8px 10px;
-                cursor: pointer;
-                color: var(--primary-text-color);
-                font-size: 12px;
-                border-bottom: 1px solid var(--divider-color);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: background 0.2s;
-            }
+        this.shadowRoot.innerHTML = `<style>${styleContent}</style><ha-card>${htmlContent}</ha-card>`;
 
-            .suggestion-item:last-child {
-                border-bottom: none;
-            }
-
-            .suggestion-item:hover:not(.disabled) {
-                background: var(--primary-color);
-                color: white;
-            }
-
-            .suggestion-item.disabled {
-                color: var(--secondary-text-color);
-                cursor: default;
-            }
-
-            .suggestion-item ha-icon {
-                flex-shrink: 0;
-            }
-
-            .add-button { 
-                margin-top: 10px; 
-                width: 100%; 
-                padding: 10px; 
-                background: var(--primary-color); 
-                color: white; 
-                border: none; 
-                border-radius: 4px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                transition: all 0.2s;
-            }
-            
-            .add-button:hover { 
-                opacity: 0.9;
-            }
-
-            .colors-section {
-                margin-top: 20px;
-                padding: 15px;
-                background: var(--secondary-background-color);
-                border-radius: 4px;
-                border: 1px solid var(--divider-color);
-            }
-
-            .colors-section-title {
-                font-weight: bold;
-                font-size: 14px;
-                margin-bottom: 15px;
-                color: var(--primary-text-color);
-            }
-
-            .color-config-row {
-                margin-bottom: 12px;
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-            }
-
-            .color-config-row label {
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--primary-text-color);
-                margin: 0;
-            }
-
-            .color-input-group {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-            }
-
-            .color-preview {
-                width: 40px;
-                height: 40px;
-                border-radius: 4px;
-                border: 2px solid var(--divider-color);
-                cursor: pointer;
-                transition: transform 0.2s;
-            }
-
-            .color-preview:hover {
-                transform: scale(1.05);
-            }
-
-            .color-hex-input {
-                flex: 1;
-                padding: 8px;
-                border: 1px solid var(--divider-color);
-                border-radius: 3px;
-                background: var(--primary-background-color);
-                color: var(--primary-text-color);
-                font-family: monospace;
-                font-size: 12px;
-            }
-
-            .color-picker-btn {
-                width: 40px;
-                height: 40px;
-                padding: 0;
-                background: var(--primary-background-color);
-                border: 1px solid var(--divider-color);
-                border-radius: 3px;
-                cursor: pointer;
-                font-size: 18px;
-                transition: all 0.2s;
-            }
-
-            .color-picker-btn:hover {
-                background: var(--secondary-background-color);
-                border-color: var(--primary-color);
-            }
-
-            .color-picker-popup {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: var(--secondary-background-color);
-                border: 2px solid var(--primary-color);
-                border-radius: 8px;
-                padding: 20px;
-                z-index: 2000;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                width: 90%;
-                max-width: 350px;
-            }
-
-            .color-wheel-container {
-                position: relative;
-                width: 280px;
-                height: 280px;
-                margin: 0 auto 20px;
-            }
-
-            .color-wheel {
-                display: block;
-                cursor: crosshair;
-                border-radius: 50%;
-                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-            }
-
-            .color-marker {
-                position: absolute;
-                width: 12px;
-                height: 12px;
-                border: 2px solid white;
-                border-radius: 50%;
-                box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                pointer-events: none;
-            }
-
-            .color-picker-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 1999;
-            }
-
-            .brightness-control {
-                margin-top: 15px;
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                text-align: center;
-            }
-
-            .brightness-control label {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--primary-text-color);
-            }
-
-            .brightness-slider {
-                width: 100%;
-                height: 6px;
-                border-radius: 3px;
-                background: linear-gradient(to right, #000000, #808080, #FFFFFF);
-                outline: none;
-                -webkit-appearance: none;
-            }
-
-            .brightness-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-
-            .brightness-slider::-moz-range-thumb {
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                background: var(--primary-color);
-                cursor: pointer;
-                border: 2px solid var(--primary-text-color);
-            }
-        `;
-
-        const colorsSection = `
-            <div class="colors-section">
-                <div class="colors-section-title">${t('editor_colors_label')}</div>
-                ${this.renderColorPicker('active_layer', t('editor_active_layer_label'))}
-                ${this.renderColorPicker('inactive_layer', t('editor_inactive_layer_label'))}
-                ${this.renderColorPicker('combined_folded_layer', t('editor_combined_folded_label'))}
-                ${this.renderColorPicker('combined_unfolded_layer', t('editor_combined_unfolded_label'))}
-                ${this.renderColorPicker('cursor', t('editor_cursor_label'))}
-            </div>
-        `;
-
-        const entitiesHtml = this._entities.length > 0
-            ? this._entities.map((ent, idx) => this.renderEntityRow(ent, idx)).join('')
-            : `<div style="padding: 10px; color: var(--secondary-text-color); text-align: center;">${t('editor_no_entities')}</div>`;
-
-        const html = `
-            <style>${style}</style>
-            <div class="config-row">
-                <label>${t('editor_card_title')}</label>
-                <input id="title-input" value="${this.escapeHtml(this._config?.title || "")}" placeholder="${t('editor_title_placeholder')}"/>
-            </div>
-
-            <div class="config-row">
-                <label style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" id="show-state-input" ${this._config.show_state_in_title !== false ? 'checked' : ''} style="width:auto;cursor:pointer;"/>
-                    ${t('editor_show_state_in_title')}
-                </label>
-            </div>
-
-            <div class="config-row">
-                <label>${t('editor_entities_label')}</label>
-                <div class="entity-list" id="entity-list">
-                    ${entitiesHtml}
-                </div>
-                <button class="add-button" id="add-btn">
-                    + ${t('editor_add_entity')}
-                </button>
-            </div>
-
-            ${colorsSection}
-        `;
-
-        this.shadowRoot.innerHTML = html;
-        this.attachListeners();
+        requestAnimationFrame(() => {
+            this.attachListeners();
+        });
     }
 
+    // Draw color wheel canvas with HSV color space
+    drawColorWheel(canvas, colorKey) {
+        if (!canvas || !colorKey) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const radius = 130;
+        const centerX = 140;
+        const centerY = 140;
+        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+        const rgb = this.hexToRgb(currentColor);
+        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : {
+            h: 0,
+            s: 100,
+            v: 100
+        };
+        for (let angle = 0; angle < 360; angle += 1) {
+            const startAngle = (angle - 90) * Math.PI / 180;
+            const endAngle = (angle + 1 - 90) * Math.PI / 180;
+            for (let r = 0; r < radius; r += 2) {
+                const saturation = (r / radius) * 100;
+                const rgb1 = this.hsvToRgb(angle, saturation, hsv.v);
+                const rgbColor = `rgb(${rgb1.r},${rgb1.g},${rgb1.b})`;
+                ctx.fillStyle = rgbColor;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, startAngle, endAngle);
+                ctx.lineTo(centerX, centerY);
+                ctx.fill();
+            }
+        }
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        const angle = (hsv.h - 90) * Math.PI / 180;
+        const distance = (hsv.s / 100) * radius;
+        const markerX = centerX + distance * Math.cos(angle);
+        const markerY = centerY + distance * Math.sin(angle);
+        const marker = this.shadowRoot.querySelector(`#marker-${colorKey}`);
+        if (marker) {
+            marker.style.left = (markerX - 6) + 'px';
+            marker.style.top = (markerY - 6) + 'px';
+        }
+    }
+
+    // Handle color wheel click/drag to select color
+    handleWheelClick(e, colorKey) {
+        const canvas = e.target;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left - 140;
+        const y = e.clientY - rect.top - 140;
+        const distance = Math.sqrt(x * x + y * y);
+        if (distance > 130) return;
+        const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
+        const h = angle < 0 ? angle + 360 : angle;
+        const s = (distance / 130) * 100;
+        const brightnessSlider = this.shadowRoot.querySelector(`.brightness-slider[data-colorkey="${colorKey}"]`);
+        const v = brightnessSlider ? parseInt(brightnessSlider.value) : 100;
+        const rgb = this.hsvToRgb(h, s, v);
+        const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+        this.updateColor(colorKey, hex);
+        this.drawColorWheel(canvas, colorKey);
+    }
+
+    // Update dropdown suggestions for entity/icon search
     updateDropdown(inputElement, type) {
         const index = parseInt(inputElement.dataset.index);
         const container = inputElement.closest('.input-with-suggestions');
         if (!container) return;
-
         const filterText = inputElement.value || "";
         let items = "";
-
-        // Generate filtered suggestions based on input text
         if (type === "entity") {
             const filtered = this.getFilteredEntities(filterText);
             if (filtered.length > 0) {
-                items = filtered.map(e => {
-                    return `<div class="suggestion-item entity-suggestion" data-index="${index}" data-value="${this.escapeHtml(e)}">${this.escapeHtml(e)}</div>`;
-                }).join('');
+                items = filtered.map(e => `<div class="suggestion-item entity-suggestion" data-index="${index}" data-value="${escapeHtml(e)}">${escapeHtml(e)}</div>`).join('');
             } else if (filterText.length > 0) {
                 items = `<div class="suggestion-item disabled">${this.t('editor_no_entities_found')}</div>`;
             }
         } else if (type === "icon") {
             const filtered = this.getFilteredIcons(filterText);
             if (filtered.length > 0) {
-                items = filtered.map(icon => {
-                    return `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${this.escapeHtml(icon)}"><ha-icon icon="${this.escapeHtml(icon)}"></ha-icon> ${this.escapeHtml(icon)}</div>`;
-                }).join('');
+                items = filtered.map(icon => `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${escapeHtml(icon)}"><ha-icon icon="${escapeHtml(icon)}"></ha-icon> ${escapeHtml(icon)}</div>`).join('');
             }
         }
-
-        // Remove existing dropdown
         let existingDropdown = container.querySelector('.suggestions-dropdown');
         if (existingDropdown) existingDropdown.remove();
-
-        // Create and insert new dropdown if there are items
         if (items) {
             const dropdown = document.createElement('div');
             dropdown.className = 'suggestions-dropdown';
             dropdown.innerHTML = items;
             container.appendChild(dropdown);
-
-            // Attach click handlers to suggestion items
             dropdown.querySelectorAll('.suggestion-item:not(.disabled)').forEach(item => {
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const idx = parseInt(item.dataset.index);
                     const value = item.dataset.value;
                     const field = type === "entity" ? "entity" : "icon";
-                    
-                    // Update the entity data
                     this.updateEntity(idx, field, value);
                     inputElement.value = value;
-                    
-                    // Remove dropdown after selection
                     const dd = container.querySelector('.suggestions-dropdown');
                     if (dd) dd.remove();
                 });
-
-                // Add hover effect
                 item.addEventListener('mouseenter', () => {
                     dropdown.querySelectorAll('.suggestion-item').forEach(i => i.style.background = '');
                     item.style.background = 'var(--primary-color)';
                     item.style.color = 'white';
                 });
-
                 item.addEventListener('mouseleave', () => {
                     item.style.background = '';
                     item.style.color = 'var(--primary-text-color)';
@@ -2620,128 +3272,37 @@ class ScheduleStateCardEditor extends HTMLElement {
         }
     }
 
-    drawColorWheel(canvas, colorKey) {
-        // Safety checks
-        if (!canvas || !colorKey) return;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        const radius = 130;
-        const centerX = 140;
-        const centerY = 140;
-
-        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
-        const rgb = this.hexToRgb(currentColor);
-        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
-
-        for (let angle = 0; angle < 360; angle += 1) {
-            const startAngle = (angle - 90) * Math.PI / 180;
-            const endAngle = (angle + 1 - 90) * Math.PI / 180;
-
-            for (let r = 0; r < radius; r += 2) {
-                const saturation = (r / radius) * 100;
-                const rgb1 = this.hsvToRgb(angle, saturation, hsv.v);
-                const rgbColor = `rgb(${rgb1.r},${rgb1.g},${rgb1.b})`;
-
-                ctx.fillStyle = rgbColor;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, r, startAngle, endAngle);
-                ctx.lineTo(centerX, centerY);
-                ctx.fill();
-            }
-        }
-
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
-        ctx.fill();
-
-        const angle = (hsv.h - 90) * Math.PI / 180;
-        const distance = (hsv.s / 100) * radius;
-        const markerX = centerX + distance * Math.cos(angle);
-        const markerY = centerY + distance * Math.sin(angle);
-        
-        const marker = this.shadowRoot.querySelector(`#marker-${colorKey}`);
-        if (marker) {
-            marker.style.left = (markerX - 6) + 'px';
-            marker.style.top = (markerY - 6) + 'px';
-        }
-    }
-    
-    handleWheelClick(e, colorKey) {
-        const canvas = e.target;
-        const rect = canvas.getBoundingClientRect();
-        
-        const x = e.clientX - rect.left - 140;
-        const y = e.clientY - rect.top - 140;
-        
-        const distance = Math.sqrt(x * x + y * y);
-        if (distance > 130) return;
-    
-        const angle = Math.atan2(y, x) * 180 / Math.PI + 90;
-        const h = angle < 0 ? angle + 360 : angle;
-        const s = (distance / 130) * 100;
-    
-        const brightnessSlider = this.shadowRoot.querySelector(`.brightness-slider[data-colorkey="${colorKey}"]`);
-        const v = brightnessSlider ? parseInt(brightnessSlider.value) : 100;
-    
-        const rgb = this.hsvToRgb(h, s, v);
-        const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
-        
-        this.updateColor(colorKey, hex);
-        this.drawColorWheel(canvas, colorKey);
-    }
-
+    // Attach all event listeners to form controls and color picker
     attachListeners() {
-        // Guard: wait for shadowRoot to be fully ready
-        if (!this.shadowRoot) {
-            return;
-        }
-        
-        // Query all elements - these should exist after render()
+        if (!this.shadowRoot) return;
         const titleInput = this.shadowRoot.querySelector("#title-input");
         const showStateInput = this.shadowRoot.querySelector("#show-state-input");
         const addBtn = this.shadowRoot.querySelector("#add-btn");
-        
-        // If elements don't exist, DOM isn't ready - retry with delay
         if (!titleInput || !showStateInput || !addBtn) {
             setTimeout(() => this.attachListeners(), 50);
             return;
         }
-
-        // Title input listener
         titleInput.addEventListener("change", (e) => {
             this._config.title = e.target.value;
             this.fireConfigChanged();
         });
-
-        // Show state checkbox listener
         showStateInput.addEventListener("change", (e) => {
             this._config.show_state_in_title = e.target.checked;
             this.fireConfigChanged();
         });
-
-        // Add entity button listener
         addBtn.addEventListener("click", () => this.addEntity());
-
-        // Edit button listeners
         this.shadowRoot.querySelectorAll(".edit-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 const index = parseInt(e.currentTarget.dataset.index);
                 this.toggleEditForm(index);
             });
         });
-
-        // Remove button listeners
         this.shadowRoot.querySelectorAll(".remove-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 const index = parseInt(e.currentTarget.dataset.index);
                 this.removeEntity(index);
             });
         });
-
-        // Regular entity input listeners (non-searchable)
         this.shadowRoot.querySelectorAll(".entity-input:not(.entity-search):not(.icon-search)").forEach(input => {
             input.addEventListener("change", (e) => {
                 const index = parseInt(e.target.dataset.index);
@@ -2749,20 +3310,14 @@ class ScheduleStateCardEditor extends HTMLElement {
                 this.updateEntity(index, field, e.target.value);
             });
         });
-
-        // Entity search listeners - with REAL-TIME dropdown updates
+        // Entity search listeners - with real-time dropdown updates
         this.shadowRoot.querySelectorAll(".entity-search").forEach(input => {
-            // Show dropdown immediately on focus
             input.addEventListener("focus", (e) => {
                 this.updateDropdown(e.target, "entity");
             });
-
-            // Update dropdown in real-time as user types
             input.addEventListener("input", (e) => {
                 this.updateDropdown(e.target, "entity");
             });
-
-            // Close dropdown when leaving the field
             input.addEventListener("blur", (e) => {
                 setTimeout(() => {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2772,8 +3327,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                     }
                 }, 150);
             });
-
-            // Clear dropdown on escape key
             input.addEventListener("keydown", (e) => {
                 if (e.key === "Escape") {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2784,20 +3337,14 @@ class ScheduleStateCardEditor extends HTMLElement {
                 }
             });
         });
-
-        // Icon search listeners - with REAL-TIME dropdown updates
+        // Icon search listeners - with real-time dropdown updates
         this.shadowRoot.querySelectorAll(".icon-search").forEach(input => {
-            // Show dropdown immediately on focus
             input.addEventListener("focus", (e) => {
                 this.updateDropdown(e.target, "icon");
             });
-
-            // Update dropdown in real-time as user types
             input.addEventListener("input", (e) => {
                 this.updateDropdown(e.target, "icon");
             });
-
-            // Close dropdown when leaving the field
             input.addEventListener("blur", (e) => {
                 setTimeout(() => {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2807,8 +3354,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                     }
                 }, 150);
             });
-
-            // Clear dropdown on escape key
             input.addEventListener("keydown", (e) => {
                 if (e.key === "Escape") {
                     const container = e.target.closest('.input-with-suggestions');
@@ -2819,7 +3364,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 }
             });
         });
-
         // Color picker button listeners
         this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
@@ -2827,7 +3371,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 this.toggleColorPicker(colorKey);
             });
         });
-
         // Color hex input listeners
         this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
             input.addEventListener("change", (e) => {
@@ -2839,7 +3382,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 e.target.value = value;
                 this.updateColor(colorKey, value);
             });
-
             input.addEventListener("input", (e) => {
                 const colorKey = e.target.dataset.colorkey;
                 const preview = this.shadowRoot.querySelector(`.color-preview[data-colorkey="${colorKey}"]`);
@@ -2849,7 +3391,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 }
             });
         });
-
         // Color preview listeners
         this.shadowRoot.querySelectorAll(".color-preview").forEach(preview => {
             preview.addEventListener("click", (e) => {
@@ -2857,7 +3398,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 this.toggleColorPicker(colorKey);
             });
         });
-
         // Color picker overlay close listener
         this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
             overlay.addEventListener("click", () => {
@@ -2865,22 +3405,18 @@ class ScheduleStateCardEditor extends HTMLElement {
                 this.render();
             });
         });
-
         // Color wheel canvas rendering and interaction
         this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
             const colorKey = canvas.dataset.colorkey;
             // Draw the color wheel
             this.drawColorWheel(canvas, colorKey);
-            
             // Click to select color
             canvas.addEventListener("click", (e) => this.handleWheelClick(e, colorKey));
-            
             // Drag to select color
             canvas.addEventListener("mousemove", (e) => {
                 if (e.buttons === 1) this.handleWheelClick(e, colorKey);
             });
         });
-
         // Brightness slider listeners
         this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
             slider.addEventListener("input", (e) => {
@@ -2888,7 +3424,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 const v = parseInt(e.target.value);
                 const valueDisplay = this.shadowRoot.querySelector(`#brightness-value-${colorKey}`);
                 if (valueDisplay) valueDisplay.textContent = v;
-                
                 const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
                 const rgb = this.hexToRgb(currentColor);
                 if (rgb) {
@@ -2904,7 +3439,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.1.0 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
