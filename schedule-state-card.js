@@ -537,6 +537,32 @@ function escapeHtmlAttribute(text) {
     return str.replace(/[&<>"'/]/g, char => map[char]);
 }
 
+class LanguageHelper {
+    /**
+     * Centralized language management to eliminate code duplication
+     * Used by both ScheduleStateCard and ScheduleStateCardEditor
+     */
+    constructor(hass) {
+        this._hass = hass;
+    }
+
+    getLanguage() {
+        if (this._hass?.locale?.language) {
+            return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
+        }
+        return "en";
+    }
+
+    t(key) {
+        const lang = this.getLanguage();
+        return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+    }
+
+    setHass(hass) {
+        this._hass = hass;
+    }
+}
+
 class AppState {
     constructor() {
         // Layer visibility state - tracks which entity layers are expanded/collapsed
@@ -731,8 +757,9 @@ class ScheduleStateCard extends HTMLElement {
             mode: "open"
         });
 
-        // ✅ CENTRALIZED STATE - Single source of truth
+        // CENTRALIZED STATE - Single source of truth
         this._state = new AppState();
+        this._langHelper = new LanguageHelper(null);
 
         // Configuration and runtime references
         this._config = {};
@@ -755,18 +782,17 @@ class ScheduleStateCard extends HTMLElement {
         // Current time and selected day - REQUIRED for timeline display
         this.currentTime = this.getCurrentTime();
         this.selectedDay = this.currentTime.day;
+
+        // PERFORMANCE FIX: Initialize block metrics cache for Issue #10
+        this._blockMetricsCache = new Map();
     }
 
     getLanguage() {
-        if (this._hass?.locale?.language) {
-            return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
-        }
-        return "en";
+        return this._langHelper.getLanguage();
     }
 
     t(key) {
-        const lang = this.getLanguage();
-        return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+        return this._langHelper.t(key);
     }
 
     /**
@@ -838,32 +864,178 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     setConfig(config) {
-        if (!config) throw new Error("Invalid configuration");
+        /**
+         * VALIDATION FIX: Comprehensive input validation
+         * Prevents crashes from malformed configurations
+         */
+        if (!config || typeof config !== 'object') {
+            throw new Error("Invalid configuration: config must be an object");
+        }
+
+        // Validate entities array
         let entities = config.entities || [];
+        if (!Array.isArray(entities)) {
+            throw new Error("Invalid configuration: entities must be an array");
+        }
+
+        const validatedEntities = entities
+            .map((e, idx) => this._validateEntity(e, idx))
+            .filter(e => e !== null);
+
+        if (validatedEntities.length === 0 && entities.length > 0) {
+            console.warn("Schedule State Card: No valid entities found in configuration");
+        }
+
+        // Validate colors
+        const validatedColors = this._validateColors(config.colors);
+
+        // Validate title
+        const validatedTitle = this._validateTitle(config.title);
+
         this._config = {
-            ...config,
-            entities: Array.isArray(entities) ? entities.map(e => typeof e === "string" ? {
-                entity: e
-            } : e) : [],
-            show_state_in_title: config.show_state_in_title !== false // true by default
+            title: validatedTitle,
+            entities: validatedEntities,
+            show_state_in_title: config.show_state_in_title !== false,
+            colors: validatedColors
         };
 
-        if (config.colors) {
-            this._colors = {
-                ...DEFAULT_COLORS,
-                ...config.colors
-            };
-        } else {
-            this._colors = {
-                ...DEFAULT_COLORS
-            };
-        }
+        // Apply color configuration
+        this._colors = {
+            ...DEFAULT_COLORS,
+            ...this._config.colors
+        };
 
         if (this._hass) this.render();
     }
 
+    _validateEntity(entity, index) {
+        /**
+         * Validate a single entity configuration object
+         * Returns validated entity or null if invalid
+         */
+        try {
+            // Handle string entity IDs
+            if (typeof entity === 'string') {
+                const trimmedId = entity.trim();
+                if (!trimmedId) {
+                    console.warn(`Schedule State Card: Entity at index ${index} is empty`);
+                    return null;
+                }
+                if (!trimmedId.includes('.')) {
+                    console.warn(`Schedule State Card: Invalid entity ID format: "${trimmedId}"`);
+                    return null;
+                }
+                return {
+                    entity: trimmedId,
+                    name: '',
+                    icon: ''
+                };
+            }
+
+            // Handle object entity configs
+            if (typeof entity !== 'object' || entity === null) {
+                console.warn(`Schedule State Card: Entity at index ${index} must be string or object`);
+                return null;
+            }
+
+            const entityId = String(entity.entity || '').trim();
+            if (!entityId) {
+                console.warn(`Schedule State Card: Entity at index ${index} missing 'entity' field`);
+                return null;
+            }
+            if (!entityId.includes('.')) {
+                console.warn(`Schedule State Card: Invalid entity ID format: "${entityId}"`);
+                return null;
+            }
+
+            return {
+                entity: entityId,
+                name: String(entity.name || '').trim().substring(0, 200),
+                icon: String(entity.icon || '').trim().substring(0, 100)
+            };
+        } catch (error) {
+            console.error(`Schedule State Card: Error validating entity at index ${index}:`, error);
+            return null;
+        }
+    }
+
+    _validateColors(colors) {
+        /**
+         * Validate color configuration
+         * Returns valid colors or defaults
+         * Accepts: hex colors, CSS variables, and color names
+         */
+        if (!colors || typeof colors !== 'object') {
+            return {
+                ...DEFAULT_COLORS
+            };
+        }
+
+        const validated = {
+            ...DEFAULT_COLORS
+        };
+
+        for (const [key, value] of Object.entries(colors)) {
+            try {
+                if (!value) continue;
+                
+                const strValue = String(value).trim();
+                
+                // Accept CSS variables (var(...))
+                if (strValue.includes('var(')) {
+                    validated[key] = strValue;
+                    continue;
+                }
+                
+                // Accept hex colors
+                if (/^#[0-9A-F]{6}$/i.test(strValue)) {
+                    validated[key] = strValue;
+                    continue;
+                }
+                
+                // Accept RGB/RGBA colors
+                if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+)?\s*\)$/.test(strValue)) {
+                    validated[key] = strValue;
+                    continue;
+                }
+                
+                // Accept HSL/HSLA colors
+                if (/^hsla?\(\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?%\s*,\s*\d+(\.\d+)?%\s*(,\s*[\d.]+)?\s*\)$/.test(strValue)) {
+                    validated[key] = strValue;
+                    continue;
+                }
+                
+                // If color format is invalid, use default
+                console.warn(`Schedule State Card: Invalid color format for key "${key}": "${strValue}". Using default.`);
+                
+            } catch (error) {
+                console.warn(`Schedule State Card: Error validating color for key "${key}":`, error);
+            }
+        }
+
+        return validated;
+    }
+
+    _validateTitle(title) {
+        /**
+         * Validate card title
+         * Limit length to prevent memory issues
+         */
+        if (!title) return '';
+
+        try {
+            const str = String(title).trim();
+            // Limit title to 500 characters
+            return str.substring(0, 500);
+        } catch (error) {
+            console.error("Schedule State Card: Error validating title:", error);
+            return '';
+        }
+    }
+
     set hass(hass) {
         this._hass = hass;
+        this._langHelper.setHass(hass);
         if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
             this.render();
         }
@@ -1459,38 +1631,68 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     validateStyleValue(value) {
+        /**
+         * SECURITY FIX: Whitelist approach for CSS values
+         * Prevents CSS injection attacks
+         * Now accepts CSS variables with proper validation
+         */
         if (!value) return "";
 
-        const str = String(value).trim().toLowerCase();
+        const original = String(value).trim();
+        const lower = original.toLowerCase();
 
-        // Block dangerous CSS
-        if (str.includes("expression(") || // IE expression
-            str.includes("javascript:") ||
-            str.includes("behavior:") ||
-            str.includes("binding(") ||
-            str.includes("@import") ||
-            str.includes("-webkit-binding") ||
-            str.includes("<") || // Block HTML-like content
-            str.includes(">") ||
-            str.includes("'") || // Block quotes to prevent attribute breakout
-            str.includes('"') ||
-            str.includes("\\") || // Block escape sequences
-            str.includes(";") && !str.match(/^[0-9]+(px|em|rem|%|vh|vw|ch)$/i)) { // Allow units with semicolon context
-            console.warn("Blocked dangerous CSS value:", value);
-            return "";
+        // Allow CSS variables (they're safe when properly formed)
+        if (/^var\(--[a-z0-9-]+(\s*,\s*#[0-9a-f]{6}|rgba?\([^)]+\)|hsla?\([^)]+\))?\)$/i.test(original)) {
+            return original;
         }
 
-        // Allow safe values (colors, dimensions, etc)
-        // For HSL colors, ensure format is strict
-        if (str.includes("hsl")) {
-            // Validate HSL format: hsl(number, number%, number%)
-            if (!/^hsl\(\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?%\s*,\s*\d+(\.\d+)?%\s*\)$/.test(String(value).trim())) {
-                console.warn("Invalid HSL color format:", value);
+        // Blacklist: Reject dangerous patterns
+        const dangerousPatterns = [
+            "expression(",
+            "javascript:",
+            "behavior:",
+            "binding(",
+            "@import",
+            "-webkit-binding",
+        ];
+
+        for (const pattern of dangerousPatterns) {
+            if (lower.includes(pattern)) {
+                console.warn("CSS validation: Blocked dangerous CSS pattern:", pattern);
                 return "";
             }
         }
 
-        return String(value);
+        // Whitelist: Accept known safe formats
+
+        // HSL color format
+        if (/^hsl\(\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?%\s*,\s*\d+(\.\d+)?%\s*\)$/.test(original)) {
+            return original;
+        }
+
+        // Hex color format
+        if (/^#[0-9A-F]{6}$/i.test(original)) {
+            return original;
+        }
+
+        // RGB/RGBA color format
+        if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+)?\s*\)$/.test(original)) {
+            return original;
+        }
+
+        // Pixel/em/rem/percent units
+        if (/^\d+(\.\d+)?(px|em|rem|%|vh|vw|ch)$/i.test(original)) {
+            return original;
+        }
+
+        // Plain numbers (for opacity, etc)
+        if (/^\d+(\.\d+)?$/.test(original)) {
+            return original;
+        }
+
+        // If not in whitelist, reject
+        console.warn("CSS validation: Rejected non-whitelisted CSS value:", value);
+        return "";
     }
 
     decodeHtmlEntities(text) {
@@ -1719,134 +1921,260 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _evaluateCondition(condition) {
-        if (!condition || typeof condition !== "object") return true;
-        const condType = condition.condition;
+        /**
+         * ERROR HANDLING FIX: Comprehensive error handling
+         * Prevents crashes when Home Assistant data is unavailable
+         */
+        try {
+            if (!condition || typeof condition !== "object") return true;
 
-        if (condType === "time") {
-            // Get selected day's date context (use selectedDay instead of current day)
-            const today = new Date();
-            const currentMonth = today.getMonth() + 1;
-
-            // Use selectedDay as the reference day for evaluation
-            const selectedDayValue = this.selectedDay;
-
-            // Check month condition if specified
-            if (condition.month !== undefined && condition.month !== null) {
-                const months = condition.month;
-                if (Array.isArray(months)) {
-                    if (!months.includes(currentMonth)) return false;
-                } else if (typeof months === "number") {
-                    if (currentMonth !== months) return false;
-                }
+            // Safety check: ensure Home Assistant is available
+            if (!this._hass) {
+                console.warn("Home Assistant state unavailable during condition evaluation");
+                return false;
             }
 
-            // Check weekday condition if specified - now using selectedDay
-            if (condition.weekday !== undefined && condition.weekday !== null) {
-                const weekdays = condition.weekday;
-                if (Array.isArray(weekdays)) {
-                    // Condition applies only to specific days of the week
-                    if (!weekdays.includes(selectedDayValue)) return false;
+            const condType = condition.condition;
+
+            if (condType === "time") {
+                const today = new Date();
+                const currentMonth = today.getMonth() + 1;
+                const selectedDayValue = this.selectedDay;
+
+                if (condition.month !== undefined && condition.month !== null) {
+                    const months = condition.month;
+                    if (Array.isArray(months)) {
+                        if (!months.includes(currentMonth)) return false;
+                    } else if (typeof months === "number") {
+                        if (currentMonth !== months) return false;
+                    }
                 }
+
+                if (condition.weekday !== undefined && condition.weekday !== null) {
+                    const weekdays = condition.weekday;
+                    if (Array.isArray(weekdays)) {
+                        if (!weekdays.includes(selectedDayValue)) return false;
+                    }
+                }
+
+                return true;
             }
 
-            // If we reach here, all specified conditions matched
-            return true;
-        }
+            if (condType === "state") {
+                const entityId = condition.entity_id;
+                if (!entityId) {
+                    console.warn("State condition missing entity_id");
+                    return false;
+                }
 
-        if (condType === "state") {
-            const entityId = condition.entity_id;
-            // Handle case where entity_id is an array
-            const entities = Array.isArray(entityId) ? entityId : [entityId];
+                // Ensure states object exists
+                if (!this._hass.states || typeof this._hass.states !== 'object') {
+                    console.warn("Home Assistant states object unavailable");
+                    return false;
+                }
 
-            // If match: all, all entities must match the state
-            if (condition.match === "all") {
-                return entities.every(id => {
-                    const entity = this._hass.states[id];
-                    if (!entity) return false;
-                    return entity.state === condition.state;
+                const entities = Array.isArray(entityId) ? entityId : [entityId];
+
+                if (condition.match === "all") {
+                    return entities.every(id => {
+                        try {
+                            const entity = this._hass.states[id];
+                            if (!entity) return false;
+                            return entity.state === condition.state;
+                        } catch (e) {
+                            console.warn("Error checking entity state:", id, e);
+                            return false;
+                        }
+                    });
+                }
+
+                return entities.some(id => {
+                    try {
+                        const entity = this._hass.states[id];
+                        if (!entity) return false;
+                        return entity.state === condition.state;
+                    } catch (e) {
+                        console.warn("Error checking entity state:", id, e);
+                        return false;
+                    }
                 });
             }
 
-            // Otherwise (match: any or no match specified), at least one entity must match
-            return entities.some(id => {
-                const entity = this._hass.states[id];
-                if (!entity) return false;
-                return entity.state === condition.state;
-            });
+            if (condType === "numeric_state") {
+                const entityId = condition.entity_id;
+                if (!entityId) {
+                    console.warn("Numeric state condition missing entity_id");
+                    return false;
+                }
+
+                if (!this._hass.states || typeof this._hass.states !== 'object') {
+                    console.warn("Home Assistant states object unavailable");
+                    return false;
+                }
+
+                const entities = Array.isArray(entityId) ? entityId : [entityId];
+
+                return entities.some(id => {
+                    try {
+                        const entity = this._hass.states[id];
+                        if (!entity) return false;
+
+                        const value = parseFloat(entity.state);
+                        if (isNaN(value)) return false;
+
+                        if (condition.above !== undefined && value <= condition.above) return false;
+                        if (condition.below !== undefined && value >= condition.below) return false;
+
+                        return true;
+                    } catch (e) {
+                        console.warn("Error checking numeric state:", id, e);
+                        return false;
+                    }
+                });
+            }
+
+            if (condType === "or") {
+                if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+                return condition.conditions.some(subCond => this._evaluateCondition(subCond));
+            }
+
+            if (condType === "and") {
+                if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+                return condition.conditions.every(subCond => this._evaluateCondition(subCond));
+            }
+
+            if (condType === "not") {
+                if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
+                return !this._evaluateCondition(condition.conditions[0]);
+            }
+
+            return true;
+        } catch (error) {
+            console.error("Fatal error evaluating condition:", error, condition);
+            return false;
         }
-
-        if (condType === "numeric_state") {
-            const entityId = condition.entity_id;
-            // Handle case where entity_id is an array
-            const entities = Array.isArray(entityId) ? entityId : [entityId];
-
-            // For numeric_state, test each entity
-            return entities.some(id => {
-                const entity = this._hass.states[id];
-                if (!entity) return false;
-                const value = parseFloat(entity.state);
-                if (isNaN(value)) return false;
-
-                if (condition.above !== undefined && value <= condition.above) return false;
-                if (condition.below !== undefined && value >= condition.below) return false;
-
-                return true;
-            });
-        }
-
-        if (condType === "or") {
-            // OR condition: at least one sub-condition must be true
-            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
-            return condition.conditions.some(subCond => this._evaluateCondition(subCond));
-        }
-
-        if (condType === "and") {
-            // AND condition: all sub-conditions must be true
-            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
-            return condition.conditions.every(subCond => this._evaluateCondition(subCond));
-        }
-
-        if (condType === "not") {
-            // NOT condition: inverts the result of the sub-condition
-            if (!condition.conditions || !Array.isArray(condition.conditions)) return true;
-            return !this._evaluateCondition(condition.conditions[0]);
-        }
-
-        return true;
     }
 
     createCombinedLayer(defaultLayer, activeConditionalLayers) {
+        /**
+         * REFACTORING: Break down into smaller, focused methods
+         * Each method has a single responsibility and is testable
+         */
         if (!defaultLayer) return null;
 
-        let result = [];
+        // Step 1: Collect and filter blocks
+        const blocks = this._collectAndFilterBlocksForCombined(
+            defaultLayer,
+            activeConditionalLayers
+        );
 
-        // Get selected day for filtering day-specific conditions (instead of current day)
-        const selectedDayValue = this.selectedDay;
+        // Step 2: Sort blocks by priority and time
+        const sorted = this._sortCombinedBlocks(
+            blocks,
+            defaultLayer,
+            activeConditionalLayers
+        );
 
-        // Collect blocks from ALL active conditional layers
+        // Step 3: Fill gaps with default layer
+        const filled = this._fillGapsWithDefaultLayer(sorted, defaultLayer, activeConditionalLayers);
+
+        return {
+            is_combined_layer: true,
+            condition_text: this.t("cond_combined_result"),
+            is_default_layer: false,
+            blocks: filled,
+        };
+    }
+
+    _getBlockMetrics(block) {
+        /**
+         * PERFORMANCE FIX: Cache block time metrics
+         * Avoid redundant parsing of time strings
+         * 
+         * Key format: "start|end" for memoization
+         */
+        // Create cache if not exists
+        if (!this._blockMetricsCache) {
+            this._blockMetricsCache = new Map();
+        }
+
+        const cacheKey = `${block.start}|${block.end}`;
+
+        // Return cached result if available
+        if (this._blockMetricsCache.has(cacheKey)) {
+            return this._blockMetricsCache.get(cacheKey);
+        }
+
+        // Calculate metrics only once per unique time range
+        const startMin = this.timeToMinutes(block.start);
+        let endMin = this.timeToMinutes(block.end);
+
+        if (block.end === "00:00" && endMin === 0) {
+            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
+        }
+        if (block.end === "23:59") {
+            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
+        }
+
+        const dimensions = this._calculateBlockDimensions(startMin, endMin);
+        const borderRadius = this._calculateBorderRadius(
+            dimensions.width,
+            startMin,
+            endMin,
+            block.is_default_bg
+        );
+
+        const metrics = {
+            startMin,
+            endMin,
+            dimensions,
+            borderRadius
+        };
+
+        // Store in cache for future lookups
+        this._blockMetricsCache.set(cacheKey, metrics);
+
+        return metrics;
+    }
+
+    _sortCombinedBlocks(blocks, defaultLayer, activeConditionalLayers) {
+        /**
+         * Sort blocks by: layer priority, then start time, then event_idx
+         */
+        return blocks.sort((a, b) => {
+            const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
+            const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
+
+            const isADefault = a._source_layer === defaultLayer;
+            const isBDefault = b._source_layer === defaultLayer;
+
+            // Conditional layers have higher priority than default
+            if (isADefault && !isBDefault) return 1;
+            if (!isADefault && isBDefault) return -1;
+
+            // Same layer type: sort by start time
+            const startA = this.timeToMinutes(a.start);
+            const startB = this.timeToMinutes(b.start);
+            if (startA !== startB) return startA - startB;
+
+            // Same time: sort by event_idx (higher first)
+            const idxA = a.event_idx !== undefined ? a.event_idx : -1;
+            const idxB = b.event_idx !== undefined ? b.event_idx : -1;
+            return idxB - idxA;
+        });
+    }
+
+    _collectAndFilterBlocksForCombined(defaultLayer, activeConditionalLayers) {
+        /**
+         * Collect all blocks from active layers and filter by selected day
+         */
+        const result = [];
+
         for (const activeLayer of activeConditionalLayers) {
             if (!activeLayer.blocks) continue;
 
             for (const activeBlock of activeLayer.blocks) {
-                // Check if block has day-specific conditions that EXCLUDE the selected day
-                let blockAppliesToday = true;
-
-                if (activeBlock.raw_conditions && activeBlock.raw_conditions.length > 0) {
-                    for (const cond of activeBlock.raw_conditions) {
-                        if (cond.condition === "time" && cond.weekday && Array.isArray(cond.weekday)) {
-                            // This block has a weekday restriction
-                            if (!cond.weekday.includes(selectedDayValue)) {
-                                // Block does NOT apply to selected day
-                                blockAppliesToday = false;
-                                break;
-                            }
-                            // If it DOES include selected day, continue (blockAppliesToday stays true)
-                        }
-                    }
-                }
-
-                // Add block if it applies to selected day
-                if (blockAppliesToday) {
+                if (this._blockAppliesToSelectedDay(activeBlock)) {
                     result.push({
                         ...activeBlock,
                         _source_layer: activeLayer
@@ -1855,7 +2183,7 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        // Add default layer blocks at the end (they have lowest priority)
+        // Add default layer blocks at the end
         if (defaultLayer.blocks) {
             for (const defBlock of defaultLayer.blocks) {
                 result.push({
@@ -1865,42 +2193,33 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        // Sort by: layer priority (higher first), then start time, then event_idx (higher first)
-        result.sort((a, b) => {
-            // Get layer index for each block
-            const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
-            const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
+        return result;
+    }
 
-            // If one is from default layer, it has lowest priority
-            const isADefault = a._source_layer === defaultLayer;
-            const isBDefault = b._source_layer === defaultLayer;
+    _blockAppliesToSelectedDay(block) {
+        /**
+         * Check if a block applies to the currently selected day
+         */
+        if (!block.raw_conditions || block.raw_conditions.length === 0) {
+            return true;
+        }
 
-            if (isADefault && !isBDefault) return 1; // B is conditional, has priority
-            if (!isADefault && isBDefault) return -1; // A is conditional, has priority
+        for (const cond of block.raw_conditions) {
+            if (cond.condition === "time" && cond.weekday && Array.isArray(cond.weekday)) {
+                if (!cond.weekday.includes(this.selectedDay)) {
+                    return false;
+                }
+            }
+        }
 
-            // If same layer type, sort by start time
-            const startA = this.timeToMinutes(a.start);
-            const startB = this.timeToMinutes(b.start);
-            if (startA !== startB) return startA - startB;
-
-            // Same layer and same time, sort by event_idx (higher first)
-            const idxA = a.event_idx !== undefined ? a.event_idx : -1;
-            const idxB = b.event_idx !== undefined ? b.event_idx : -1;
-            return idxB - idxA;
-        });
-
-        // Now fill gaps with default layer blocks
-        result = this._fillGapsWithDefaultLayer(result, defaultLayer, activeConditionalLayers);
-
-        return {
-            is_combined_layer: true,
-            condition_text: this.t("cond_combined_result"),
-            is_default_layer: false,
-            blocks: result,
-        };
+        return true;
     }
 
     _fillGapsWithDefaultLayer(layerBlocks, defaultLayer, activeConditionalLayers) {
+        /**
+         * Fill time gaps between conditional blocks with default layer blocks
+         * Maintains seamless coverage throughout the day
+         */
         if (!layerBlocks || layerBlocks.length === 0) {
             return (defaultLayer.blocks || []).map(b => ({
                 ...b,
@@ -1911,8 +2230,7 @@ class ScheduleStateCard extends HTMLElement {
         const result = [];
         const breakpoints = new Set([0, 1440]);
 
-        // Collect all breakpoints from conditional layer blocks (excluding default)
-        // Including all blocks from all active layers
+        // Collect breakpoints from conditional blocks
         for (const layer of activeConditionalLayers) {
             for (const block of layerBlocks) {
                 if (block._source_layer !== layer) continue;
@@ -1920,28 +2238,31 @@ class ScheduleStateCard extends HTMLElement {
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
                 if (block.end === '00:00' && endMin === 0) endMin = 1440;
+
                 breakpoints.add(startMin);
                 breakpoints.add(endMin);
             }
         }
 
-        // Collect all breakpoints from default layer
+        // Collect breakpoints from default layer
         const defaultBlocks = defaultLayer.blocks || [];
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeToMinutes(defBlock.start);
             let defEnd = this.timeToMinutes(defBlock.end);
             if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+
             breakpoints.add(defStart);
             breakpoints.add(defEnd);
         }
 
         const sortedBreakpoints = Array.from(breakpoints).sort((a, b) => a - b);
 
+        // Process each segment between breakpoints
         for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
             const segStart = sortedBreakpoints[i];
             const segEnd = sortedBreakpoints[i + 1];
 
-            // Find ALL conditional blocks that cover this segment
+            // Find conditional blocks covering this segment
             let coveringBlocks = [];
             for (const block of layerBlocks) {
                 if (block._source_layer === defaultLayer) continue;
@@ -1956,18 +2277,15 @@ class ScheduleStateCard extends HTMLElement {
             }
 
             if (coveringBlocks.length > 0) {
-                // Sort by layer priority FIRST (later layer index = higher priority)
-                // Then by event_idx (descending) 
+                // Sort by layer priority
                 coveringBlocks.sort((a, b) => {
                     const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
                     const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
 
-                    // Different layers: higher index = higher priority
                     if (layerIdxA !== layerIdxB) {
                         return layerIdxB - layerIdxA;
                     }
 
-                    // Same layer: higher event_idx takes priority
                     const aIdx = a.event_idx !== undefined ? a.event_idx : -1;
                     const bIdx = b.event_idx !== undefined ? b.event_idx : -1;
                     return bIdx - aIdx;
@@ -1976,14 +2294,15 @@ class ScheduleStateCard extends HTMLElement {
                 const coveringBlock = coveringBlocks[0];
                 const segStartStr = this._minutesToTime(segStart);
                 const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+
                 result.push({
                     ...coveringBlock,
                     start: segStartStr,
                     end: segEndStr,
-                    is_default_bg: false // Conditional blocks are never hatched
+                    is_default_bg: false
                 });
             } else {
-                // No conditional block covers this segment, use default layer
+                // Use default layer for this segment
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeToMinutes(defBlock.start);
                     let defEnd = this.timeToMinutes(defBlock.end);
@@ -1992,12 +2311,13 @@ class ScheduleStateCard extends HTMLElement {
                     if (defStart <= segStart && segEnd <= defEnd) {
                         const segStartStr = this._minutesToTime(segStart);
                         const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+
                         result.push({
                             ...defBlock,
                             start: segStartStr,
                             end: segEndStr,
                             _source_layer: defaultLayer,
-                            is_default_bg: true // Mark as default layer block
+                            is_default_bg: true
                         });
                         break;
                     }
@@ -2007,6 +2327,7 @@ class ScheduleStateCard extends HTMLElement {
 
         return result;
     }
+
     /**
      * Format a time value in minutes to HH:MM format
      * Centralizes time formatting to ensure consistency
@@ -2041,13 +2362,12 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     ensureTooltipElement() {
-        // Check if tooltip already exists in memory
+        // MEMORY FIX: Attach tooltip to shadowRoot instead of document.body
+        // This ensures automatic cleanup when the component disconnects
         if (!this.tooltipElement) {
-            // Create tooltip element only once
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
 
-            // Set all styles as inline CSS to avoid FOUC (Flash of Unstyled Content)
             this.tooltipElement.style.cssText = `
                 position:fixed;
                 background:var(--primary-background-color,#1a1a1a);
@@ -2065,11 +2385,10 @@ class ScheduleStateCard extends HTMLElement {
                 display:none;
             `;
 
-            // Append to document body (do this only once)
-            document.body.appendChild(this.tooltipElement);
+            // CHANGED: Append to shadowRoot instead of document.body
+            this.shadowRoot.appendChild(this.tooltipElement);
         }
 
-        // Return the reused element
         return this.tooltipElement;
     }
 
@@ -2121,25 +2440,17 @@ class ScheduleStateCard extends HTMLElement {
     showTooltip(event, text) {
         const tooltip = this.ensureTooltipElement();
 
+        // SECURITY FIX: Use textContent instead of innerHTML to prevent XSS
+        // This eliminates all HTML/script injection vectors since no HTML parsing occurs
         const decoded = this.decodeHtmlEntities(text);
         const textWithNewlines = decoded.replace(/\\n/g, "\n");
-        // Sanitize the HTML before setting innerHTML
-        const coloredHtml = this.colorizeParentheses(textWithNewlines);
 
-        // Additional safety: strip any script tags or event handlers that might have slipped through
-        const sanitized = coloredHtml
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-            .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-            .replace(/on\w+\s*=\s*[^\s>]*/gi, '');
-
-        // Set innerHTML with sanitized content
-        tooltip.innerHTML = sanitized;
+        tooltip.textContent = textWithNewlines;
 
         const x = event.clientX;
         const y = event.clientY;
         const tooltipRect = tooltip.getBoundingClientRect();
 
-        // Use centralized constants for positioning
         let top = y - tooltipRect.height - LAYOUT_CONSTANTS.TOOLTIP_OFFSET_Y;
         if (top < 0) top = y + LAYOUT_CONSTANTS.TOOLTIP_OFFSET_Y;
 
@@ -2368,25 +2679,32 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _filterLayersForDisplay(allLayers, entityId, layersMetadata) {
-        // Initialize with default COLLAPSED state (false = collapsed)
+        // Initialize visibility state with default collapsed state
         this._state.initializeLayerVisibility(entityId, false);
         const isExpanded = this._state.isLayerVisible(entityId);
         const result = [];
 
-        // When collapsed (false), show ONLY the combined layer (Σ)
+        // When COLLAPSED (false), show ONLY the combined layer (Σ)
         if (!isExpanded) {
             return allLayers.filter(l => l.is_combined_layer === true);
         }
 
-        // When expanded (true), show default + conditional layers
-        // (combined layer is added at the end)
+        // When EXPANDED (true), display in CORRECT ORDER:
+
+        // 1. Layer 0 (DEFAULT) - ALWAYS FIRST
+        const defaultLayer = allLayers.find(l => l.is_default_layer);
+        if (defaultLayer) {
+            result.push(defaultLayer);
+        }
+
+        // 2. Conditional layers (Layer 1, 2, 3, etc.) - in order
         for (const layer of allLayers) {
-            if (!layer.is_combined_layer) {
+            if (!layer.is_default_layer && !layer.is_combined_layer) {
                 result.push(layer);
             }
         }
 
-        // Add combined layer at the end
+        // 3. Combined layer (Σ) - ALWAYS LAST
         const combinedLayer = allLayers.find(l => l.is_combined_layer);
         if (combinedLayer) {
             result.push(combinedLayer);
@@ -2544,18 +2862,19 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _renderBlock(block, currentLayer, meta, top, containerWidth, unitOfMeasurement, isSelectedDayToday) {
-        // Normalize block times
+        // PERFORMANCE OPTIMIZATION: Use cached block metrics
+        // This eliminates redundant time parsing and calculations
+        const metrics = this._getBlockMetrics(block);
         const {
             startMin,
-            endMin
-        } = this._normalizeBlockTimes(block);
-
-        // Calculate dimensions
+            endMin,
+            dimensions,
+            borderRadius
+        } = metrics;
         const {
             left,
             width
-        } = this._calculateBlockDimensions(startMin, endMin);
-        const borderRadius = this._calculateBorderRadius(width, startMin, endMin, block.is_default_bg);
+        } = dimensions;
 
         // Get state and color
         const rawState = block.state_value || "";
@@ -2576,15 +2895,26 @@ class ScheduleStateCard extends HTMLElement {
         const color = block.color || colorData.color;
         const textColor = colorData.textColor;
 
-        // Build CSS classes
+        // Build CSS classes - PRESERVE HATCHING FOR DEFAULT BLOCKS IN COMBINED LAYER
         let blockClass = "schedule-block";
+
+        // Add layer-specific styling
         if (meta.isCombined) {
             blockClass += " combined-layer-block sch-z-combined";
+
+            // CRITICAL FIX: Preserve hatching pattern for default blocks in combined layer
+            if (block.is_default_bg) {
+                blockClass += " default-block";
+            }
         } else if (block.is_default_bg) {
+            // Default layer: add hatching
             blockClass += " default-block sch-z-default";
         } else {
+            // Conditional layer: solid color
             blockClass += " sch-z-layer";
         }
+
+        // Add dynamic indicator
         if (isDynamic) blockClass += " dynamic";
 
         // Build styles
@@ -2625,6 +2955,11 @@ class ScheduleStateCard extends HTMLElement {
 
         // Invalidate DOM cache for next render
         this._state.invalidateDOMCache();
+
+        // PERFORMANCE FIX: Clear block metrics cache for fresh calculations on new render
+        if (this._blockMetricsCache) {
+            this._blockMetricsCache.clear();
+        }
 
         let timelines = "";
 
@@ -2825,16 +3160,27 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     disconnectedCallback() {
+        /**
+         * Complete cleanup when component is removed from DOM
+         * Ensures no memory leaks or lingering resources
+         */
+
         // Stop timeline updates
         this.stopTimelineUpdate();
 
-        // ✅ COMPLETE CLEANUP VIA CENTRALIZED STATE
+        // âœ… COMPLETE CLEANUP VIA CENTRALIZED STATE
         this._state.resetOnDisconnect();
 
         // Clean up UI elements
         if (this.tooltipElement) {
             this.tooltipElement.remove();
             this.tooltipElement = null;
+        }
+
+        // PERFORMANCE FIX: Clear metrics cache to free memory
+        if (this._blockMetricsCache) {
+            this._blockMetricsCache.clear();
+            this._blockMetricsCache = null;
         }
 
         // Detach remaining listeners
@@ -2912,10 +3258,6 @@ class ScheduleStateCardEditor extends HTMLElement {
         if (this._config?.entities && !this.shadowRoot.querySelector("ha-card")) {
             this.render();
         }
-    }
-
-    _clearCaches() {
-        this._iconsCache = null;
     }
 
     getFilteredEntities(filterText) {
@@ -3008,6 +3350,14 @@ class ScheduleStateCardEditor extends HTMLElement {
     }
 
     isValidHex(hex) {
+        if (!hex || typeof hex !== 'string') return false;
+        
+        // Accept CSS variables with fallback colors
+        if (hex.includes('var(')) {
+            return true; // CSS variables are valid
+        }
+        
+        // Accept hex color format (#RRGGBB)
         return /^#[0-9A-F]{6}$/i.test(hex);
     }
 
@@ -3439,7 +3789,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.1.0 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.1.1 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
