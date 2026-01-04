@@ -6,6 +6,11 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 - This project includes a `schedule-state-card.js` card with integrated visual editor support.
 
+- Home Assistant theme support
+
+![White](.img/white.png)
+![Dark](.img/dark.png)
+
 ## Features
 
 - 📅 **Weekly Schedule Visualization** - View your complete schedule for each day of the week
