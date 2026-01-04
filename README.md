@@ -2,7 +2,7 @@
 
 A powerful Home Assistant custom card that visualizes schedules with dynamic state values and conditions. Perfect for displaying HVAC setpoints, lighting schedules, or any time-based automation planning.
 
-![Schedule State Card](.imgcard.gif)
+![Schedule State Card](.img/card.gif)
 
 - This project includes a `schedule-state-card.js` card with integrated visual editor support.
 
