@@ -497,7 +497,13 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_OFFSET_Y: 25,
     TOOLTIP_MARGIN_X: 10,
     TOOLTIP_HIDE_DELAY_MS: 50,
-    TOOLTIP_SHOW_DELAY_MS: 200
+    TOOLTIP_SHOW_DELAY_MS: 200,
+    TOGGLE_LOCK_MS: 300,
+    HOURS_TO_SHOW: [6, 12, 18],
+    MAX_ENTITIES: 50,
+    MIN_BLOCK_WIDTH_PX: 30,
+    TEXT_CHAR_WIDTH_PX: 6,
+    TEXT_CHAR_MARGIN: 2
 };
 
 /**
@@ -884,6 +890,10 @@ class ScheduleStateCard extends HTMLElement {
         if (!Array.isArray(entities)) {
             throw new Error("Invalid configuration: entities must be an array");
         }
+        if (entities.length > LAYOUT_CONSTANTS.MAX_ENTITIES) {
+            console.warn(`Schedule State Card: Too many entities (${entities.length}), limiting to ${LAYOUT_CONSTANTS.MAX_ENTITIES}`);
+            entities = entities.slice(0, LAYOUT_CONSTANTS.MAX_ENTITIES);
+        }
 
         const validatedEntities = entities
             .map((e, idx) => this._validateEntity(e, idx))
@@ -1087,7 +1097,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     getCardSize() {
-        return this.config.entities.length + 2;
+        return this._config.entities.length + 2;
     }
 
     getDays() {
@@ -1683,7 +1693,7 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         // Plain numbers (for opacity, etc)
-        if (/^\d+(\.\d+)?$/.test(original)) {
+        if (/^\d+(\.\d+)?(px|em|rem|%|vh|vw|ch)?$/.test(original)) {
             return original;
         }
 
@@ -1705,10 +1715,10 @@ class ScheduleStateCard extends HTMLElement {
 
     truncateText(text, maxWidthPx) {
         if (!text || typeof text !== "string") return text;
-        if (maxWidthPx < 30) return "...";
+        if (maxWidthPx < LAYOUT_CONSTANTS.MIN_BLOCK_WIDTH_PX) return "...";
 
-        const charWidth = 6;
-        const maxChars = Math.floor(maxWidthPx / charWidth) - 2;
+        const maxChars = Math.floor(maxWidthPx / LAYOUT_CONSTANTS.TEXT_CHAR_WIDTH_PX) 
+                         - LAYOUT_CONSTANTS.TEXT_CHAR_MARGIN;
 
         if (maxChars <= 0) return "...";
         if (text.length <= maxChars) return text;
@@ -1740,11 +1750,6 @@ class ScheduleStateCard extends HTMLElement {
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
         result = this._evalMath(result);
         return String(result).trim();
-    }
-
-    _clearCaches() {
-        this._colorCache.clear();
-        this._domCache = null;
     }
 
     getCachedDOMMetrics() {
@@ -2225,7 +2230,7 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         const result = [];
-        const breakpoints = new Set([0, 1440]);
+        const breakpoints = new Set([0, LAYOUT_CONSTANTS.MINUTES_PER_DAY]);
 
         // Collect breakpoints from conditional blocks
         for (const layer of activeConditionalLayers) {
@@ -2234,7 +2239,7 @@ class ScheduleStateCard extends HTMLElement {
 
                 const startMin = this.timeToMinutes(block.start);
                 let endMin = this.timeToMinutes(block.end);
-                if (block.end === '00:00' && endMin === 0) endMin = 1440;
+                if (block.end === '00:00' && endMin === 0) endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
 
                 breakpoints.add(startMin);
                 breakpoints.add(endMin);
@@ -2246,7 +2251,7 @@ class ScheduleStateCard extends HTMLElement {
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeToMinutes(defBlock.start);
             let defEnd = this.timeToMinutes(defBlock.end);
-            if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+            if (defBlock.end === '00:00' && defEnd === 0) defEnd = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
 
             breakpoints.add(defStart);
             breakpoints.add(defEnd);
@@ -2266,7 +2271,7 @@ class ScheduleStateCard extends HTMLElement {
 
                 const blockStart = this.timeToMinutes(block.start);
                 let blockEnd = this.timeToMinutes(block.end);
-                if (block.end === '00:00' && blockEnd === 0) blockEnd = 1440;
+                if (block.end === '00:00' && blockEnd === 0) blockEnd = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
 
                 if (blockStart <= segStart && segEnd <= blockEnd) {
                     coveringBlocks.push(block);
@@ -2290,7 +2295,7 @@ class ScheduleStateCard extends HTMLElement {
 
                 const coveringBlock = coveringBlocks[0];
                 const segStartStr = this._minutesToTime(segStart);
-                const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                const segEndStr = segEnd === LAYOUT_CONSTANTS.MINUTES_PER_DAY ? '00:00' : this._minutesToTime(segEnd);
 
                 result.push({
                     ...coveringBlock,
@@ -2303,11 +2308,11 @@ class ScheduleStateCard extends HTMLElement {
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeToMinutes(defBlock.start);
                     let defEnd = this.timeToMinutes(defBlock.end);
-                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = 1440;
+                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
 
                     if (defStart <= segStart && segEnd <= defEnd) {
                         const segStartStr = this._minutesToTime(segStart);
-                        const segEndStr = segEnd === 1440 ? '00:00' : this._minutesToTime(segEnd);
+                        const segEndStr = segEnd === LAYOUT_CONSTANTS.MINUTES_PER_DAY ? '00:00' : this._minutesToTime(segEnd);
 
                         result.push({
                             ...defBlock,
@@ -2489,7 +2494,7 @@ class ScheduleStateCard extends HTMLElement {
 
         setTimeout(() => {
             this._isToggling = false;
-        }, 300);
+        }, LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
     }
 
     /**
@@ -2579,7 +2584,7 @@ class ScheduleStateCard extends HTMLElement {
             // Tooltip hide on mouse leave
             else if (e.type === "mouseout") {
                 this.clearTooltipTimer();
-                setTimeout(() => this.hideTooltip(), 50);
+                setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_HIDE_DELAY_MS);
             }
         };
 
@@ -2711,15 +2716,13 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _renderHourLabels() {
-        const use12HourFormat = this.use12HourFormat();
         const hours = Array.from({
             length: 24
         }, (_, i) => i);
 
-        // In 12-hour format, show labels at different hours for better spacing
-        const hoursToShow = use12HourFormat ? [6, 12, 18] // 6 AM, 12 PM, 6 PM
-            :
-            [6, 12, 18]; // Same spacing for 24h, but formatHour will render as "6h", "12h", "18h"
+        // Show labels at these hours for optimal spacing
+        // formatHour() handles both 12h (AM/PM) and 24h formats
+        const hoursToShow = LAYOUT_CONSTANTS.HOURS_TO_SHOW;
 
         return hours.map(h =>
             hoursToShow.includes(h) ?
