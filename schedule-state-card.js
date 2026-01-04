@@ -375,6 +375,9 @@ const DEFAULT_COLORS = {
     cursor: "var(--label-badge-yellow, #FDD835)"
 };
 
+const DAY_MAP = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
 /**
  * Centralized translation patterns for condition text
  * Maps regex patterns to their translation handlers
@@ -490,7 +493,6 @@ const LAYOUT_CONSTANTS = {
     DEBOUNCE_DELAY_MS: 500,
     TIMELINE_UPDATE_INTERVAL_MS: 60000, // 1 minute
     MINUTES_PER_DAY: 1440, // 24 * 60
-    FULL_ROTATION_DEGREES: 360,
     COLOR_HUE_INCREMENT: 60,
     TOOLTIP_OFFSET_Y: 25,
     TOOLTIP_MARGIN_X: 10,
@@ -733,22 +735,27 @@ class AppState {
 
 class ScheduleStateCard extends HTMLElement {
     static get BLOCK_HEIGHT() {
-        return 20;
+        return LAYOUT_CONSTANTS.BLOCK_HEIGHT;
     }
+
     static get VERTICAL_GAP() {
-        return 8;
+        return LAYOUT_CONSTANTS.VERTICAL_GAP;
     }
+
     static get TOP_MARGIN() {
-        return 4;
+        return LAYOUT_CONSTANTS.TOP_MARGIN;
     }
+
     static get BOTTOM_MARGIN() {
-        return 20;
+        return LAYOUT_CONSTANTS.BOTTOM_MARGIN;
     }
+
     static get ICON_COLUMN_WIDTH() {
-        return 28;
+        return LAYOUT_CONSTANTS.ICON_COLUMN_WIDTH;
     }
+
     static get MOUSE_STABILIZATION_DELAY() {
-        return 200;
+        return LAYOUT_CONSTANTS.MOUSE_STABILIZATION_DELAY;
     }
 
     constructor() {
@@ -1080,12 +1087,12 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     getCardSize() {
-        return 8;
+        return this.config.entities.length + 2;
     }
 
     getDays() {
-        const dayTranslations = TRANSLATIONS[this.getLanguage()]?.days || TRANSLATIONS.en.days;
-        return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(id => ({
+        const dayTranslations = this.t("days");
+        return DAY_ORDER.map(id => ({
             id,
             label: dayTranslations[id]
         }));
@@ -1093,9 +1100,8 @@ class ScheduleStateCard extends HTMLElement {
 
     getCurrentTime() {
         const now = new Date();
-        const dayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
         return {
-            day: dayMap[now.getDay()],
+            day: DAY_MAP[now.getDay()],
             hours: String(now.getHours()).padStart(2, "0"),
             minutes: String(now.getMinutes()).padStart(2, "0")
         };
@@ -1285,7 +1291,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Calculate percentage of day elapsed
      * Centralizes time percentage calculation
-     * Add this as a new helper method
      * 
      * @param {Object} timeObj - Object with hours and minutes
      * @returns {number} Percentage of day (0-100)
@@ -1303,7 +1308,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Validate and normalize time bounds for a block
      * Centralizes time validation logic
-     * Add this as a new helper method
      * 
      * @param {Object} block - Block object with start and end times
      * @returns {Object} Normalized block with startMin and endMin
@@ -1329,7 +1333,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Calculate block position and width as percentages
      * Centralizes block dimension calculations
-     * Add this as a new helper method
      * 
      * @param {number} startMin - Start time in minutes
      * @param {number} endMin - End time in minutes
@@ -1348,7 +1351,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Determine border radius based on block position and type
      * Centralizes border radius logic
-     * Add this as a new helper method
      * 
      * @param {number} width - Block width percentage
      * @param {number} startMin - Block start time in minutes
@@ -1389,7 +1391,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Generate container height based on number of layers
      * Centralizes height calculation logic
-     * Add this as a new helper method
      * 
      * @param {number} layerCount - Number of visible layers
      * @returns {number} Total container height in pixels
@@ -1413,7 +1414,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Build CSS style string for a schedule block
      * Centralizes block styling logic
-     * Add this as a new helper method
      * 
      * @param {Object} params - Style parameters object
      * @returns {string} CSS style string
@@ -1437,7 +1437,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Generate tooltip text for a schedule block
      * Centralizes tooltip generation logic
-     * Add this as a new helper method
      * 
      * @param {Object} params - Tooltip parameters object
      * @returns {string} Formatted tooltip text
@@ -1561,7 +1560,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Generate CSS style string for layer icon
      * Centralizes icon styling logic
-     * Add this as a new helper method
      * 
      * @param {Object} params - Icon style parameters object
      * @returns {string} CSS style string
@@ -1598,7 +1596,6 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Update timeline cursor position if today is selected
      * Centralizes cursor update logic with bounds checking
-     * Add this as a new helper method
      * 
      * @param {number} timePercentage - Current time as percentage of day
      */
@@ -3063,8 +3060,8 @@ class ScheduleStateCard extends HTMLElement {
         const days = this.getDays();
         const showTitle = this._config.title?.trim().length > 0;
 
-        const blockHeight = ScheduleStateCard.BLOCK_HEIGHT;
-        const iconColumnWidth = ScheduleStateCard.ICON_COLUMN_WIDTH;
+        const blockHeight = LAYOUT_CONSTANTS.BLOCK_HEIGHT;
+        const iconColumnWidth = LAYOUT_CONSTANTS.ICON_COLUMN_WIDTH;
 
         const additionalStyle = `
             .schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:1!important}
@@ -3210,8 +3207,8 @@ class ScheduleStateCardEditor extends HTMLElement {
     }
 
     getDays() {
-        const dayTranslations = TRANSLATIONS[this.getLanguage()]?.days || TRANSLATIONS.en.days;
-        return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(id => ({
+        const dayTranslations = this.t("days");
+        return DAY_ORDER.map(id => ({
             id,
             label: dayTranslations[id]
         }));
