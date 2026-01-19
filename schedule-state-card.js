@@ -3249,7 +3249,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 ...DEFAULT_COLORS
             };
         }
-        this._clearCaches();
         if (this._hass) this.render();
     }
 
@@ -3797,3 +3796,4 @@ window.customCards.push({
     description: "Visualizes schedules defined via Schedule_state with color customization."
 
 });
+
