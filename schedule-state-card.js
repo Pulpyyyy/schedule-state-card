@@ -3577,6 +3577,8 @@ class ScheduleStateCardEditor extends HTMLElement {
         if (!container) return;
         const filterText = inputElement.value || "";
         let items = "";
+        let existingDropdown = container.querySelector('.suggestions-dropdown');
+        if (existingDropdown) existingDropdown.remove();
         if (type === "entity") {
             const filtered = this.getFilteredEntities(filterText);
             if (filtered.length > 0) {
@@ -3590,8 +3592,6 @@ class ScheduleStateCardEditor extends HTMLElement {
                 items = filtered.map(icon => `<div class="suggestion-item icon-suggestion" data-index="${index}" data-value="${escapeHtml(icon)}"><ha-icon icon="${escapeHtml(icon)}"></ha-icon> ${escapeHtml(icon)}</div>`).join('');
             }
         }
-        let existingDropdown = container.querySelector('.suggestions-dropdown');
-        if (existingDropdown) existingDropdown.remove();
         if (items) {
             const dropdown = document.createElement('div');
             dropdown.className = 'suggestions-dropdown';
@@ -3605,8 +3605,7 @@ class ScheduleStateCardEditor extends HTMLElement {
                     const field = type === "entity" ? "entity" : "icon";
                     this.updateEntity(idx, field, value);
                     inputElement.value = value;
-                    const dd = container.querySelector('.suggestions-dropdown');
-                    if (dd) dd.remove();
+                    dropdown.remove();
                 });
                 item.addEventListener('mouseenter', () => {
                     dropdown.querySelectorAll('.suggestion-item').forEach(i => i.style.background = '');
@@ -3631,128 +3630,179 @@ class ScheduleStateCardEditor extends HTMLElement {
             setTimeout(() => this.attachListeners(), 50);
             return;
         }
-        titleInput.addEventListener("change", (e) => {
+        titleInput.removeEventListener("change", this._titleChangeHandler);
+        this._titleChangeHandler = (e) => {
             this._config.title = e.target.value;
             this.fireConfigChanged();
-        });
-        showStateInput.addEventListener("change", (e) => {
+        };
+        titleInput.addEventListener("change", this._titleChangeHandler);
+        
+        showStateInput.removeEventListener("change", this._showStateChangeHandler);
+        this._showStateChangeHandler = (e) => {
             this._config.show_state_in_title = e.target.checked;
             this.fireConfigChanged();
-        });
-        addBtn.addEventListener("click", () => this.addEntity());
+        };
+        showStateInput.addEventListener("change", this._showStateChangeHandler);
+        addBtn.removeEventListener("click", this._addBtnHandler);
+        this._addBtnHandler = () => this.addEntity();
+        addBtn.addEventListener("click", this._addBtnHandler);
         this.shadowRoot.querySelectorAll(".edit-btn").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                this.toggleEditForm(index);
-            });
+            btn.removeEventListener("click", this._editBtnHandler);
         });
+        this._editBtnHandler = (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            this.toggleEditForm(index);
+        };
+        this.shadowRoot.querySelectorAll(".edit-btn").forEach(btn => {
+            btn.addEventListener("click", this._editBtnHandler);
+        });
+        
         this.shadowRoot.querySelectorAll(".remove-btn").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                const index = parseInt(e.currentTarget.dataset.index);
-                this.removeEntity(index);
-            });
+            btn.removeEventListener("click", this._removeBtnHandler);
+        });
+        this._removeBtnHandler = (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            this.removeEntity(index);
+        };
+        this.shadowRoot.querySelectorAll(".remove-btn").forEach(btn => {
+            btn.addEventListener("click", this._removeBtnHandler);
         });
         this.shadowRoot.querySelectorAll(".entity-input:not(.entity-search):not(.icon-search)").forEach(input => {
-            input.addEventListener("change", (e) => {
-                const index = parseInt(e.target.dataset.index);
-                const field = e.target.dataset.field;
-                this.updateEntity(index, field, e.target.value);
-            });
+            input.removeEventListener("change", this._entityInputHandler);
+        });
+        this._entityInputHandler = (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const field = e.target.dataset.field;
+            this.updateEntity(index, field, e.target.value);
+        };
+        this.shadowRoot.querySelectorAll(".entity-input:not(.entity-search):not(.icon-search)").forEach(input => {
+            input.addEventListener("change", this._entityInputHandler);
         });
         // Entity search listeners - with real-time dropdown updates
         this.shadowRoot.querySelectorAll(".entity-search").forEach(input => {
-            input.addEventListener("focus", (e) => {
-                this.updateDropdown(e.target, "entity");
-            });
-            input.addEventListener("input", (e) => {
-                this.updateDropdown(e.target, "entity");
-            });
-            input.addEventListener("blur", (e) => {
-                setTimeout(() => {
-                    const container = e.target.closest('.input-with-suggestions');
-                    if (container) {
-                        const dropdown = container.querySelector('.suggestions-dropdown');
-                        if (dropdown) dropdown.remove();
-                    }
-                }, 150);
-            });
-            input.addEventListener("keydown", (e) => {
-                if (e.key === "Escape") {
-                    const container = e.target.closest('.input-with-suggestions');
-                    if (container) {
-                        const dropdown = container.querySelector('.suggestions-dropdown');
-                        if (dropdown) dropdown.remove();
-                    }
+            input.removeEventListener("focus", this._entitySearchFocus);
+            input.removeEventListener("input", this._entitySearchInput);
+            input.removeEventListener("blur", this._entitySearchBlur);
+            input.removeEventListener("keydown", this._entitySearchKeydown);
+        });
+        this._entitySearchFocus = (e) => this.updateDropdown(e.target, "entity");
+        this._entitySearchInput = (e) => this.updateDropdown(e.target, "entity");
+        this._entitySearchBlur = (e) => {
+            setTimeout(() => {
+                const container = e.target.closest('.input-with-suggestions');
+                if (container) {
+                    const dropdown = container.querySelector('.suggestions-dropdown');
+                    if (dropdown) dropdown.remove();
                 }
-            });
+            }, 150);
+        };
+        this._entitySearchKeydown = (e) => {
+            if (e.key === "Escape") {
+                const container = e.target.closest('.input-with-suggestions');
+                if (container) {
+                    const dropdown = container.querySelector('.suggestions-dropdown');
+                    if (dropdown) dropdown.remove();
+                }
+            }
+        };
+        this.shadowRoot.querySelectorAll(".entity-search").forEach(input => {
+            input.addEventListener("focus", this._entitySearchFocus);
+            input.addEventListener("input", this._entitySearchInput);
+            input.addEventListener("blur", this._entitySearchBlur);
+            input.addEventListener("keydown", this._entitySearchKeydown);
         });
         // Icon search listeners - with real-time dropdown updates
         this.shadowRoot.querySelectorAll(".icon-search").forEach(input => {
-            input.addEventListener("focus", (e) => {
-                this.updateDropdown(e.target, "icon");
-            });
-            input.addEventListener("input", (e) => {
-                this.updateDropdown(e.target, "icon");
-            });
-            input.addEventListener("blur", (e) => {
-                setTimeout(() => {
-                    const container = e.target.closest('.input-with-suggestions');
-                    if (container) {
-                        const dropdown = container.querySelector('.suggestions-dropdown');
-                        if (dropdown) dropdown.remove();
-                    }
-                }, 150);
-            });
-            input.addEventListener("keydown", (e) => {
-                if (e.key === "Escape") {
-                    const container = e.target.closest('.input-with-suggestions');
-                    if (container) {
-                        const dropdown = container.querySelector('.suggestions-dropdown');
-                        if (dropdown) dropdown.remove();
-                    }
-                }
-            });
+            input.removeEventListener("focus", this._iconSearchFocus);
+            input.removeEventListener("input", this._iconSearchInput);
+            input.removeEventListener("blur", this._iconSearchBlur);
+            input.removeEventListener("keydown", this._iconSearchKeydown);
         });
+        this._iconSearchFocus = (e) => this.updateDropdown(e.target, "icon");
+        this._iconSearchInput = (e) => this.updateDropdown(e.target, "icon");
+        this._iconSearchBlur = (e) => {
+            setTimeout(() => {
+                const container = e.target.closest('.input-with-suggestions');
+                if (container) {
+                    const dropdown = container.querySelector('.suggestions-dropdown');
+                    if (dropdown) dropdown.remove();
+                }
+            }, 150);
+        };
+        this._iconSearchKeydown = (e) => {
+            if (e.key === "Escape") {
+                const container = e.target.closest('.input-with-suggestions');
+                if (container) {
+                    const dropdown = container.querySelector('.suggestions-dropdown');
+                    if (dropdown) dropdown.remove();
+                }
+            }
+        };
         // Color picker button listeners
-        this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                const colorKey = e.currentTarget.dataset.colorkey;
-                this.toggleColorPicker(colorKey);
-            });
+        this.shadowRoot.querySelectorAll(".icon-search").forEach(input => {
+            input.addEventListener("focus", this._iconSearchFocus);
+            input.addEventListener("input", this._iconSearchInput);
+            input.addEventListener("blur", this._iconSearchBlur);
+            input.addEventListener("keydown", this._iconSearchKeydown);
         });
         // Color hex input listeners
+        this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
+            btn.removeEventListener("click", this._colorPickerBtnHandler);
+        });
+        this._colorPickerBtnHandler = (e) => {
+            const colorKey = e.currentTarget.dataset.colorkey;
+            this.toggleColorPicker(colorKey);
+        };
+        this.shadowRoot.querySelectorAll(".color-picker-btn").forEach(btn => {
+            btn.addEventListener("click", this._colorPickerBtnHandler);
+        });
+        
         this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
-            input.addEventListener("change", (e) => {
-                const colorKey = e.target.dataset.colorkey;
-                let value = e.target.value.toUpperCase();
-                if (!this.isValidHex(value)) {
-                    value = DEFAULT_COLORS[colorKey];
-                }
-                e.target.value = value;
-                this.updateColor(colorKey, value);
-            });
-            input.addEventListener("input", (e) => {
-                const colorKey = e.target.dataset.colorkey;
-                const preview = this.shadowRoot.querySelector(`.color-preview[data-colorkey="${colorKey}"]`);
-                let value = e.target.value.toUpperCase();
-                if (this.isValidHex(value)) {
-                    preview.style.backgroundColor = value;
-                }
-            });
+            input.removeEventListener("change", this._colorHexChangeHandler);
+            input.removeEventListener("input", this._colorHexInputHandler);
+        });
+        this._colorHexChangeHandler = (e) => {
+            const colorKey = e.target.dataset.colorkey;
+            let value = e.target.value.toUpperCase();
+            if (!this.isValidHex(value)) {
+                value = DEFAULT_COLORS[colorKey];
+            }
+            e.target.value = value;
+            this.updateColor(colorKey, value);
+        };
+        this._colorHexInputHandler = (e) => {
+            const colorKey = e.target.dataset.colorkey;
+            const preview = this.shadowRoot.querySelector(`.color-preview[data-colorkey="${colorKey}"]`);
+            let value = e.target.value.toUpperCase();
+            if (this.isValidHex(value)) {
+                preview.style.backgroundColor = value;
+            }
+        };
+        this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
+            input.addEventListener("change", this._colorHexChangeHandler);
+            input.addEventListener("input", this._colorHexInputHandler);
         });
         // Color preview listeners
         this.shadowRoot.querySelectorAll(".color-preview").forEach(preview => {
-            preview.addEventListener("click", (e) => {
-                const colorKey = e.currentTarget.dataset.colorkey;
-                this.toggleColorPicker(colorKey);
-            });
+            preview.removeEventListener("click", this._colorPreviewHandler);
+        });
+        this._colorPreviewHandler = (e) => {
+            const colorKey = e.currentTarget.dataset.colorkey;
+            this.toggleColorPicker(colorKey);
+        };
+        this.shadowRoot.querySelectorAll(".color-preview").forEach(preview => {
+            preview.addEventListener("click", this._colorPreviewHandler);
         });
         // Color picker overlay close listener
         this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
-            overlay.addEventListener("click", () => {
-                this._colorPickerOpen = null;
-                this.render();
-            });
+            overlay.removeEventListener("click", this._colorOverlayHandler);
+        });
+        this._colorOverlayHandler = () => {
+            this._colorPickerOpen = null;
+            this.render();
+        };
+        this.shadowRoot.querySelectorAll(".color-picker-overlay").forEach(overlay => {
+            overlay.addEventListener("click", this._colorOverlayHandler);
         });
         // Color wheel canvas rendering and interaction
         this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
@@ -3760,35 +3810,45 @@ class ScheduleStateCardEditor extends HTMLElement {
             // Draw the color wheel
             this.drawColorWheel(canvas, colorKey);
             // Click to select color
-            canvas.addEventListener("click", (e) => this.handleWheelClick(e, colorKey));
+            canvas.removeEventListener("click", this._colorWheelClickHandler);
             // Drag to select color
-            canvas.addEventListener("mousemove", (e) => {
-                if (e.buttons === 1) this.handleWheelClick(e, colorKey);
-            });
+            canvas.removeEventListener("mousemove", this._colorWheelMoveHandler);
+        });
+        this._colorWheelClickHandler = (e) => this.handleWheelClick(e, e.target.dataset.colorkey);
+        this._colorWheelMoveHandler = (e) => {
+            if (e.buttons === 1) this.handleWheelClick(e, e.target.dataset.colorkey);
+        };
+        this.shadowRoot.querySelectorAll(".color-wheel").forEach(canvas => {
+            canvas.addEventListener("click", this._colorWheelClickHandler);
+            canvas.addEventListener("mousemove", this._colorWheelMoveHandler);
         });
         // Brightness slider listeners
         this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
-            slider.addEventListener("input", (e) => {
-                const colorKey = e.target.dataset.colorkey;
-                const v = parseInt(e.target.value);
-                const valueDisplay = this.shadowRoot.querySelector(`#brightness-value-${colorKey}`);
-                if (valueDisplay) valueDisplay.textContent = v;
-                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
-                const rgb = this.hexToRgb(currentColor);
-                if (rgb) {
-                    const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
-                    const newRgb = this.hsvToRgb(hsv.h, hsv.s, v);
-                    const hex = this.rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-                    this.updateColor(colorKey, hex);
-                }
-            });
+            slider.removeEventListener("input", this._brightnessSliderHandler);
+        });
+        this._brightnessSliderHandler = (e) => {
+            const colorKey = e.target.dataset.colorkey;
+            const v = parseInt(e.target.value);
+            const valueDisplay = this.shadowRoot.querySelector(`#brightness-value-${colorKey}`);
+            if (valueDisplay) valueDisplay.textContent = v;
+            const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+            const rgb = this.hexToRgb(currentColor);
+            if (rgb) {
+                const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
+                const newRgb = this.hsvToRgb(hsv.h, hsv.s, v);
+                const hex = this.rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                this.updateColor(colorKey, hex);
+            }
+        };
+        this.shadowRoot.querySelectorAll(".brightness-slider").forEach(slider => {
+            slider.addEventListener("input", this._brightnessSliderHandler);
         });
     }
 }
 
 customElements.define("schedule-state-card", ScheduleStateCard);
 customElements.define("schedule-state-card-editor", ScheduleStateCardEditor);
-console.info("%c Schedule State Card %c v1.1.2 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c Schedule State Card %c v1.1.3 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
@@ -3796,5 +3856,3 @@ window.customCards.push({
     description: "Visualizes schedules defined via Schedule_state with color customization."
 
 });
-
-
