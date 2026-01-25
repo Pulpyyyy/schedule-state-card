@@ -29,6 +29,44 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 📱 **Responsive Design** - Adapts seamlessly to different screen sizes
 - 🔄 **Smart Debouncing** - Optimized performance with intelligent update handling
 - 📋 **State Display in Title** - Toggle to show current state value in card header
+- 🔀 **Dual Layout Modes** - Switch between "By Entities" and "By Days" view layouts
+
+## Layout Modes
+
+The card supports two different layout modes to suit your viewing preferences:
+
+![Layout](.img/layout.png)
+
+### By Entities Layout (Default)
+- Shows all days of the week for a selected entity
+- Perfect when you want to see the complete weekly schedule for one specific entity
+- Use case: Compare how a thermostat schedule varies throughout the week
+- Switch between entities using the entity selector dropdown
+
+### By Days Layout
+- Shows all entities for a selected day
+- Perfect when you want to see multiple entities scheduled for the same day
+- Use case: View all scheduled tasks/temperatures for a specific day
+- Switch between days using the day selector buttons
+
+### Switching Layouts
+
+You can change the layout in two ways:
+
+1. **Visual Editor** - Open the card editor and select the desired layout from the "Layout" dropdown
+2. **YAML Configuration** - Set the `layout` option:
+
+```yaml
+type: custom:schedule-state-card
+title: "My Schedules"
+layout: "entities"  # or "days"
+entities:
+  - entity: sensor.schedule_living_room
+```
+
+#### Layout Options
+- `entities` - Display entities horizontally, days vertically (default)
+- `days` - Display days horizontally, entities vertically
   
 ## Installation
 
@@ -44,11 +82,13 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 [![HACS Installation](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=schedule-state-card&category=plugin)
 
-### Basic Configuration
+### Complete Configuration Example
 
 ```yaml
 type: custom:schedule-state-card
 title: "My Schedules"
+layout: "entities"
+show_state_in_title: true
 entities:
   - entity: sensor.schedule_living_room
     name: "Living Room"
@@ -56,6 +96,16 @@ entities:
   - entity: sensor.schedule_bedroom
     name: "Bedroom"
     icon: mdi:bed
+  - entity: sensor.schedule_kitchen
+    name: "Kitchen"
+    icon: mdi:chef-hat
+
+colors:
+  active_layer: "#2196F3"
+  inactive_layer: "#BDBDBD"
+  combined_folded_layer: "#FF9800"
+  combined_unfolded_layer: "#2196F3"
+  cursor: "#FDD835"
 ```
 
 ### Configuration Options
@@ -67,6 +117,7 @@ entities:
 | `entities[].entity` | string | Entity ID of the schedule sensor |
 | `entities[].name` | string | Custom display name |
 | `entities[].icon` | string | MDI icon identifier |
+| `layout` | string | Display layout: "entities" (default) or "days" |
 | `show_state_in_title` | boolean | Display current state value in card header (default: true) |
 | `colors` | object | Color configuration (see below) |
 
@@ -99,6 +150,48 @@ colors:
 | `cursor` | Timeline cursor (current time line) | `#FDD835` (Yellow) |
 
 **Note:** Schedule block colors are automatically generated based on their state values, ensuring visual distinction between different states.
+
+### Color Overrides (Manual State-to-Color Mapping)
+
+You can optionally force specific colors for specific state+unit combinations using `color_overrides`. This is useful to ensure consistent colors across multiple cards or to override the automatic color generation:
+
+```yaml
+type: custom:schedule-state-card
+title: "My Schedules"
+entities:
+  - entity: sensor.schedule_living_room
+
+color_overrides:
+  "18|°C":
+    color: "#4CAF50"          # Green for 18°C
+    textColor: "#fff"
+  "102|°F":
+    color: "#FF9800"          # Orange for 102°F
+    textColor: "#fff"
+  "55|€":
+    color: "#2196F3"          # Blue for 55€
+    textColor: "#fff"
+  "off|":
+    color: "#808080"          # Gray for "off" state, no unit
+    textColor: "#fff"
+```
+
+#### How Color Overrides Work
+
+The key format is `"value|unit"`:
+- `"18|°C"` - Matches state value "18" with unit "°C"
+- `"off|"` - Matches state value "off" with no unit (note the empty unit part)
+- `"mode1|"` - Matches text states without units
+
+**Benefits:**
+- ✅ Shared color mapping across all cards (global singleton cache)
+- ✅ Consistent colors for the same values
+- ✅ Better performance (colors calculated once, reused everywhere)
+- ✅ Manual control when automatic colors aren't suitable
+- ✅ Works with all units and state values
+
+**Performance Note:**
+The card uses a global color cache singleton that is shared across all instances. Colors are calculated once and reused, significantly improving performance when multiple cards are displayed with similar state values.
 
 ## Understanding the Schedule Display
 
