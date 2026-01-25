@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.0 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.1 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -761,7 +761,7 @@ class TimeHelper {
     }
 
     getTimePercentage(time) {
-        const totalMinutes = time.hours * 60 + time.minutes;
+        const totalMinutes = parseInt(time.hours, 10) * 60 + parseInt(time.minutes, 10);
         return (totalMinutes / this.MINUTES_PER_DAY) * 100;
     }
 
@@ -1764,7 +1764,18 @@ class ScheduleStateCard extends HTMLElement {
 
         // Create new interval using centralized constant
         this.updateInterval = setInterval(() => {
+            const previousDay = this.currentTime.day;
             this.currentTime = this.getCurrentTime();
+
+            // Auto-sync selectedDay if we were viewing today and day changed (midnight passed)
+            // This ensures cursor remains visible when day transitions
+            if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
+                this.selectedDay = this.currentTime.day;
+                // Re-render content for the new day to update timeline containers
+                this.updateContent();
+                return; // updateContent already calls updateTimeline
+            }
+
             this.updateTimeline();
         }, LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
     }
@@ -1838,16 +1849,6 @@ class ScheduleStateCard extends HTMLElement {
      * Replace the existing updateTimeline method with this one
      */
     updateTimeline() {
-        const containers = this.shadowRoot.querySelectorAll(".timeline-container");
-
-        if (!this.isToday()) {
-            containers.forEach(container => {
-                const cursor = container.querySelector(".time-cursor");
-                if (cursor) cursor.style.display = "none";
-            });
-            return;
-        }
-
         const timePercentage = this.timeHelper.getTimePercentage(this.currentTime);
         this._updateTimelineCursors(timePercentage);
     }
@@ -2148,21 +2149,35 @@ class ScheduleStateCard extends HTMLElement {
      * @param {number} timePercentage - Current time as percentage of day
      */
     _updateTimelineCursors(timePercentage) {
-        if (!this.isToday()) {
-            // Hide all cursors if not today
-            this.shadowRoot?.querySelectorAll(".time-cursor").forEach(cursor => {
-                cursor.style.display = "none";
-            });
+        const allContainers = this.shadowRoot?.querySelectorAll(".blocks-container");
+        if (!allContainers || allContainers.length === 0) {
             return;
         }
 
-        // Show and position cursors
-        const containers = this.shadowRoot?.querySelectorAll(".timeline-container");
-        if (!containers) return;
+        // In layout "entities", each day has its own container with data-day attribute
+        // In layout "days", only one day is shown at a time
+        const currentDay = this.currentTime.day;
 
-        containers.forEach(container => {
+        allContainers.forEach((container) => {
             let cursor = container.querySelector(".time-cursor");
+            const containerDay = container.getAttribute("data-day");
 
+            // Show cursor only if:
+            // - No data-day attribute (layout "days") AND we're viewing today
+            // - data-day matches current day (layout "entities")
+            const shouldShowCursor =
+                (!containerDay && this.isToday()) ||
+                (containerDay === currentDay);
+
+            if (!shouldShowCursor) {
+                // Hide cursor for this container
+                if (cursor) {
+                    cursor.style.display = "none";
+                }
+                return;
+            }
+
+            // Show and position cursor for current day
             if (!cursor) {
                 cursor = document.createElement("div");
                 cursor.className = "time-cursor";
@@ -2865,7 +2880,7 @@ class ScheduleStateCard extends HTMLElement {
         );
 
         // Assembly - simple concatenation
-        return `<div class="room-timeline"><div class="room-header">${headerHtml}</div><div class="timeline-wrapper"><div class="icon-column" style="height:${containerHeight}px;position:relative;">${iconHtml}</div><div class="timeline-container" style="height:${containerHeight}px;flex:1;"><div class="timeline-grid">${hourLabels}</div><div class="blocks-container" style="position:relative;height:${containerHeight}px;">${blockHtml}</div></div></div></div>`;
+        return `<div class="room-timeline"><div class="room-header">${headerHtml}</div><div class="timeline-wrapper"><div class="icon-column" style="height:${containerHeight}px;position:relative;">${iconHtml}</div><div class="timeline-container" style="height:${containerHeight}px;flex:1;"><div class="timeline-grid">${hourLabels}</div><div class="blocks-container" data-day="${dayId || ''}" style="position:relative;height:${containerHeight}px;">${blockHtml}</div></div></div></div>`;
     }
 
     _validateTimelineInputs(roomName, allLayers, entityId) {
@@ -3689,7 +3704,8 @@ class ScheduleStateCard extends HTMLElement {
                 bottom: 0;
                 width: 2px;
                 background-color: var(--label-badge-yellow);
-                z-index: 2;
+                z-index: 999;
+                pointer-events: none;
             }
 
             .combined-layer-toggle {
