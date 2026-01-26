@@ -3704,7 +3704,7 @@ class ScheduleStateCard extends HTMLElement {
                 bottom: 0;
                 width: 2px;
                 background-color: var(--label-badge-yellow);
-                z-index: 999;
+                z-index: 2;
                 pointer-events: none;
             }
 
