@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.1 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.2 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -2815,6 +2815,7 @@ class ScheduleStateCard extends HTMLElement {
 
     attachEntitySelectorListener() {
         const selector = this.shadowRoot.querySelector("#entity-selector");
+
         if (selector) {
             if (this._entitySelectorHandler) {
                 selector.removeEventListener("change", this._entitySelectorHandler);
@@ -2824,6 +2825,40 @@ class ScheduleStateCard extends HTMLElement {
                 this.updateContent();
             };
             selector.addEventListener("change", this._entitySelectorHandler);
+
+            // Force the select to open on click (swipe-card workaround)
+            selector.addEventListener("click", (e) => {
+                e.stopPropagation();
+                // Force the select to open
+                setTimeout(() => {
+                    if (selector.showPicker) {
+                        try {
+                            selector.showPicker();
+                        } catch (err) {
+                            selector.focus();
+                        }
+                    } else {
+                        selector.focus();
+                    }
+                }, 0);
+            }, { capture: true });
+
+            // Prevent swipe-card from intercepting drag/swipe on the selector
+            const handleMove = (e) => {
+                // Block swipe movements, but not clicks
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            };
+
+            selector.addEventListener("touchmove", handleMove, { capture: true, passive: false });
+            selector.addEventListener("mousemove", handleMove, { capture: true });
+
+            // Also protect the wrapper from swipes
+            const wrapper = this.shadowRoot.querySelector(".entity-selector-wrapper");
+            if (wrapper) {
+                wrapper.addEventListener("touchmove", handleMove, { capture: true, passive: false });
+                wrapper.addEventListener("mousemove", handleMove, { capture: true });
+            }
         }
     }
 
@@ -3100,8 +3135,8 @@ class ScheduleStateCard extends HTMLElement {
             .sch-z-layer{z-index:1}
             .sch-z-combined{z-index:1}
             .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
-            .entity-selector-wrapper{margin-bottom: 16px;display:flex;justify-content:center;}
-            .entity-selector{padding:8px 12px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);font-size:14px;min-width:200px;}
+            .entity-selector-wrapper{margin-bottom: 16px;display:flex;justify-content:center;touch-action: manipulation;}
+            .entity-selector{padding:8px 12px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);font-size:14px;min-width:200px;touch-action: manipulation;pointer-events: auto;}
             .entity-selector:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 0 2px var(--primary-color)33;}
         `;
 
