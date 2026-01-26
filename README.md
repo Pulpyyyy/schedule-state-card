@@ -35,7 +35,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 
 The card supports two different layout modes to suit your viewing preferences:
 
-![Layout](.img/layout.png)
+![Layout](.img/layout.gif)
 
 ### By Entities Layout (Default)
 - Shows all days of the week for a selected entity
