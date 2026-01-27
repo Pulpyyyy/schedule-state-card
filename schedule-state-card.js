@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.3 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.4 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -2554,9 +2554,8 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     ensureTooltipElement() {
-        // MEMORY FIX: Attach tooltip to shadowRoot instead of document.body
-        // This ensures automatic cleanup when the component disconnects
-        if (!this.tooltipElement) {
+        // Check if tooltip exists and is still in the DOM
+        if (!this.tooltipElement || !document.body.contains(this.tooltipElement)) {
             this.tooltipElement = document.createElement("div");
             this.tooltipElement.className = "custom-tooltip";
 
@@ -2568,7 +2567,7 @@ class ScheduleStateCard extends HTMLElement {
                 border-radius:4px;
                 border:1px solid var(--divider-color,#333);
                 font-size:12px;
-                z-index:3;
+                z-index:9999;
                 max-width:300px;
                 word-wrap:break-word;
                 box-shadow:0 2px 8px rgba(0,0,0,0.3);
@@ -2577,8 +2576,8 @@ class ScheduleStateCard extends HTMLElement {
                 display:none;
             `;
 
-            // CHANGED: Append to shadowRoot instead of document.body
-            this.shadowRoot.appendChild(this.tooltipElement);
+            // Append to document.body for proper fixed positioning
+            document.body.appendChild(this.tooltipElement);
         }
 
         return this.tooltipElement;
@@ -2639,6 +2638,10 @@ class ScheduleStateCard extends HTMLElement {
 
         tooltip.textContent = textWithNewlines;
 
+        // Temporarily show tooltip to get dimensions (invisible but rendered)
+        tooltip.style.visibility = "hidden";
+        tooltip.style.display = "block";
+
         const x = event.clientX;
         const y = event.clientY;
         const tooltipRect = tooltip.getBoundingClientRect();
@@ -2658,6 +2661,8 @@ class ScheduleStateCard extends HTMLElement {
             tooltip.style.top = top + "px";
         }
 
+        // Make tooltip visible
+        tooltip.style.visibility = "visible";
         tooltip.style.display = "block";
     }
 
