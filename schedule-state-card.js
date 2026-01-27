@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.2 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.3 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -8,23 +8,47 @@ const DEBUG_MODE = typeof window !== 'undefined' && window.location?.search?.inc
 
 /**
  * Conditional logger - only logs in debug mode
+ * @param {string} prefix - Optional entity name prefix (e.g., entity friendly name)
+ * @param {...any} args - Arguments to log
  */
-const debugLog = (...args) => {
-    if (DEBUG_MODE) console.log('[ScheduleStateCard DEBUG]', ...args);
+const debugLog = (prefix = '', ...args) => {
+    if (DEBUG_MODE) {
+        if (prefix && typeof prefix === 'string' && prefix !== '') {
+            console.log('[ScheduleStateCard DEBUG]', `[${prefix}]`, ...args);
+        } else {
+            console.log('[ScheduleStateCard DEBUG]', ...args);
+        }
+    }
 };
 
 /**
  * Conditional warn - only warns in debug mode
+ * @param {string} prefix - Optional entity name prefix (e.g., entity friendly name)
+ * @param {string} msg - Warning message
+ * @param {...any} args - Additional arguments
  */
-const debugWarn = (msg, ...args) => {
-    if (DEBUG_MODE) console.warn('[ScheduleStateCard WARN]', msg, ...args);
+const debugWarn = (prefix = '', msg, ...args) => {
+    if (DEBUG_MODE) {
+        if (prefix && typeof prefix === 'string' && prefix !== '') {
+            console.warn('[ScheduleStateCard WARN]', `[${prefix}]`, msg, ...args);
+        } else {
+            console.warn('[ScheduleStateCard WARN]', msg, ...args);
+        }
+    }
 };
 
 /**
  * Error logger - always logs errors
+ * @param {string} prefix - Optional entity name prefix (e.g., entity friendly name)
+ * @param {string} msg - Error message
+ * @param {...any} args - Additional arguments
  */
-const errorLog = (msg, ...args) => {
-    console.error('[ScheduleStateCard ERROR]', msg, ...args);
+const errorLog = (prefix = '', msg, ...args) => {
+    if (prefix && typeof prefix === 'string' && prefix !== '') {
+        console.error('[ScheduleStateCard ERROR]', `[${prefix}]`, msg, ...args);
+    } else {
+        console.error('[ScheduleStateCard ERROR]', msg, ...args);
+    }
 };
 
 /**
@@ -1479,6 +1503,21 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
+     * Get the friendly name of an entity for logging purposes
+     * @param {string} entityId - Home Assistant entity ID
+     * @returns {string} Friendly name or entity ID if not found
+     */
+    getEntityNameForLog(entityId) {
+        if (!entityId) return '';
+        if (!this._hass || !this._hass.states) return entityId;
+
+        const stateObj = this._hass.states[entityId];
+        if (!stateObj) return entityId;
+
+        return stateObj.attributes?.friendly_name || entityId;
+    }
+
+    /**
      * Toggle layer visibility for an entity on a specific day
      * @param {string} entityId - Home Assistant entity ID
      * @param {string} dayId - Day identifier
@@ -1486,11 +1525,18 @@ class ScheduleStateCard extends HTMLElement {
     toggleLayerVisibility(entityId, dayId) {
         if (this._isToggling) return;
         this._isToggling = true;
-        
+
         const visibilityKey = `${entityId}-${dayId}`;
-        this._state.layerVisibility.set(visibilityKey, !this._state.layerVisibility.get(visibilityKey));
+        const currentState = this._state.layerVisibility.get(visibilityKey);
+        const newState = !currentState;
+
+        const entityName = this.getEntityNameForLog(entityId);
+        debugLog(entityName, "[toggleLayerVisibility] entityId:", entityId, "dayId:", dayId);
+        debugLog(entityName, "[toggleLayerVisibility] visibilityKey:", visibilityKey, "currentState:", currentState, "newState:", newState);
+
+        this._state.layerVisibility.set(visibilityKey, newState);
         this.updateContent();
-        
+
         setTimeout(() => {
             this._isToggling = false;
         }, LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
@@ -2755,11 +2801,17 @@ class ScheduleStateCard extends HTMLElement {
                 this.clearTooltipTimer();
                 this.hideTooltip();
                 const entityId = toggleTarget.dataset.entityId;
-                const dayId = toggleTarget.dataset.day; // Get day from data-day attribute
-                
+                const dayId = toggleTarget.dataset.day;
+                const entityName = this.getEntityNameForLog(entityId);
+
+                debugLog(entityName, "[Toggle Click] entityId:", entityId, "dayId:", dayId, "hasDataDay:", !!toggleTarget.dataset.day);
+
                 if (entityId && dayId) {
-                    // Call toggle method with entityId and dayId
+                    debugLog(entityName, "[Toggle Click] Calling toggleLayerVisibility");
                     this.toggleLayerVisibility(entityId, dayId);
+                } else if (entityId) {
+                    debugLog(entityName, "[Toggle Click] Missing dayId, falling back to selectedDay:", this.selectedDay);
+                    this.toggleLayerVisibility(entityId, this.selectedDay);
                 }
                 e.stopPropagation();
                 return;
@@ -2867,6 +2919,9 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState, dayId = null) {
+        const entityName = this.getEntityNameForLog(entityId);
+        debugLog(entityName, "[renderTimeline] entityId:", entityId, "dayId:", dayId, "allLayers count:", allLayers.length);
+
         // Validate inputs first
         if (!this._validateTimelineInputs(roomName, allLayers, entityId)) {
             return this.renderErrorCard(entityId, "Invalid timeline data");
@@ -2953,16 +3008,23 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _filterLayersForDisplay(allLayers, entityId, layersMetadata, dayId = null) {
-        // Utiliser dayId s'il est fourni, sinon utiliser selectedDay
+        // Use dayId if provided, otherwise use selectedDay
         const keyDay = dayId || this.selectedDay;
         const visibilityKey = `${entityId}-${keyDay}`;
         this._state.initializeLayerVisibility(visibilityKey, false);
         const isExpanded = this._state.isLayerVisible(visibilityKey);
+
+        const entityName = this.getEntityNameForLog(entityId);
+        debugLog(entityName, "[_filterLayersForDisplay] entityId:", entityId, "dayId:", dayId, "keyDay:", keyDay, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
+
         const result = [];
 
         if (!isExpanded) {
+            debugLog(entityName, "[_filterLayersForDisplay] Collapsed - showing only combined layer");
             return allLayers.filter(l => l.is_combined_layer === true);
         }
+
+        debugLog(entityName, "[_filterLayersForDisplay] Expanded - showing all layers");
 
         const defaultLayer = allLayers.find(l => l.is_default_layer);
         if (defaultLayer) {
@@ -2979,6 +3041,8 @@ class ScheduleStateCard extends HTMLElement {
         if (combinedLayer) {
             result.push(combinedLayer);
         }
+
+        debugLog(entityName, "[_filterLayersForDisplay] Returning", result.length, "layers");
 
         return result;
     }
@@ -3161,6 +3225,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _renderCombinedLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday, entityId, dayId = null) {
+        const entityName = this.getEntityNameForLog(entityId);
         const defaultLayer = allLayers.find(l => l.is_default_layer);
         const conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
         const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
@@ -3175,10 +3240,12 @@ class ScheduleStateCard extends HTMLElement {
         if (hasCollapsibleLayers) {
             toggleClass = " combined-layer-toggle";
 
-            // Utiliser dayId s'il est fourni, sinon selectedDay
+            // Use dayId if provided, otherwise use selectedDay
             const keyDay = dayId || this.selectedDay;
             const visibilityKey = `${entityId}-${keyDay}`;
             const isExpanded = this._state.isLayerVisible(visibilityKey);
+
+            debugLog(entityName, "[_renderCombinedLayerIcon] entityId:", entityId, "dayId:", dayId, "keyDay:", keyDay, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
 
             if (isExpanded) {
                 iconStyle = `background:${this._colors.combined_unfolded_layer};filter:brightness(1.3);`;
@@ -3189,11 +3256,13 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         const iconTooltip = escapeHtml(this.t("cond_combined_schedule_toggle"));
-        
-        // Ajouter data-day pour que toggleLayerVisibility sache quel jour modifier
+
+        // Add data-day attribute so toggleLayerVisibility knows which day to modify
         const dataDay = dayId ? ` data-day="${dayId}"` : "";
 
-                return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number combined-layer-toggle" data-entity-id="${escapeHtml(entityId)}"${dataDay} style="${iconStyle}">Σ</span></div>`;
+        debugLog(entityName, "[_renderCombinedLayerIcon] Rendering icon with dataDay:", dataDay, "entityId:", entityId);
+
+        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number combined-layer-toggle" data-entity-id="${escapeHtml(entityId)}"${dataDay} style="${iconStyle}">Σ</span></div>`;
     }
 
     _renderConditionalLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday) {
@@ -3314,6 +3383,9 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     updateContent() {
+        const entityName = this.getEntityNameForLog(this.selectedEntity);
+        debugLog(entityName, "[updateContent] Layout:", this._config.layout, "selectedDay:", this.selectedDay, "selectedEntity:", this.selectedEntity);
+
         if (this._config.layout === "entities") {
             this.updateContentEntitiesLayout();
         } else {
@@ -3432,8 +3504,13 @@ class ScheduleStateCard extends HTMLElement {
                 const visibilityKey = `${entityId}-${this.selectedDay}`;
                 this._state.initializeLayerVisibility(visibilityKey, false);
 
+                this.conditionEvaluator.setSelectedDay(this.selectedDay);
+
                 let dayLayers = layers[this.selectedDay] || [];
                 const allLayers = this._buildLayersForDay(dayLayers);
+
+                const entityName = this.getEntityNameForLog(entityId);
+                debugLog(entityName, "[Days Layout] Rendering timeline for entityId:", entityId, "selectedDay:", this.selectedDay, "allLayers count:", allLayers.length);
 
                 timelines += this.renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, state, this.selectedDay);
             }
@@ -3464,9 +3541,12 @@ class ScheduleStateCard extends HTMLElement {
                 for (const day of days) {
                     const dayId = day.id;
                     this.conditionEvaluator.setSelectedDay(dayId);
-                    
+
                     let dayLayers = layers[dayId] || [];
                     const allLayers = this._buildLayersForDay(dayLayers);
+
+                    const entityName = this.getEntityNameForLog(this.selectedEntity);
+                    debugLog(entityName, "[Entities Layout] Rendering timeline for entityId:", this.selectedEntity, "dayId:", dayId, "allLayers count:", allLayers.length);
 
                     const dayLabel = day.label;
                     const dayTimelines = this.renderTimeline(dayLabel, roomIcon, allLayers, unitOfMeasurement, this.selectedEntity, state, dayId);
@@ -3479,8 +3559,9 @@ class ScheduleStateCard extends HTMLElement {
 
         if (content.innerHTML !== newHTML) {
             content.innerHTML = newHTML;
-            this.attachAllListeners();
         }
+        // Always re-attach listeners since they are detached at line 3470
+        this.attachAllListeners();
     }
 
     updateContentDaysLayout() {
