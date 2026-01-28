@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.4 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.5 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -259,6 +259,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Layout",
         editor_layout_entities: "By Entities",
         editor_layout_days: "By Days",
+        editor_override_title: "Color Overrides (Manual Mapping)",
+        editor_override_description: "Map specific state+unit combinations to colors with custom background and text colors",
+        editor_override_value_label: "Value",
+        editor_override_unit_label: "Unit",
+        editor_override_bg_label: "Background",
+        editor_override_text_label: "Text",
+        editor_override_add_button: "Add Override",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -323,6 +330,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Disposition",
         editor_layout_entities: "Par Entités",
         editor_layout_days: "Par Jours",
+        editor_override_title: "Remplacements de Couleurs (Mapping Manuel)",
+        editor_override_description: "Associer des combinaisons état+unité spécifiques à des couleurs avec fond et texte personnalisés",
+        editor_override_value_label: "Valeur",
+        editor_override_unit_label: "Unité",
+        editor_override_bg_label: "Fond",
+        editor_override_text_label: "Texte",
+        editor_override_add_button: "Ajouter un Remplacement",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -387,6 +401,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Layout",
         editor_layout_entities: "Nach Entitäten",
         editor_layout_days: "Nach Tagen",
+        editor_override_title: "Farbüberschreibungen (Manuelle Zuordnung)",
+        editor_override_description: "Bestimmte Status+Einheit-Kombinationen Farben mit benutzerdefiniertem Hintergrund und Text zuordnen",
+        editor_override_value_label: "Wert",
+        editor_override_unit_label: "Einheit",
+        editor_override_bg_label: "Hintergrund",
+        editor_override_text_label: "Text",
+        editor_override_add_button: "Überschreibung Hinzufügen",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -451,6 +472,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Diseño",
         editor_layout_entities: "Por Entidades",
         editor_layout_days: "Por Días",
+        editor_override_title: "Sobrescrituras de Color (Mapeo Manual)",
+        editor_override_description: "Mapear combinaciones específicas de estado+unidad a colores con fondo y texto personalizados",
+        editor_override_value_label: "Valor",
+        editor_override_unit_label: "Unidad",
+        editor_override_bg_label: "Fondo",
+        editor_override_text_label: "Texto",
+        editor_override_add_button: "Agregar Sobrescritura",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -515,6 +543,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Layout",
         editor_layout_entities: "Por Entidades",
         editor_layout_days: "Por Dias",
+        editor_override_title: "Substituições de Cor (Mapeamento Manual)",
+        editor_override_description: "Mapear combinações específicas de estado+unidade para cores com fundo e texto personalizados",
+        editor_override_value_label: "Valor",
+        editor_override_unit_label: "Unidade",
+        editor_override_bg_label: "Fundo",
+        editor_override_text_label: "Texto",
+        editor_override_add_button: "Adicionar Substituição",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -579,6 +614,13 @@ const TRANSLATIONS = {
         editor_layout_label: "Layout",
         editor_layout_entities: "Por Entidades",
         editor_layout_days: "Por Dias",
+        editor_override_title: "Substituições de Cor (Mapeamento Manual)",
+        editor_override_description: "Mapear combinações específicas de estado+unidade para cores com fundo e texto personalizados",
+        editor_override_value_label: "Valor",
+        editor_override_unit_label: "Unidade",
+        editor_override_bg_label: "Fundo",
+        editor_override_text_label: "Texto",
+        editor_override_add_button: "Adicionar Substituição",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -4046,6 +4088,19 @@ class ScheduleStateCardEditor extends HTMLElement {
     }
 
     updateColor(colorKey, value) {
+        // Gérer les couleurs override séparément
+        if (colorKey.startsWith('override-')) {
+            const input = this.shadowRoot?.querySelector(`#${colorKey}-input`);
+            const btn = this.shadowRoot?.querySelector(`#${colorKey}-btn`);
+            if (input) input.value = value;
+            if (btn) btn.style.background = value;
+            // No need to fireConfigChanged as these colors are not in the config
+            // until the user clicks "+"
+            this.render();
+            return;
+        }
+
+        // Normal card colors
         if (!this._config.colors) {
             this._config.colors = {
                 ...DEFAULT_COLORS
@@ -4060,41 +4115,45 @@ class ScheduleStateCardEditor extends HTMLElement {
      * Add a new color override
      */
     addColorOverride() {
-        const keyInput = this.shadowRoot?.querySelector("#override-key-input");
-        const colorInput = this.shadowRoot?.querySelector("#override-color-input");
-        
-        if (!keyInput || !colorInput) return;
-        
-        const key = keyInput.value.trim();
-        const color = colorInput.value.trim();
-        
-        if (!key || !color) {
-            alert("Please enter both key and color");
-            return;
-        }
-        
-        // Validate color format (basic hex validation)
-        if (!/^#[0-9A-F]{6}$/i.test(color)) {
-            alert("Please enter a valid hex color (e.g., #2196F3)");
-            return;
-        }
-        
+        const valueInput = this.shadowRoot?.querySelector("#override-value-input");
+        const unitInput = this.shadowRoot?.querySelector("#override-unit-input");
+        const bgColorInput = this.shadowRoot?.querySelector("#override-bg-color-input");
+        const textColorInput = this.shadowRoot?.querySelector("#override-text-color-input");
+
+        if (!valueInput || !unitInput || !bgColorInput || !textColorInput) return;
+
+        const value = valueInput.value.trim();
+        const unit = unitInput.value.trim();
+        const bgColor = bgColorInput.value.trim();
+        const textColor = textColorInput.value.trim();
+
+        // If no value, do nothing
+        if (!value) return;
+
+        // Valider les formats de couleur (validation hex de base)
+        if (!/^#[0-9A-F]{6}$/i.test(bgColor)) return;
+        if (!/^#[0-9A-F]{6}$/i.test(textColor)) return;
+
+        // Create key in format "value|unit" (always include | even if unit is empty)
+        const key = `${value}|${unit}`;
+
         if (!this._config.color_overrides) {
             this._config.color_overrides = {};
         }
-        
+
         this._config.color_overrides[key] = {
-            color: color,
-            textColor: "#ffffff"
+            color: bgColor,
+            textColor: textColor
         };
-        
+
         // Update global cache
-        COLOR_CACHE.setOverride(key, color, "#ffffff");
-        
-        keyInput.value = '';
-        colorInput.value = '';
-        
-        debugLog(`Added color override: ${key} => ${color}`);
+        COLOR_CACHE.setOverride(key, bgColor, textColor);
+
+        // Clear value and unit fields, but keep colors to facilitate quick additions
+        valueInput.value = '';
+        unitInput.value = '';
+
+        debugLog(`Added color override: ${key} => bg:${bgColor}, text:${textColor}`);
         this.fireConfigChanged();
         this.render();
     }
@@ -4104,12 +4163,12 @@ class ScheduleStateCardEditor extends HTMLElement {
      */
     deleteColorOverride(key) {
         if (!this._config.color_overrides) return;
-        
+
         delete this._config.color_overrides[key];
-        
+
         // Update global cache
         COLOR_CACHE.removeOverride(key);
-        
+
         debugLog(`Deleted color override: ${key}`);
         this.fireConfigChanged();
         this.render();
@@ -4259,7 +4318,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             v: 100
         };
         const pickerHtml = isOpen ? `<div class="color-picker-overlay" data-colorkey="${colorKey}"></div><div class="color-picker-popup"><div class="color-wheel-container"><canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas><div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div></div><div class="brightness-control"><label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label><input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" /></div></div>` : '';
-        return `<div class="color-config-row" style="position: relative;"><label>${colorLabel}</label><div class="color-input-group"><div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div><input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" /><button class="color-picker-btn" data-colorkey="${colorKey}" title="${this.t('editor_color_picker_label')}">🎨</button></div>${pickerHtml}</div>`;
+        return `<div class="color-config-row" style="position: relative;"><label>${colorLabel}</label><div class="color-input-group"><div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div><input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" /></div>${pickerHtml}</div>`;
     }
 
     /**
@@ -4268,30 +4327,74 @@ class ScheduleStateCardEditor extends HTMLElement {
     renderColorOverridesSection(t) {
         const overrides = this._config.color_overrides || {};
         const overridesList = Object.entries(overrides).map(([key, value]) => {
-            const color = value?.color || '#cccccc';
+            // Extract value and unit from key (format: "value|unit")
+            const bgColor = value?.color || '#cccccc';
+            const textColor = value?.textColor || '#ffffff';
+            const displayValue = key.split('|')[0] || key;
+            const displayUnit = key.split('|')[1] || '';
+
             return `<div class="override-row">
-                <span class="override-key">${escapeHtml(key)}</span>
-                <div class="override-color-preview" style="background-color: ${color};" data-override-key="${escapeHtml(key)}"></div>
-                <button class="override-delete" data-override-key="${escapeHtml(key)}">✕ Delete</button>
+                <span class="override-key">${escapeHtml(displayValue)}${displayUnit ? ' ' + escapeHtml(displayUnit) : ''}</span>
+                <div class="override-colors-preview">
+                    <div class="override-color-preview" style="background-color: ${bgColor}; color: ${textColor};" title="${t('editor_override_bg_label')}: ${bgColor}">${escapeHtml(displayValue)}</div>
+                </div>
+                <button class="override-delete" data-override-key="${escapeHtml(key)}">✕</button>
             </div>`;
         }).join('');
 
+        // Render color pickers for override buttons
+        const bgColorKey = 'override-bg-color';
+        const textColorKey = 'override-text-color';
+        const bgColorValue = this.shadowRoot?.querySelector('#override-bg-color-input')?.value || '#2196F3';
+        const textColorValue = this.shadowRoot?.querySelector('#override-text-color-input')?.value || '#ffffff';
+
+        const bgColorPickerHtml = this.renderOverrideColorPicker(bgColorKey, bgColorValue);
+        const textColorPickerHtml = this.renderOverrideColorPicker(textColorKey, textColorValue);
+
         return `<div class="divider"></div><div class="form-section">
-            <div class="section-title">Color Overrides (Manual Mapping)</div>
+            <div class="section-title">${t('editor_override_title')}</div>
             <div style="font-size: 12px; color: var(--secondary-text-color); margin-bottom: 12px;">
-                Map specific state+unit combinations to colors (e.g., "18|°C" → Blue)
+                ${t('editor_override_description')}
             </div>
             <div id="overrides-list" style="margin-bottom: 12px;">
                 ${overridesList || '<div style="text-align: center; padding: 10px; color: var(--secondary-text-color);">No overrides configured</div>'}
             </div>
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="override-key-input" placeholder="e.g., 18|°C" style="flex: 1; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 12px;" />
-                <input type="text" id="override-color-input" placeholder="#2196F3" style="flex: 0 0 100px; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 12px; font-family: monospace;" />
-                <button id="add-override-btn" class="add-button" style="flex: 0 0 auto; width: auto; padding: 8px 16px;">+ Add</button>
+            <div class="override-row" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px; width: 100%; background: #1a1a1a; padding: 8px; border-radius: 6px; box-sizing: border-box; position: relative;">
+                <input type="text" id="override-value-input" placeholder="18" style="flex: 1; min-width: 0; padding: 6px 4px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 12px; text-align: left;" />
+                <input type="text" id="override-unit-input" placeholder="°C" style="flex: 1; min-width: 0; padding: 6px 4px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 12px; text-align: left;" />
+                <span style="color: var(--secondary-text-color); white-space: nowrap; font-size: 12px; margin-left: auto;">${t('editor_override_bg_label')}:</span>
+                <button id="override-bg-color-btn" data-colorkey="${bgColorKey}" style="width: 26px; height: 26px; border: none; border-radius: 4px; cursor: pointer; background: ${bgColorValue}; flex-shrink: 0;" title="${t('editor_override_bg_label')}"></button>
+                <input type="hidden" id="override-bg-color-input" value="${bgColorValue}" data-colorkey="${bgColorKey}" />
+                <span style="color: var(--secondary-text-color); white-space: nowrap; font-size: 12px;">${t('editor_override_text_label')}:</span>
+                <button id="override-text-color-btn" data-colorkey="${textColorKey}" style="width: 26px; height: 26px; border: none; border-radius: 4px; cursor: pointer; background: ${textColorValue}; flex-shrink: 0;" title="${t('editor_override_text_label')}"></button>
+                <input type="hidden" id="override-text-color-input" value="${textColorValue}" data-colorkey="${textColorKey}" />
+                <button id="add-override-btn" style="background: #ffa500; color: white; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; flex-shrink: 0;">+</button>
+                ${bgColorPickerHtml}
+                ${textColorPickerHtml}
             </div>
         </div>`;
     }
 
+    renderOverrideColorPicker(colorKey, currentColor) {
+        const isOpen = this._colorPickerOpen === colorKey;
+        if (!isOpen) return '';
+
+        const rgb = this.hexToRgb(currentColor);
+        const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : { h: 0, s: 100, v: 100 };
+
+        return `<div class="color-picker-overlay" data-colorkey="${colorKey}"></div>
+            <div class="color-picker-popup">
+                <div class="color-wheel-container">
+                    <canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas>
+                    <div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div>
+                </div>
+                <div class="brightness-control">
+                    <label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label>
+                    <input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" />
+                </div>
+            </div>`;
+    }
+                                                                                    
     render() {
         const t = this.t.bind(this);
         if (this._config?.entities) this._entities = this._config.entities;
@@ -4310,7 +4413,7 @@ class ScheduleStateCardEditor extends HTMLElement {
         // Render color overrides section
         const colorOverridesHtml = this.renderColorOverridesSection(t);
 
-        const styleContent = `:host { display: block; } ha-card { padding: 16px; } .editor-header { font-size: 20px; font-weight: bold; margin-bottom: 16px; } .form-section { margin-bottom: 24px; } .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--primary-text-color); } .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; } .input-group label { font-weight: 500; font-size: 14px; color: var(--primary-text-color); } .input-group input[type="text"], .input-group input[type="checkbox"], .layout-selector { padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; } .input-group input[type="checkbox"] { width: auto; margin-top: 4px; } .layout-selector { cursor: pointer; } .input-group input:focus, .layout-selector:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-color)33; } .input-with-suggestions { position: relative; width: 100%; } .suggestions-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-top: none; border-radius: 0 0 4px 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); } .suggestion-item { padding: 8px 12px; cursor: pointer; color: var(--primary-text-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s; } .suggestion-item:hover:not(.disabled) { background: var(--primary-color); color: white; } .suggestion-item.disabled { opacity: 0.5; cursor: default; } .entity-row { display: flex; gap: 12px; align-items: center; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .handle { cursor: grab; color: var(--secondary-text-color); font-weight: bold; user-select: none; } .icon-name { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; } .entity-id { flex: 1; font-size: 12px; color: var(--secondary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .actions { display: flex; gap: 4px; } .action-button { background: transparent; border: 1px solid var(--divider-color); border-radius: 4px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; color: var(--primary-text-color); transition: all 0.2s; } .action-button:hover { background: var(--primary-color); border-color: var(--primary-color); color: white; } .entity-edit-form { background: var(--primary-background-color); padding: 12px; border-radius: 4px; margin-top: 8px; border: 1px solid var(--primary-color); } .entity-input { width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; box-sizing: border-box; } .entity-input:focus { outline: none; border-color: var(--primary-color); } .add-button { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; width: 100%; } .add-button:hover { opacity: 0.9; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); } .color-config-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .color-config-row label { font-weight: 500; font-size: 13px; } .color-input-group { display: flex; gap: 8px; align-items: center; } .color-preview { width: 40px; height: 40px; border: 1px solid var(--divider-color); border-radius: 4px; cursor: pointer; transition: all 0.2s; } .color-preview:hover { box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); } .color-hex-input { flex: 1; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; font-family: monospace; } .color-hex-input:focus { outline: none; border-color: var(--primary-color); } .color-picker-btn { background: transparent; border: 1px solid var(--divider-color); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 18px; transition: all 0.2s; } .color-picker-btn:hover { background: var(--primary-color); border-color: var(--primary-color); } .color-picker-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--primary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; padding: 12px; z-index: 1001; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); margin-top: 0; } .color-picker-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999; } .color-wheel-container { position: relative; width: 280px; height: 280px; margin-bottom: 12px; } .color-wheel { cursor: crosshair; border-radius: 50%; } .brightness-control { display: flex; flex-direction: column; gap: 6px; } .brightness-control label { font-size: 13px; } .brightness-slider { width: 100%; height: 6px; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; } .brightness-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; } .brightness-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; border: none; } .override-row { display: flex; gap: 8px; align-items: center; padding: 10px; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-radius: 4px; margin-bottom: 6px; } .override-key { flex: 1; padding: 6px; font-family: monospace; font-size: 12px; background: var(--secondary-background-color); border-radius: 3px; } .override-color-preview { width: 32px; height: 32px; border: 1px solid var(--divider-color); border-radius: 3px; cursor: pointer; } .override-delete { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; } .override-delete:hover { background: #e74c3c; color: white; } .divider { height: 1px; background: var(--divider-color); margin: 16px 0; }`;
+        const styleContent = `:host { display: block; } ha-card { padding: 16px; } .editor-header { font-size: 20px; font-weight: bold; margin-bottom: 16px; } .form-section { margin-bottom: 24px; } .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--primary-text-color); } .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; } .input-group label { font-weight: 500; font-size: 14px; color: var(--primary-text-color); } .input-group input[type="text"], .input-group input[type="checkbox"], .layout-selector { padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; } .input-group input[type="checkbox"] { width: auto; margin-top: 4px; } .layout-selector { cursor: pointer; } .input-group input:focus, .layout-selector:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-color)33; } .input-with-suggestions { position: relative; width: 100%; } .suggestions-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-top: none; border-radius: 0 0 4px 4px; max-height: 250px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); } .suggestion-item { padding: 8px 12px; cursor: pointer; color: var(--primary-text-color); display: flex; align-items: center; gap: 8px; transition: background 0.2s; } .suggestion-item:hover:not(.disabled) { background: var(--primary-color); color: white; } .suggestion-item.disabled { opacity: 0.5; cursor: default; } .entity-row { display: flex; gap: 12px; align-items: center; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .handle { cursor: grab; color: var(--secondary-text-color); font-weight: bold; user-select: none; } .icon-name { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; } .entity-id { flex: 1; font-size: 12px; color: var(--secondary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .actions { display: flex; gap: 4px; } .action-button { background: transparent; border: 1px solid var(--divider-color); border-radius: 4px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; color: var(--primary-text-color); transition: all 0.2s; } .action-button:hover { background: var(--primary-color); border-color: var(--primary-color); color: white; } .entity-edit-form { background: var(--primary-background-color); padding: 12px; border-radius: 4px; margin-top: 8px; border: 1px solid var(--primary-color); } .entity-input { width: 100%; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; box-sizing: border-box; } .entity-input:focus { outline: none; border-color: var(--primary-color); } .add-button { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; width: 100%; } .add-button:hover { opacity: 0.9; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); } .color-config-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; margin-bottom: 8px; } .color-config-row label { font-weight: 500; font-size: 13px; } .color-input-group { display: flex; gap: 8px; align-items: center; } .color-preview { width: 40px; height: 40px; border: 1px solid var(--divider-color); border-radius: 4px; cursor: pointer; transition: all 0.2s; } .color-preview:hover { box-shadow: 0 0 8px rgba(0, 0, 0, 0.3); } .color-hex-input { flex: 1; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 14px; font-family: monospace; } .color-hex-input:focus { outline: none; border-color: var(--primary-color); } .color-picker-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--primary-background-color); border: 1px solid var(--divider-color); border-radius: 6px; padding: 12px; z-index: 1001; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); margin-top: 0; } .color-picker-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999; } .color-wheel-container { position: relative; width: 280px; height: 280px; margin-bottom: 12px; } .color-wheel { cursor: crosshair; border-radius: 50%; } .brightness-control { display: flex; flex-direction: column; gap: 6px; } .brightness-control label { font-size: 13px; } .brightness-slider { width: 100%; height: 6px; border-radius: 3px; outline: none; -webkit-appearance: none; appearance: none; } .brightness-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; } .brightness-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary-color); cursor: pointer; border: none; } .override-row { display: flex; gap: 4px; align-items: center; padding: 10px; background: var(--primary-background-color); border: 1px solid var(--divider-color); border-radius: 4px; margin-bottom: 6px; } .override-key { flex: 1; padding: 6px; font-family: monospace; font-size: 12px; background: var(--secondary-background-color); border-radius: 3px; } .override-colors-preview { display: flex; gap: 4px; } .override-color-preview { min-width: 60px; height: 32px; padding: 4px 8px; border: 1px solid var(--divider-color); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 11px; font-weight: bold; } .override-delete { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; } .override-delete:hover { background: #e74c3c; color: white; } .divider { height: 1px; background: var(--divider-color); margin: 16px 0; }`;
 
         const htmlContent = `<div class="editor-header">${t('editor_title')}</div><div class="form-section"><div class="section-title">${t('editor_card_title')}</div><div class="input-group"><input type="text" id="title-input" value="${escapeHtml(this._config.title || '')}" placeholder="${t('editor_title_placeholder')}"></div></div><div class="form-section"><div class="input-group"><label><input type="checkbox" id="show-state-input" ${this._config.show_state_in_title ? 'checked' : ''}>${t('editor_show_state_in_title')}</label></div></div><div class="divider"></div>${layoutSelectorHtml}<div class="form-section"><div class="section-title">${t('editor_entities_label')}</div><div id="entities-list">${entityRows || '<div style="color: var(--secondary-text-color); text-align: center; padding: 20px;">' + t('editor_no_entities') + '</div>'}</div><button class="add-button" id="add-btn">+ ${t('editor_add_entity')}</button></div><div class="divider"></div><div class="form-section"><div class="section-title">${t('editor_colors_label')}</div>${colorConfigsHtml}</div>${colorOverridesHtml}`;
 
@@ -4558,13 +4661,13 @@ class ScheduleStateCardEditor extends HTMLElement {
             const key = e.currentTarget.dataset.overrideKey;
             this.deleteColorOverride(key);
         });
-        this._attachClickListener(".override-color-preview", (e) => {
-            const key = e.currentTarget.dataset.overrideKey;
-            const colorInput = this.shadowRoot.querySelector("#override-color-input");
-            if (colorInput) {
-                colorInput.value = this._config.color_overrides?.[key]?.color || '#cccccc';
-                colorInput.focus();
-            }
+
+        // Color picker buttons for override colors - utiliser le picker personnalisé
+        this._attachClickListener("#override-bg-color-btn", () => {
+            this.toggleColorPicker('override-bg-color');
+        });
+        this._attachClickListener("#override-text-color-btn", () => {
+            this.toggleColorPicker('override-text-color');
         });
 
         this._attachClickListener(".edit-btn", (e) => {
@@ -4585,11 +4688,6 @@ class ScheduleStateCardEditor extends HTMLElement {
 
         this._attachSearchListener(".entity-search", "entity");
         this._attachSearchListener(".icon-search", "icon");
-
-        this._attachClickListener(".color-picker-btn", (e) => {
-            const colorKey = e.currentTarget.dataset.colorkey;
-            this.toggleColorPicker(colorKey);
-        });
 
         this.shadowRoot.querySelectorAll(".color-hex-input").forEach(input => {
             // Simply reattach listeners (no need to removeEventListener with null)
