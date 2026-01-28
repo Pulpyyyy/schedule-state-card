@@ -4323,7 +4323,7 @@ class ScheduleStateCardEditor extends HTMLElement {
             s: 100,
             v: 100
         };
-        const pickerHtml = isOpen ? `<div class="color-picker-overlay" data-colorkey="${colorKey}"></div><div class="color-picker-popup"><div class="color-wheel-container"><canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas><div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div></div><div class="brightness-control"><label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label><input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" /></div></div>` : '';
+        const pickerHtml = isOpen ? `<div class="color-picker-overlay" data-colorkey="${colorKey}"></div><div class="color-picker-popup"><div class="color-wheel-container"><canvas id="color-wheel-${colorKey}" class="color-wheel" width="280" height="280" data-colorkey="${colorKey}"></canvas><div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div></div><div class="brightness-control"><label>Brightness: <span id="brightness-value-${colorKey}">${Math.round(hsv.v)}</span>%</label><input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${Math.round(hsv.v)}" data-colorkey="${colorKey}" /></div></div>` : '';
         return `<div class="color-config-row" style="position: relative;"><label>${colorLabel}</label><div class="color-input-group"><div class="color-preview" style="background-color: ${currentColor};" data-colorkey="${colorKey}"></div><input type="text" class="color-hex-input" value="${currentColor}" data-colorkey="${colorKey}" maxlength="7" placeholder="#000000" /></div>${pickerHtml}</div>`;
     }
 
@@ -4395,8 +4395,8 @@ class ScheduleStateCardEditor extends HTMLElement {
                     <div class="color-marker" id="marker-${colorKey}" style="position: absolute; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 4px rgba(0,0,0,0.5); pointer-events: none;"></div>
                 </div>
                 <div class="brightness-control">
-                    <label>Brightness: <span id="brightness-value-${colorKey}">100</span>%</label>
-                    <input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${hsv.v}" data-colorkey="${colorKey}" />
+                    <label>Brightness: <span id="brightness-value-${colorKey}">${Math.round(hsv.v)}</span>%</label>
+                    <input type="range" class="brightness-slider" id="brightness-${colorKey}" min="0" max="100" value="${Math.round(hsv.v)}" data-colorkey="${colorKey}" />
                 </div>
             </div>`;
     }
@@ -4438,7 +4438,16 @@ class ScheduleStateCardEditor extends HTMLElement {
         const radius = 130;
         const centerX = 140;
         const centerY = 140;
-        const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+
+        // Get current color: for overrides, read from hidden input; for normal colors, read from config
+        let currentColor;
+        if (colorKey.startsWith('override-')) {
+            const input = this.shadowRoot?.querySelector(`#${colorKey}-input`);
+            currentColor = input ? input.value : '#cccccc';
+        } else {
+            currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+        }
+
         const rgb = this.hexToRgb(currentColor);
         const hsv = rgb ? this.rgbToHsv(rgb.r, rgb.g, rgb.b) : {
             h: 0,
@@ -4739,8 +4748,16 @@ class ScheduleStateCardEditor extends HTMLElement {
                 const v = parseInt(e.target.value);
                 const valueDisplay = this.shadowRoot.querySelector(`#brightness-value-${colorKey}`);
                 if (valueDisplay) valueDisplay.textContent = v;
-                
-                const currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+
+                // Get current color: for overrides, read from hidden input; for normal colors, read from config
+                let currentColor;
+                if (colorKey.startsWith('override-')) {
+                    const input = this.shadowRoot?.querySelector(`#${colorKey}-input`);
+                    currentColor = input ? input.value : '#cccccc';
+                } else {
+                    currentColor = this._config.colors?.[colorKey] || DEFAULT_COLORS[colorKey];
+                }
+
                 const rgb = this.hexToRgb(currentColor);
                 if (rgb) {
                     const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
