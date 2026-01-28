@@ -266,6 +266,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Background",
         editor_override_text_label: "Text",
         editor_override_add_button: "Add Override",
+        editor_override_no_overrides: "No overrides configured",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -337,6 +338,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Fond",
         editor_override_text_label: "Texte",
         editor_override_add_button: "Ajouter un Remplacement",
+        editor_override_no_overrides: "Aucun remplacement configuré",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -408,6 +410,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Hintergrund",
         editor_override_text_label: "Text",
         editor_override_add_button: "Überschreibung Hinzufügen",
+        editor_override_no_overrides: "Keine Überschreibungen konfiguriert",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -479,6 +482,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Fondo",
         editor_override_text_label: "Texto",
         editor_override_add_button: "Agregar Sobrescritura",
+        editor_override_no_overrides: "No hay sobrescrituras configuradas",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -550,6 +554,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Fundo",
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
+        editor_override_no_overrides: "Nenhuma substituição configurada",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -621,6 +626,7 @@ const TRANSLATIONS = {
         editor_override_bg_label: "Fundo",
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
+        editor_override_no_overrides: "Nenhuma substituição configurada",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -4357,7 +4363,7 @@ class ScheduleStateCardEditor extends HTMLElement {
                 ${t('editor_override_description')}
             </div>
             <div id="overrides-list" style="margin-bottom: 12px;">
-                ${overridesList || '<div style="text-align: center; padding: 10px; color: var(--secondary-text-color);">No overrides configured</div>'}
+                ${overridesList || `<div style="text-align: center; padding: 10px; color: var(--secondary-text-color);">${t('editor_override_no_overrides')}</div>`}
             </div>
             <div class="override-row" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px; width: 100%; background: #1a1a1a; padding: 8px; border-radius: 6px; box-sizing: border-box; position: relative;">
                 <input type="text" id="override-value-input" placeholder="18" style="flex: 1; min-width: 0; padding: 6px 4px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--primary-background-color); color: var(--primary-text-color); font-size: 12px; text-align: left;" />
