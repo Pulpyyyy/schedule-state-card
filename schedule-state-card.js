@@ -1624,7 +1624,6 @@ class ScheduleStateCard extends HTMLElement {
             colors: validatedColors,
             layout: layout,
             color_overrides: config.color_overrides || {},
-            background: config.background || null,
             card_mod: config.card_mod || null
         };
 
