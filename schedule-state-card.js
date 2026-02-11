@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.5 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
