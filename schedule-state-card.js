@@ -841,10 +841,10 @@ class TimeHelper {
         let startMin = this.timeToMinutes(block.start);
         let endMin = this.timeToMinutes(block.end);
 
-        if (block.end === "00:00" && endMin === 0) {
+        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
             endMin = this.MINUTES_PER_DAY;
         }
-        if (block.end === "23:59") {
+        if (block.end === "23:59" || block.end === "23:59:00") {
             endMin = this.MINUTES_PER_DAY;
         }
 
@@ -1120,7 +1120,7 @@ class CombinedLayerBuilder {
 
                 const startMin = this.timeHelper.timeToMinutes(block.start);
                 let endMin = this.timeHelper.timeToMinutes(block.end);
-                if (block.end === '00:00' && endMin === 0) endMin = this.timeHelper.MINUTES_PER_DAY;
+                if ((block.end === '00:00' || block.end === '00:00:00') && endMin === 0) endMin = this.timeHelper.MINUTES_PER_DAY;
 
                 breakpoints.add(startMin);
                 breakpoints.add(endMin);
@@ -1131,7 +1131,7 @@ class CombinedLayerBuilder {
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeHelper.timeToMinutes(defBlock.start);
             let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-            if (defBlock.end === '00:00' && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+            if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
 
             breakpoints.add(defStart);
             breakpoints.add(defEnd);
@@ -1149,7 +1149,7 @@ class CombinedLayerBuilder {
 
                 const blockStart = this.timeHelper.timeToMinutes(block.start);
                 let blockEnd = this.timeHelper.timeToMinutes(block.end);
-                if (block.end === '00:00' && blockEnd === 0) blockEnd = this.timeHelper.MINUTES_PER_DAY;
+                if ((block.end === '00:00' || block.end === '00:00:00') && blockEnd === 0) blockEnd = this.timeHelper.MINUTES_PER_DAY;
 
                 if (blockStart <= segStart && segEnd <= blockEnd) {
                     coveringBlocks.push(block);
@@ -1182,7 +1182,7 @@ class CombinedLayerBuilder {
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeHelper.timeToMinutes(defBlock.start);
                     let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-                    if (defBlock.end === '00:00' && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+                    if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
 
                     if (defStart <= segStart && segEnd <= defEnd) {
                         const segStartStr = this.timeHelper.minutesToTime(segStart);
@@ -1617,12 +1617,15 @@ class ScheduleStateCard extends HTMLElement {
         const layout = config.layout === "entities" ? "entities" : "days";
 
         this._config = {
+            type: config.type,
             title: validatedTitle,
             entities: validatedEntities,
             show_state_in_title: config.show_state_in_title !== false,
             colors: validatedColors,
             layout: layout,
-            color_overrides: config.color_overrides || {}
+            color_overrides: config.color_overrides || {},
+            background: config.background || null,
+            card_mod: config.card_mod || null
         };
 
         this._colors = {
@@ -1823,6 +1826,10 @@ class ScheduleStateCard extends HTMLElement {
 
     getCardSize() {
         return this._config.entities.length + 2;
+    }
+
+    get type() {
+        return this._config.type || 'custom:schedule-state-card';
     }
 
     getDays() {
@@ -2078,9 +2085,20 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
+     * Format time for display by removing seconds if present
+     * @param {string} time - Time string (e.g., "14:30:00" or "14:30")
+     * @returns {string} Formatted time without seconds (e.g., "14:30")
+     */
+    _formatTimeForDisplay(time) {
+        if (!time) return time;
+        // Remove seconds if present (HH:MM:SS -> HH:MM)
+        return time.substring(0, 5);
+    }
+
+    /**
      * Generate tooltip text for a schedule block
      * Centralizes tooltip generation logic
-     * 
+     *
      * @param {Object} params - Tooltip parameters object
      * @returns {string} Formatted tooltip text
      */
@@ -2099,11 +2117,13 @@ class ScheduleStateCard extends HTMLElement {
 
         // Time portion
         if (isWrapped) {
-            const originalStart = block.original_start || block.start;
-            const originalEnd = block.original_end || block.end;
+            const originalStart = this._formatTimeForDisplay(block.original_start || block.start);
+            const originalEnd = this._formatTimeForDisplay(block.original_end || block.end);
             tooltipText += `${originalStart} - ${originalEnd} (${this.t("wrapping")})`;
         } else {
-            tooltipText += `${block.start} - ${block.end}`;
+            const displayStart = this._formatTimeForDisplay(block.start);
+            const displayEnd = this._formatTimeForDisplay(block.end);
+            tooltipText += `${displayStart} - ${displayEnd}`;
         }
 
         // State portion
@@ -2561,8 +2581,8 @@ class ScheduleStateCard extends HTMLElement {
     _getBlockMetrics(block) {
         const startMin = this.timeHelper.timeToMinutes(block.start);
         let endMin = this.timeHelper.timeToMinutes(block.end);
-        
-        if (block.end === "00:00" && endMin === 0) {
+
+        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
             endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
         }
         const dimensions = this.timeHelper.calculateBlockDimensions(startMin, endMin);
@@ -3119,7 +3139,7 @@ class ScheduleStateCard extends HTMLElement {
     _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, containerWidth, unitOfMeasurement, entityId, dayId = null) {
         const blockParts = [];
         const iconParts = [];
-        const isSelectedDayToday = this.isToday();
+        const isSelectedDayToday = dayId ? (dayId === this.currentTime.day) : this.isToday();
 
         for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
             const currentLayer = layersToDisplay[layerIdx];
@@ -3626,6 +3646,9 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     generateStylesheet() {
+        // Support for card_mod styles
+        const cardModStyle = this._config.card_mod?.style || '';
+
         return `
             :host {
                 display: block;
@@ -3636,6 +3659,8 @@ class ScheduleStateCard extends HTMLElement {
             ha-card {
                 padding: 16px;
             }
+
+            ${cardModStyle}
 
             .card-header {
                 display: flex;
