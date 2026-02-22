@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.6 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.7 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -210,11 +210,14 @@ const TRANSLATIONS = {
         wrapping: "wrapping",
         no_schedule: "No schedule",
         entity_not_found: "Entity not found",
+        invalid_data: "Invalid schedule data",
         dynamic_value: "Dynamic value",
         dynamic_ref_schedule: "schedule_state",
         dynamic_ref_sensor: "sensor",
-        cond_days: "Days",
         cond_month: "Month",
+        cond_hour: "Hour(s)",
+        cond_minute: "Minute(s)",
+        cond_day: "Day(s)",
         cond_and: "AND",
         cond_or: "OR",
         cond_not: "NOT",
@@ -282,11 +285,14 @@ const TRANSLATIONS = {
         wrapping: "débordement",
         no_schedule: "Pas de planning",
         entity_not_found: "Entité non trouvée",
+        invalid_data: "Données de planning invalides",
         dynamic_value: "Valeur dynamique",
         dynamic_ref_schedule: "état_planning",
         dynamic_ref_sensor: "capteur",
-        cond_days: "Jours",
         cond_month: "Mois",
+        cond_hour: "Heure(s)",
+        cond_minute: "Minute(s)",
+        cond_day: "Jour(s)",
         cond_and: "ET",
         cond_or: "OU",
         cond_not: "NON",
@@ -354,11 +360,14 @@ const TRANSLATIONS = {
         wrapping: "Überlauf",
         no_schedule: "Kein Zeitplan",
         entity_not_found: "Entität nicht gefunden",
+        invalid_data: "Ungültige Zeitplandaten",
         dynamic_value: "Dynamischer Wert",
         dynamic_ref_schedule: "Zeitplan-Status",
         dynamic_ref_sensor: "Sensor",
-        cond_days: "Tage",
         cond_month: "Monat",
+        cond_hour: "Stunde(n)",
+        cond_minute: "Minute(n)",
+        cond_day: "Tag(e)",
         cond_and: "UND",
         cond_or: "ODER",
         cond_not: "NICHT",
@@ -426,11 +435,14 @@ const TRANSLATIONS = {
         wrapping: "desbordamiento",
         no_schedule: "Sin horario",
         entity_not_found: "Entidad no encontrada",
+        invalid_data: "Datos de horario inválidos",
         dynamic_value: "Valor dinámico",
         dynamic_ref_schedule: "estado_horario",
         dynamic_ref_sensor: "sensor",
-        cond_days: "Días",
         cond_month: "Mes",
+        cond_hour: "Hora(s)",
+        cond_minute: "Minuto(s)",
+        cond_day: "Día(s)",
         cond_and: "Y",
         cond_or: "O",
         cond_not: "NO",
@@ -498,11 +510,14 @@ const TRANSLATIONS = {
         wrapping: "empacotamento",
         no_schedule: "Sem agenda",
         entity_not_found: "Entidade não encontrada",
+        invalid_data: "Dados de agenda inválidos",
         dynamic_value: "Valor dinâmico",
         dynamic_ref_schedule: "estado_agenda",
         dynamic_ref_sensor: "sensor",
-        cond_days: "Dias",
         cond_month: "Mês",
+        cond_hour: "Hora(s)",
+        cond_minute: "Minuto(s)",
+        cond_day: "Dia(s)",
         cond_and: "E",
         cond_or: "OU",
         cond_not: "NÃO",
@@ -570,11 +585,14 @@ const TRANSLATIONS = {
         wrapping: "empacotamento",
         no_schedule: "Sem programação",
         entity_not_found: "Entidade não encontrada",
+        invalid_data: "Dados de programação inválidos",
         dynamic_value: "Valor dinâmico",
         dynamic_ref_schedule: "estado_programação",
         dynamic_ref_sensor: "sensor",
-        cond_days: "Dias",
         cond_month: "Mês",
+        cond_hour: "Hora(s)",
+        cond_minute: "Minuto(s)",
+        cond_day: "Dia(s)",
         cond_and: "E",
         cond_or: "OU",
         cond_not: "NÃO",
@@ -705,7 +723,7 @@ const CONDITION_TRANSLATION_PATTERNS = [
     // Label translations (must come after sunrise/sunset to avoid conflicts)
     {
         pattern: /\bDays:/g,
-        key: 'cond_days',
+        key: 'cond_day',
         type: 'labelSuffix'
     },
     {
@@ -890,10 +908,98 @@ class TimeHelper {
     }
 }
 
+/**
+ * Maps every Jinja2 now() attribute expression to its JS getter.
+ * Used by both the JS fallback evaluator and the tooltip prettifier
+ * so the "in range / in list" logic is written exactly once.
+ *
+ * Python weekday(): 0 = Monday … 6 = Sunday
+ * Python isoweekday(): 1 = Monday … 7 = Sunday
+ */
+const NOW_ATTR_GETTERS = {
+    'now().month':        () => new Date().getMonth() + 1,       // 1–12
+    'now().hour':         () => new Date().getHours(),           // 0–23
+    'now().minute':       () => new Date().getMinutes(),         // 0–59
+    'now().second':       () => new Date().getSeconds(),         // 0–59
+    'now().day':          () => new Date().getDate(),            // 1–31
+    'now().year':         () => new Date().getFullYear(),
+    'now().weekday()':    () => (new Date().getDay() + 6) % 7,  // 0=Mon … 6=Sun
+    'now().isoweekday()': () => new Date().getDay() || 7,       // 1=Mon … 7=Sun
+};
+
+/**
+ * Evaluate a Jinja2 "X in range(a,b)" or "X in [a,b,c]" (and their "not in"
+ * variants) expression where X is one of the NOW_ATTR_GETTERS keys.
+ *
+ * Returns the boolean result, or null if the expression is not recognised.
+ *
+ * @param {string} inner - The stripped template content (no {{ }})
+ * @returns {boolean|null}
+ */
+function evaluateNowInExpression(inner) {
+    for (const [attr, getter] of Object.entries(NOW_ATTR_GETTERS)) {
+        const esc = attr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let m;
+
+        // "not in" variants first — avoids false match on the "in" patterns
+        m = inner.match(new RegExp(`^${esc}\\s+not\\s+in\\s+range\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)$`));
+        if (m) { const v = getter(); return !(v >= +m[1] && v < +m[2]); }
+
+        m = inner.match(new RegExp(`^${esc}\\s+not\\s+in\\s+\\[([^\\]]+)\\]$`));
+        if (m) { return !m[1].split(',').map(n => +n.trim()).includes(getter()); }
+
+        m = inner.match(new RegExp(`^${esc}\\s+in\\s+range\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)$`));
+        if (m) { const v = getter(); return v >= +m[1] && v < +m[2]; }
+
+        m = inner.match(new RegExp(`^${esc}\\s+in\\s+\\[([^\\]]+)\\]$`));
+        if (m) { return m[1].split(',').map(n => +n.trim()).includes(getter()); }
+    }
+    return null;
+}
+
 class ConditionEvaluator {
     constructor(hass, selectedDay = "mon") {
         this.hass = hass;
         this.selectedDay = selectedDay;
+        this.templateCache = new Map();  // value_template string → boolean
+        this._templateCacheKey = null;   // invalidated when sensor last_update changes
+    }
+
+    /**
+     * Evaluate all given template strings via HA's REST API (Jinja2 engine)
+     * and store results in templateCache.
+     *
+     * Cache is invalidated whenever cacheKey changes — cacheKey should be the
+     * sensor's last_update attribute, so the cache tracks HA's own evaluation
+     * cycle (typically every minute) rather than a fixed time window.
+     *
+     * All templates are fetched in parallel in a single Promise.all().
+     * Returns true if any result actually changed (triggers re-render).
+     *
+     * @param {Object} hass - Home Assistant hass object
+     * @param {string[]} templates - List of value_template strings to evaluate
+     * @param {string} cacheKey - Invalidation key (sensor last_update string)
+     * @returns {Promise<boolean>} true if cache was updated
+     */
+    async refreshTemplateCache(hass, templates, cacheKey) {
+        if (this._templateCacheKey !== cacheKey) {
+            this.templateCache.clear();
+            this._templateCacheKey = cacheKey;
+        }
+
+        const uncached = templates.filter(t => !this.templateCache.has(t));
+        if (!uncached.length) return false;
+
+        await Promise.all(uncached.map(async (tmpl) => {
+            try {
+                const result = await hass.callApi('POST', 'template', { template: tmpl });
+                this.templateCache.set(tmpl, String(result).trim().toLowerCase() === 'true');
+            } catch (e) {
+                errorLog('ConditionEvaluator', 'Template evaluation error via HA API:', tmpl, e);
+            }
+        }));
+
+        return true;
     }
 
     evaluateCondition(condition) {
@@ -921,10 +1027,13 @@ class ConditionEvaluator {
             if (condType === "not") {
                 return !this.evaluateCondition(condition.conditions?.[0]);
             }
+            if (condType === "template") {
+                return this._evaluateTemplateCondition(condition);
+            }
 
             return true;
         } catch (error) {
-            errorLog("ConditionEvaluator: erreur évaluation condition", error, condition);
+            errorLog("ConditionEvaluator", "Condition evaluation error:", error, condition);
             return false;
         }
     }
@@ -1012,6 +1121,26 @@ class ConditionEvaluator {
 
             return true;
         });
+    }
+
+    _evaluateTemplateCondition(condition) {
+        const template = condition.value_template;
+        if (!template || typeof template !== "string") return true;
+
+        // Use HA-evaluated result if available (populated by refreshTemplateCache)
+        if (this.templateCache.has(template)) {
+            return this.templateCache.get(template);
+        }
+
+        // JS fallback for "now().X in range/list" patterns — covers any now() attribute.
+        // Used only on the initial render before the async HA cache is populated.
+        const inner = template.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
+        const jsResult = evaluateNowInExpression(inner);
+        if (jsResult !== null) return jsResult;
+
+        // Unknown pattern and not yet cached — default to true, HA will correct it async
+        debugWarn("ConditionEvaluator", "Unrecognized template, not yet cached — defaulting to true:", template);
+        return true;
     }
 
     _collectUniqueConditions(blocks) {
@@ -1486,8 +1615,80 @@ class ScheduleStateCard extends HTMLElement {
      * @param {string} text - Raw condition text to translate
      * @returns {string} Fully translated condition text
      */
+    /**
+     * Convert a Jinja2 now().month template condition into a human-readable string
+     * using localized month names (via Intl.DateTimeFormat).
+     *
+     * Handles four patterns (with and without "not"):
+     *   {{ now().month in range(4, 10) }}     → "Mois: Avril – Septembre"
+     *   {{ now().month in [11, 12, 1, 2, 3] }} → "Mois: Novembre, Décembre, …"
+     *   (same with "not in" → prefixed with ≠)
+     *
+     * Returns null if the text doesn't match any known month pattern,
+     * so the caller can fall through to the normal translation pipeline.
+     *
+     * @param {string} text - Raw condition_text string
+     * @returns {string|null}
+     */
+    /**
+     * Convert a "now().X in range/list" Jinja2 condition to a human-readable label.
+     * Uses Intl.DateTimeFormat for month and weekday names; raw numbers for the rest.
+     * Returns null if the text doesn't match any supported now() pattern.
+     *
+     * @param {string} text - Raw condition_text (may start with "Custom: {{ … }}")
+     * @returns {string|null}
+     */
+    _prettifyNowInConditionText(text) {
+        const inner = text.replace(/^Custom:\s*/i, '').replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
+        const lang = this.getLanguage();
+
+        // Per-attribute display: label shown before the values + formatter for each number
+        const attrDisplay = {
+            'now().month': {
+                label: this.t('cond_month'),
+                fmt: n => new Intl.DateTimeFormat(lang, { month: 'long' }).format(new Date(2000, n - 1, 1))
+            },
+            'now().weekday()': {
+                label: this.t('cond_day'),
+                // Python weekday() 0=Mon; Jan 3 2000 was a Monday
+                fmt: n => new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(new Date(2000, 0, 3 + n))
+            },
+            'now().isoweekday()': {
+                label: this.t('cond_day'),
+                // Python isoweekday() 1=Mon
+                fmt: n => new Intl.DateTimeFormat(lang, { weekday: 'long' }).format(new Date(2000, 0, 2 + n))
+            },
+            'now().hour':   { label: this.t('cond_hour'),   fmt: n => String(n).padStart(2, '0') + 'h' },
+            'now().minute': { label: this.t('cond_minute'), fmt: String },
+            'now().day':    { label: this.t('cond_day'),    fmt: String },
+        };
+
+        for (const [attr, { label, fmt }] of Object.entries(attrDisplay)) {
+            const esc = attr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            let m;
+
+            m = inner.match(new RegExp(`^${esc}\\s+not\\s+in\\s+range\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)$`));
+            if (m) return `${label}: ≠ ${fmt(+m[1])} – ${fmt(+m[2] - 1)}`;
+
+            m = inner.match(new RegExp(`^${esc}\\s+not\\s+in\\s+\\[([^\\]]+)\\]$`));
+            if (m) return `${label}: ≠ ${m[1].split(',').map(n => fmt(+n.trim())).join(', ')}`;
+
+            m = inner.match(new RegExp(`^${esc}\\s+in\\s+range\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)$`));
+            if (m) return `${label}: ${fmt(+m[1])} – ${fmt(+m[2] - 1)}`;
+
+            m = inner.match(new RegExp(`^${esc}\\s+in\\s+\\[([^\\]]+)\\]$`));
+            if (m) return `${label}: ${m[1].split(',').map(n => fmt(+n.trim())).join(', ')}`;
+        }
+
+        return null;
+    }
+
     _translateConditionText(text) {
         if (!text) return "";
+
+        // Prettify "now().X in range/list" patterns before generic translation
+        const pretty = this._prettifyNowInConditionText(text);
+        if (pretty !== null) return pretty;
 
         let translated = text;
 
@@ -1789,6 +1990,11 @@ class ScheduleStateCard extends HTMLElement {
             this.render();
         }
 
+        // Asynchronously pre-evaluate all template conditions via HA's Jinja2 engine.
+        // On completion, updateContent() is called again so the card reflects the
+        // server-evaluated results (any new templates that weren't yet cached).
+        this._refreshTemplateConditions(hass);
+
         const now = Date.now();
         const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
 
@@ -1803,6 +2009,60 @@ class ScheduleStateCard extends HTMLElement {
             this.updateContent();
             this._state.updateLastUpdateTime(now);
         }
+    }
+
+    /**
+     * Collect all unique `condition: template` value_template strings from every
+     * entity layer and ask ConditionEvaluator to refresh their cached results via
+     * HA's /api/template endpoint.
+     *
+     * The cache key is the most recent last_update across all configured entities.
+     * This ties cache invalidation to HA's own evaluation cycle (every ~1 minute),
+     * ensuring the card is always in sync with the server regardless of what the
+     * templates contain (month, hour, weekday, state, …).
+     *
+     * Re-render is triggered only when refreshTemplateCache actually fetched new
+     * results (i.e. the cache key changed or new templates appeared).
+     *
+     * @param {Object} hass - Home Assistant hass object
+     */
+    _refreshTemplateConditions(hass) {
+        if (!this._config?.entities || !this.conditionEvaluator) return;
+
+        const templates = new Set();
+        let cacheKey = null;
+
+        for (const entityConfig of this._config.entities) {
+            const entityId = typeof entityConfig === 'string' ? entityConfig : entityConfig.entity;
+            const state = hass.states[entityId];
+            if (!state) continue;
+
+            // Use last_update as invalidation signal — same cycle as HA's own evaluation
+            const lastUpdate = state.attributes?.last_update;
+            if (lastUpdate && (!cacheKey || lastUpdate > cacheKey)) {
+                cacheKey = lastUpdate;
+            }
+
+            const layers = state.attributes?.layers;
+            if (!layers) continue;
+            for (const dayLayers of Object.values(layers)) {
+                for (const layer of dayLayers) {
+                    for (const block of layer.blocks || []) {
+                        for (const cond of block.raw_conditions || []) {
+                            if (cond.condition === 'template' && cond.value_template) {
+                                templates.add(cond.value_template);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (templates.size === 0) return;
+
+        this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey)
+            .then(updated => { if (updated) this.updateContent(); })
+            .catch(e => errorLog('ScheduleStateCard', 'Failed to refresh template conditions:', e));
     }
 
     static getConfigElement() {
@@ -2996,7 +3256,7 @@ class ScheduleStateCard extends HTMLElement {
 
         // Validate inputs first
         if (!this._validateTimelineInputs(roomName, allLayers, entityId)) {
-            return this.renderErrorCard(entityId, "Invalid timeline data");
+            return this.renderErrorCard(entityId, this.t("invalid_data"));
         }
 
         // Handle empty layers case
