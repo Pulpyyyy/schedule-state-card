@@ -4,5 +4,4 @@ __pycache__/
 .vscode/
 *.swp
 node_modules/
-dist/
 *.zip
