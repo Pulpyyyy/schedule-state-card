@@ -22,7 +22,7 @@ jobs:
         id: get_version
         run: |
           # Matches the version number specifically after 'Schedule State Card %c v'
-          VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' schedule-state-card.js | head -n 1)
+          VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' dist/schedule-state-card.js | head -n 1)
           
           # Adding 'v' prefix for the git tag (results in v1.0.0)
           TAG="v$VERSION"

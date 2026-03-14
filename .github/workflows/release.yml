@@ -1,0 +1,107 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify dist assets exist
+        run: |
+          for f in dist/schedule-state-card.js dist/schedule-state-card-editor.js; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: required asset '$f' is missing from this tag." >&2
+              exit 1
+            fi
+          done
+          echo "Both dist assets confirmed present."
+
+      - name: Verify version consistency
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          JS_VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' \
+            dist/schedule-state-card.js | head -n 1)
+          if [ -z "$JS_VERSION" ]; then
+            echo "WARNING: Could not extract version from JS banner. Proceeding anyway."
+          elif [ "$JS_VERSION" != "$VERSION" ]; then
+            echo "ERROR: Tag version '$VERSION' does not match JS version '$JS_VERSION'." >&2
+            exit 1
+          else
+            echo "Version consistency check passed: $JS_VERSION"
+          fi
+
+      - name: Build release notes
+        id: notes
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -n 1)
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%h)" --no-merges)
+            RANGE_TEXT="Changes since \`${PREV_TAG}\`"
+          else
+            COMMITS=$(git log "${TAG}" --pretty=format:"- %s (%h)" --no-merges | head -20)
+            RANGE_TEXT="Initial release commits"
+          fi
+
+          cat > /tmp/release_notes.md << NOTES
+          ## Schedule State Card ${VERSION}
+
+          ### ${RANGE_TEXT}
+
+          ${COMMITS}
+
+          ---
+          ### Installation
+
+          #### HACS (recommended)
+          This release is automatically available via HACS.
+
+          #### Manual
+          1. Download \`schedule-state-card.js\` and \`schedule-state-card-editor.js\` from the assets below.
+          2. Place both files in your \`config/www/\` directory.
+          3. Add the resource in Home Assistant:
+             - **URL:** \`/local/schedule-state-card.js\`
+             - **Type:** JavaScript module
+          4. Reload your browser.
+
+          ---
+          **Full Changelog:** https://github.com/${{ github.repository }}/commits/${TAG}
+          NOTES
+
+          echo "notes_file=/tmp/release_notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Schedule State Card ${{ steps.version.outputs.version }}"
+          body_path: ${{ steps.notes.outputs.notes_file }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
+          files: |
+            dist/schedule-state-card.js
+            dist/schedule-state-card-editor.js
+          fail_on_unmatched_files: true
