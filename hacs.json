@@ -2,7 +2,5 @@
   "name": "Schedule State Card",
   "filename": "dist/schedule-state-card.js",
   "homeassistant": "2023.12.0",
-  "render_readme": true,
-  "documentation": "https://github.com/Pulpyyyy/schedule-state-card",
-  "issues": "https://github.com/Pulpyyyy/schedule-state-card/issues"
+  "render_readme": true
 }
