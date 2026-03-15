@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.7 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.8 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -4247,6 +4247,11 @@ class ScheduleStateCard extends HTMLElement {
 }
 
 customElements.define("schedule-state-card", ScheduleStateCard);
+
+// Expose shared globals for the editor module (loaded via dynamic import as ES module,
+// which cannot access top-level const from this classic script directly)
+window._scheduleStateCardShared = { TRANSLATIONS, DEFAULT_COLORS, COLOR_CACHE, escapeHtml, DAY_ORDER };
+
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",

@@ -1,34 +1,51 @@
 /**
  * Schedule State Card - Editor
  * Uses native Home Assistant UI helpers:
- *   ha-entity-picker, ha-icon-picker, ha-selector (color_rgb / select / boolean / text)
- *   ha-textfield, ha-formfield, ha-switch, ha-icon-button
+ *   ha-entity-picker, ha-icon-picker, ha-selector (color_rgb)
+ *   ha-textfield, ha-formfield, ha-switch, ha-select
+ *
+ * Globals (TRANSLATIONS, DEFAULT_COLORS, COLOR_CACHE) are accessed lazily from
+ * window._scheduleStateCardShared, set by schedule-state-card.js at runtime.
+ * This file is loaded as an ES module via dynamic import(), so it cannot access
+ * top-level const from the classic script directly.
  */
 
-// ─── helpers (globals exposed by the main card file) ────────────────────────
-// TRANSLATIONS, DEFAULT_COLORS, COLOR_CACHE, escapeHtml, DAY_ORDER
-// are defined in schedule-state-card.js which is always loaded first.
-// ─────────────────────────────────────────────────────────────────────────────
+// escapeHtml defined locally — no dependency on shared globals
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 class ScheduleStateCardEditor extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._config   = {};
-        this._hass     = null;
-        this._entities = [];
-        this._editingIndex = null;
-        this._rendered = false;
+        this._config          = {};
+        this._hass            = null;
+        this._entities        = [];
+        this._editingIndex    = null;
+        this._rendered        = false;
+        this._renderId        = 0;
+        this._overrideBgRgb   = [33, 150, 243];   // default #2196F3
+        this._overrideTextRgb = [255, 255, 255];  // default #ffffff
     }
 
     // ── i18n ────────────────────────────────────────────────────────────────
     _lang() {
-        const l = this._hass?.locale?.language;
-        return (l && TRANSLATIONS[l]) ? l : 'en';
+        const tr = window._scheduleStateCardShared?.TRANSLATIONS;
+        const l  = this._hass?.locale?.language;
+        return (l && tr?.[l]) ? l : 'en';
     }
     t(key) {
+        const tr = window._scheduleStateCardShared?.TRANSLATIONS;
+        if (!tr) return key;
         const l = this._lang();
-        return (TRANSLATIONS[l]?.[key]) ?? TRANSLATIONS.en[key] ?? key;
+        return tr[l]?.[key] ?? tr.en?.[key] ?? key;
     }
 
     // ── HA interface ────────────────────────────────────────────────────────
@@ -50,7 +67,7 @@ class ScheduleStateCardEditor extends HTMLElement {
         if (!this._rendered) {
             this._render();
         } else {
-            // Propagate hass to all HA pickers already in the DOM
+            // Propagate hass to HA pickers already in the DOM (includes inside slots)
             this.shadowRoot.querySelectorAll(
                 'ha-entity-picker, ha-icon-picker, ha-selector'
             ).forEach(el => { el.hass = hass; });
@@ -90,17 +107,17 @@ class ScheduleStateCardEditor extends HTMLElement {
     // ── render ───────────────────────────────────────────────────────────────
     _render() {
         this._rendered = true;
-        const t  = this.t.bind(this);
-        const c  = this._config;
+        const t = this.t.bind(this);
+        const c = this._config;
 
         const entityRows = this._entities.map((e, i) => this._entityRow(e, i)).join('');
 
         const colorRows = [
-            ['active_layer',           t('editor_active_layer_label')],
-            ['inactive_layer',         t('editor_inactive_layer_label')],
-            ['combined_folded_layer',  t('editor_combined_folded_label')],
-            ['combined_unfolded_layer',t('editor_combined_unfolded_label')],
-            ['cursor',                 t('editor_cursor_label')],
+            ['active_layer',            t('editor_active_layer_label')],
+            ['inactive_layer',          t('editor_inactive_layer_label')],
+            ['combined_folded_layer',   t('editor_combined_folded_label')],
+            ['combined_unfolded_layer', t('editor_combined_unfolded_label')],
+            ['cursor',                  t('editor_cursor_label')],
         ].map(([k, l]) => this._colorRow(k, l)).join('');
 
         this.shadowRoot.innerHTML = `
@@ -108,31 +125,22 @@ class ScheduleStateCardEditor extends HTMLElement {
   :host { display: block; }
   .card-config { padding: 4px 0; }
   .divider { height: 1px; background: var(--divider-color); margin: 12px 0; }
-  .section-title {
-    font-size: 15px; font-weight: 600; margin: 0 0 10px;
-    color: var(--primary-text-color);
-  }
+  .section-title { font-size: 15px; font-weight: 600; margin: 0 0 10px; color: var(--primary-text-color); }
   ha-textfield  { display: block; margin-bottom: 8px; width: 100%; }
-  ha-select     { display: block; margin-bottom: 8px; width: 100%; }
+  .layout-select-wrapper { display: block; margin-bottom: 8px; width: 100%; }
+  .layout-select-wrapper label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 4px; }
+  .layout-select-wrapper select { width: 100%; padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color, var(--primary-background-color)); color: var(--primary-text-color); font-size: 14px; cursor: pointer; box-sizing: border-box; }
   ha-formfield  { display: block; margin-bottom: 12px; }
-  ha-entity-picker, ha-icon-picker { display: block; margin-bottom: 8px; width: 100%; }
+  .picker-slot, ha-icon-picker { display: block; margin-bottom: 8px; width: 100%; }
 
-  /* entity rows */
   .entity-row {
     display: flex; align-items: center; gap: 8px;
     padding: 10px; border-radius: 6px; margin-bottom: 6px;
-    background: var(--secondary-background-color);
-    border: 1px solid var(--divider-color);
+    background: var(--secondary-background-color); border: 1px solid var(--divider-color);
   }
   .entity-row ha-icon { flex-shrink: 0; }
-  .entity-name {
-    flex: 1; font-size: 13px; color: var(--primary-text-color);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .entity-id {
-    flex: 1; font-size: 11px; color: var(--secondary-text-color);
-    font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
+  .entity-name { flex: 1; font-size: 13px; color: var(--primary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entity-id   { flex: 1; font-size: 11px; color: var(--secondary-text-color); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row-actions { display: flex; gap: 2px; flex-shrink: 0; }
   .icon-btn {
     background: transparent; border: 1px solid var(--divider-color);
@@ -143,32 +151,23 @@ class ScheduleStateCardEditor extends HTMLElement {
   .icon-btn:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
   .icon-btn.danger:hover { background: #e74c3c; border-color: #e74c3c; }
 
-  /* entity edit form */
   .entity-edit-form {
     padding: 12px; border: 1px solid var(--primary-color);
-    border-radius: 6px; margin-bottom: 8px;
-    background: var(--primary-background-color);
+    border-radius: 6px; margin-bottom: 8px; background: var(--primary-background-color);
   }
 
-  /* add button */
   .add-btn {
     width: 100%; padding: 10px; margin-top: 4px;
     background: var(--primary-color); color: white;
-    border: none; border-radius: 6px; cursor: pointer;
-    font-size: 14px; font-weight: 600;
+    border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
   }
   .add-btn:hover { opacity: .9; }
 
-  /* color rows */
-  .color-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 8px 0; border-bottom: 1px solid var(--divider-color);
-  }
+  .color-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }
   .color-row:last-child { border-bottom: none; }
   .color-label { flex: 1; font-size: 13px; color: var(--primary-text-color); }
-  .color-selector-wrap { width: 220px; flex-shrink: 0; }
+  .color-selector-slot { width: 220px; flex-shrink: 0; }
 
-  /* overrides */
   .override-row {
     display: flex; align-items: center; gap: 8px; padding: 8px;
     background: var(--secondary-background-color);
@@ -177,53 +176,46 @@ class ScheduleStateCardEditor extends HTMLElement {
   .override-chip {
     min-width: 56px; height: 26px; padding: 0 8px; border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: bold; border: 1px solid var(--divider-color);
-    flex-shrink: 0;
+    font-size: 11px; font-weight: bold; border: 1px solid var(--divider-color); flex-shrink: 0;
   }
   .override-key { flex: 1; font-family: monospace; font-size: 12px; }
-  .new-override-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px; margin-top: 10px;
+  .new-override-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .color-field-label { font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
+  .override-input {
+    width: 100%; padding: 8px; box-sizing: border-box;
+    background: var(--secondary-background-color); color: var(--primary-text-color);
+    border: 1px solid var(--divider-color); border-radius: 4px; font-size: 14px;
   }
-  .color-field-label {
-    font-size: 11px; color: var(--secondary-text-color); margin-bottom: 2px;
-  }
+  .override-input:focus { outline: none; border-color: var(--primary-color); }
   .add-override-btn {
-    grid-column: 1 / -1; padding: 8px;
-    background: var(--primary-color); color: white;
-    border: none; border-radius: 4px; cursor: pointer;
-    font-size: 13px; font-weight: 600;
+    grid-column: 1 / -1; padding: 8px; background: var(--primary-color); color: white;
+    border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;
   }
   .add-override-btn:hover { opacity: .9; }
 </style>
 
 <div class="card-config">
 
-  <!-- Title -->
-  <ha-textfield
-    id="title-input"
-    label="${t('editor_card_title')}"
-    value="${escapeHtml(c.title || '')}"
-    placeholder="${t('editor_title_placeholder')}">
+  <ha-textfield id="title-input" label="${t('editor_card_title')}"
+    value="${escapeHtml(c.title || '')}" placeholder="${t('editor_title_placeholder')}">
   </ha-textfield>
 
-  <!-- Show state -->
   <ha-formfield label="${t('editor_show_state_in_title')}">
     <ha-switch id="show-state-input" ${c.show_state_in_title ? 'checked' : ''}></ha-switch>
   </ha-formfield>
 
   <div class="divider"></div>
 
-  <!-- Layout -->
-  <ha-select id="layout-selector" label="${t('editor_layout_label')}" value="${c.layout || 'entities'}">
-    <mwc-list-item value="entities">${t('editor_layout_entities')}</mwc-list-item>
-    <mwc-list-item value="days">${t('editor_layout_days')}</mwc-list-item>
-  </ha-select>
+  <div class="layout-select-wrapper">
+    <label>${t('editor_layout_label')}</label>
+    <select id="layout-selector">
+      <option value="entities">${t('editor_layout_entities')}</option>
+      <option value="days">${t('editor_layout_days')}</option>
+    </select>
+  </div>
 
   <div class="divider"></div>
 
-  <!-- Entities -->
   <div class="section-title">${t('editor_entities_label')}</div>
   <div id="entities-list">
     ${entityRows || `<div style="text-align:center;padding:20px;color:var(--secondary-text-color);">${t('editor_no_entities')}</div>`}
@@ -232,19 +224,26 @@ class ScheduleStateCardEditor extends HTMLElement {
 
   <div class="divider"></div>
 
-  <!-- Colors -->
   <div class="section-title">${t('editor_colors_label')}</div>
   <div id="colors-section">${colorRows}</div>
 
   <div class="divider"></div>
 
-  <!-- Color overrides -->
   ${this._colorOverridesSection(t)}
 
 </div>`;
 
-        // Attach HA-specific properties and listeners once elements exist
-        requestAnimationFrame(() => this._boot());
+        // _applyHAProps() creates ha-entity-picker and ha-selector programmatically
+        // (document.createElement + set properties + appendChild) so properties are
+        // set BEFORE the element's first render — avoids null-selector/null-hass crashes
+        // from HA's scoped custom element registry which upgrades during innerHTML.
+        this._applyHAProps();
+
+        // Deduplicate _boot(): if _render() is called twice before a rAF fires
+        // (e.g. from handler + setConfig callback), only the last boot runs.
+        this._renderId++;
+        const rid = this._renderId;
+        requestAnimationFrame(() => { if (this._renderId === rid) this._boot(); });
     }
 
     // ── entity row HTML ──────────────────────────────────────────────────────
@@ -262,10 +261,10 @@ class ScheduleStateCardEditor extends HTMLElement {
   <span class="entity-name">${escapeHtml(nm)}</span>
   <span class="entity-id">${escapeHtml(id)}</span>
   <div class="row-actions">
-    <button class="icon-btn edit-btn" data-index="${index}" title="${t('common.edit') || 'Edit'}">
+    <button class="icon-btn edit-btn" data-index="${index}" title="Edit">
       <ha-icon icon="mdi:pencil"></ha-icon>
     </button>
-    <button class="icon-btn danger remove-btn" data-index="${index}" title="${t('common.delete') || 'Delete'}">
+    <button class="icon-btn danger remove-btn" data-index="${index}" title="Delete">
       <ha-icon icon="mdi:delete"></ha-icon>
     </button>
   </div>
@@ -275,35 +274,27 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 
     _entityEditForm(entityConfig, index) {
         const t = this.t.bind(this);
+        // ha-entity-picker is NOT in the HTML string — it's created in _applyHAProps()
+        // and injected into .picker-slot to avoid null-hass render crash.
         return `
 <div class="entity-edit-form" data-edit-index="${index}">
-  <ha-entity-picker
-    data-index="${index}"
-    data-field="entity"
-    allow-custom-entity>
-  </ha-entity-picker>
-  <ha-textfield
-    data-index="${index}"
-    data-field="name"
+  <div class="picker-slot" data-index="${index}"></div>
+  <ha-textfield data-index="${index}" data-field="name"
     label="${t('editor_name_label')}"
     value="${escapeHtml(entityConfig.name || '')}"
     placeholder="${t('editor_placeholder_name')}">
   </ha-textfield>
-  <ha-icon-picker
-    data-index="${index}"
-    data-field="icon">
-  </ha-icon-picker>
+  <ha-icon-picker data-index="${index}" data-field="icon"></ha-icon-picker>
 </div>`;
     }
 
     // ── color row HTML ───────────────────────────────────────────────────────
+    // ha-selector is NOT in the HTML string — created in _applyHAProps().
     _colorRow(colorKey, label) {
         return `
 <div class="color-row">
   <span class="color-label">${label}</span>
-  <div class="color-selector-wrap">
-    <ha-selector data-colorkey="${colorKey}"></ha-selector>
-  </div>
+  <div class="color-selector-slot" data-colorkey="${colorKey}"></div>
 </div>`;
     }
 
@@ -318,7 +309,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 <div class="override-row">
   <div class="override-chip" style="background:${bg};color:${text};">${escapeHtml(value)}${unit ? ' ' + escapeHtml(unit) : ''}</div>
   <span class="override-key">${escapeHtml(key)}</span>
-  <button class="icon-btn danger delete-override-btn" data-override-key="${escapeHtml(key)}" title="${t('common.delete') || 'Delete'}">
+  <button class="icon-btn danger delete-override-btn" data-override-key="${escapeHtml(key)}" title="Delete">
     <ha-icon icon="mdi:delete"></ha-icon>
   </button>
 </div>`;
@@ -326,48 +317,69 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 
         return `
 <div class="section-title">${t('editor_override_title')}</div>
-<div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">
-  ${t('editor_override_description')}
-</div>
+<div style="font-size:12px;color:var(--secondary-text-color);margin-bottom:10px;">${t('editor_override_description')}</div>
 <div id="overrides-list">
   ${rows || `<div style="text-align:center;padding:10px;color:var(--secondary-text-color);">${t('editor_override_no_overrides')}</div>`}
 </div>
 <div class="new-override-grid">
-  <ha-textfield id="override-value-input" label="${t('editor_override_value_label') || 'Value'}" placeholder="18"></ha-textfield>
-  <ha-textfield id="override-unit-input"  label="${t('editor_override_unit_label')  || 'Unit'}"  placeholder="°C"></ha-textfield>
+  <div>
+    <div class="color-field-label">${t('editor_override_value_label')}</div>
+    <input id="override-value-input" class="override-input" type="text" placeholder="21">
+  </div>
+  <div>
+    <div class="color-field-label">${t('editor_override_unit_label')}</div>
+    <input id="override-unit-input" class="override-input" type="text" placeholder="°C">
+  </div>
   <div>
     <div class="color-field-label">${t('editor_override_bg_label')}</div>
-    <ha-selector id="override-bg-selector"></ha-selector>
+    <div id="override-bg-slot"></div>
   </div>
   <div>
     <div class="color-field-label">${t('editor_override_text_label')}</div>
-    <ha-selector id="override-text-selector"></ha-selector>
+    <div id="override-text-slot"></div>
   </div>
-  <button class="add-override-btn" id="add-override-btn">${t('editor_override_add') || '+ Add override'}</button>
+  <button class="add-override-btn" id="add-override-btn">${t('editor_override_add_button')}</button>
 </div>`;
     }
 
-    // ── boot: set HA properties + attach listeners ───────────────────────────
-    async _boot() {
-        // Wait for HA elements to be defined (they almost certainly already are)
-        await Promise.all(
-            ['ha-entity-picker', 'ha-icon-picker', 'ha-selector', 'ha-textfield', 'ha-select', 'ha-switch', 'ha-formfield']
-                .filter(n => !customElements.get(n))
-                .map(n => customElements.whenDefined(n))
-        );
-        this._applyHAProps();
+    // ── boot: attach listeners (runs once per render cycle) ──────────────────
+    // No whenDefined() wait: HA uses a scoped custom element registry, so
+    // customElements.get() returns undefined for HA elements even when defined,
+    // causing whenDefined() to hang forever. Elements are already usable by the
+    // time this rAF callback fires.
+    _boot() {
         this._attachListeners();
     }
 
+    // ── create HA elements programmatically + set their properties ────────────
+    // Called synchronously in _render(), BEFORE the rAF that runs _boot().
+    // Creating elements via document.createElement and setting properties before
+    // appendChild ensures the element renders with correct props from the start.
     _applyHAProps() {
         const sr = this.shadowRoot;
         if (!sr || !this._hass) return;
 
+        const DEFAULT_COLORS = window._scheduleStateCardShared?.DEFAULT_COLORS || {};
+
         // --- Entity pickers ---
-        sr.querySelectorAll('ha-entity-picker[data-index]').forEach(p => {
-            const i = parseInt(p.dataset.index);
-            p.hass  = this._hass;
-            p.value = this._entities[i]?.entity || '';
+        sr.querySelectorAll('.picker-slot[data-index]').forEach(slot => {
+            const i = parseInt(slot.dataset.index);
+            slot.innerHTML = '';
+            const p = document.createElement('ha-entity-picker');
+            p.hass           = this._hass;
+            p.value          = this._entities[i]?.entity || '';
+            p.includeDomains = ['sensor'];
+            p.setAttribute('allow-custom-entity', '');
+            p.style.cssText  = 'display:block;margin-bottom:8px;width:100%;';
+            // Listener on the element itself (not a slot div) — most reliable
+            p.addEventListener('value-changed', e => {
+                this._entities = this._entities.map((ent, idx) =>
+                    idx === i ? { ...ent, entity: e.detail.value } : ent
+                );
+                this._fire();
+                this._render();
+            });
+            slot.appendChild(p);
         });
 
         // --- Icon pickers ---
@@ -376,26 +388,47 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             p.value = this._entities[i]?.icon || '';
         });
 
-        // --- Color selectors (card colors) ---
-        sr.querySelectorAll('ha-selector[data-colorkey]').forEach(sel => {
-            const key   = sel.dataset.colorkey;
+        // --- Card color selectors ---
+        sr.querySelectorAll('.color-selector-slot[data-colorkey]').forEach(slot => {
+            const key   = slot.dataset.colorkey;
             const color = this._config.colors?.[key] || DEFAULT_COLORS[key];
+            slot.innerHTML = '';
+            const sel = document.createElement('ha-selector');
             sel.hass     = this._hass;
             sel.selector = { color_rgb: {} };
             sel.value    = this._hexToRgb(color);
+            sel.addEventListener('value-changed', e => {
+                const hex    = this._rgbToHex(e.detail.value);
+                const colors = { ...DEFAULT_COLORS, ...(this._config.colors || {}), [key]: hex };
+                this._config = { ...this._config, colors };
+                this._fire();
+            });
+            slot.appendChild(sel);
         });
 
-        // --- Color selectors (overrides) ---
-        const bgSel   = sr.querySelector('#override-bg-selector');
-        const textSel = sr.querySelector('#override-text-selector');
-        [bgSel, textSel].forEach((sel, i) => {
-            if (!sel) return;
+        // --- Override color selectors ---
+        const bgSlot   = sr.querySelector('#override-bg-slot');
+        const textSlot = sr.querySelector('#override-text-slot');
+        if (bgSlot) {
+            bgSlot.innerHTML = '';
+            const sel = document.createElement('ha-selector');
             sel.hass     = this._hass;
             sel.selector = { color_rgb: {} };
-            sel.value    = this._hexToRgb(i === 0 ? '#2196F3' : '#ffffff');
-        });
+            sel.value    = this._overrideBgRgb;
+            sel.addEventListener('value-changed', e => { this._overrideBgRgb = e.detail.value; });
+            bgSlot.appendChild(sel);
+        }
+        if (textSlot) {
+            textSlot.innerHTML = '';
+            const sel = document.createElement('ha-selector');
+            sel.hass     = this._hass;
+            sel.selector = { color_rgb: {} };
+            sel.value    = this._overrideTextRgb;
+            sel.addEventListener('value-changed', e => { this._overrideTextRgb = e.detail.value; });
+            textSlot.appendChild(sel);
+        }
 
-        // --- ha-select layout value (needs to be set after upgrade) ---
+        // --- ha-select layout ---
         const layoutSel = sr.querySelector('#layout-selector');
         if (layoutSel) layoutSel.value = this._config.layout || 'entities';
     }
@@ -420,17 +453,15 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
         // Layout selector
         const layoutSel = sr.querySelector('#layout-selector');
         if (layoutSel) {
-            const onLayout = () => {
-                const v = layoutSel.value;
+            layoutSel.addEventListener('change', e => {
+                const v = e.target.value;
                 if (v) { this._config = { ...this._config, layout: v }; this._fire(); }
-            };
-            layoutSel.addEventListener('value-changed', onLayout);
-            layoutSel.addEventListener('selected', onLayout);
+            });
         }
 
         // Add entity
         sr.querySelector('#add-btn')?.addEventListener('click', () => {
-            this._entities = [...this._entities, { entity: '', name: '', icon: '' }];
+            this._entities    = [...this._entities, { entity: '', name: '', icon: '' }];
             this._editingIndex = this._entities.length - 1;
             this._fire();
             this._render();
@@ -454,18 +485,6 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             });
         });
 
-        // Entity picker value-changed
-        sr.querySelectorAll('ha-entity-picker[data-index]').forEach(p => {
-            p.addEventListener('value-changed', e => {
-                const i = parseInt(p.dataset.index);
-                this._entities = this._entities.map((ent, idx) =>
-                    idx === i ? { ...ent, entity: e.detail.value } : ent
-                );
-                this._fire();
-                this._render();
-            });
-        });
-
         // Icon picker value-changed
         sr.querySelectorAll('ha-icon-picker[data-index]').forEach(p => {
             p.addEventListener('value-changed', e => {
@@ -478,7 +497,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             });
         });
 
-        // Entity name text field
+        // Entity name
         sr.querySelectorAll('ha-textfield[data-field="name"]').forEach(f => {
             f.addEventListener('change', e => {
                 const i = parseInt(f.dataset.index);
@@ -489,16 +508,8 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             });
         });
 
-        // Card color selectors
-        sr.querySelectorAll('ha-selector[data-colorkey]').forEach(sel => {
-            sel.addEventListener('value-changed', e => {
-                const key    = sel.dataset.colorkey;
-                const hex    = this._rgbToHex(e.detail.value);
-                const colors = { ...DEFAULT_COLORS, ...(this._config.colors || {}), [key]: hex };
-                this._config = { ...this._config, colors };
-                this._fire();
-            });
-        });
+        // Note: entity picker and color selector value-changed listeners are
+        // attached directly on each element inside _applyHAProps().
 
         // Delete override
         sr.querySelectorAll('.delete-override-btn').forEach(btn => {
@@ -506,7 +517,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
                 const key      = btn.dataset.overrideKey;
                 const overrides = { ...(this._config.color_overrides || {}) };
                 delete overrides[key];
-                COLOR_CACHE.removeOverride(key);
+                window._scheduleStateCardShared?.COLOR_CACHE?.removeOverride(key);
                 this._config = { ...this._config, color_overrides: overrides };
                 this._fire();
                 this._render();
@@ -515,21 +526,14 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 
         // Add override
         sr.querySelector('#add-override-btn')?.addEventListener('click', () => {
-            const valueInput = sr.querySelector('#override-value-input');
-            const unitInput  = sr.querySelector('#override-unit-input');
-            const bgSel      = sr.querySelector('#override-bg-selector');
-            const textSel    = sr.querySelector('#override-text-selector');
-
-            const value = valueInput?.value?.trim();
+            const value = sr.querySelector('#override-value-input')?.value?.trim();
             if (!value) return;
-
-            const unit    = unitInput?.value?.trim() || '';
-            const bgColor   = bgSel?.value   ? this._rgbToHex(bgSel.value)   : '#2196F3';
-            const textColor = textSel?.value ? this._rgbToHex(textSel.value) : '#ffffff';
-
+            const unit      = sr.querySelector('#override-unit-input')?.value?.trim() || '';
+            const bgColor   = this._rgbToHex(this._overrideBgRgb);
+            const textColor = this._rgbToHex(this._overrideTextRgb);
             const key       = `${value}|${unit}`;
             const overrides = { ...(this._config.color_overrides || {}), [key]: { color: bgColor, textColor } };
-            COLOR_CACHE.setOverride(key, bgColor, textColor);
+            window._scheduleStateCardShared?.COLOR_CACHE?.setOverride(key, bgColor, textColor);
             this._config = { ...this._config, color_overrides: overrides };
             this._fire();
             this._render();
