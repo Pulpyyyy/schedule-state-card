@@ -1,16 +1,28 @@
-name: Sync Tag with JS Version
+name: Tag
 
 on:
-  push:
-    branches:
-      - main
-      - master
+  workflow_call:
+    outputs:
+      tag:
+        description: "The git tag (e.g. v1.2.3)"
+        value: ${{ jobs.tag.outputs.tag }}
+      version:
+        description: "The version without v prefix (e.g. 1.2.3)"
+        value: ${{ jobs.tag.outputs.version }}
+      created:
+        description: "true if a new tag was created, false if it already existed"
+        value: ${{ jobs.tag.outputs.created }}
+
+permissions:
+  contents: write
 
 jobs:
-  tag-only:
+  tag:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      tag: ${{ steps.get_version.outputs.tag }}
+      version: ${{ steps.get_version.outputs.version }}
+      created: ${{ steps.push_tag.outputs.created }}
 
     steps:
       - name: Checkout Code
@@ -21,24 +33,23 @@ jobs:
       - name: Extract Version from JS
         id: get_version
         run: |
-          # Matches the version number specifically after 'Schedule State Card %c v'
           VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' dist/schedule-state-card.js | head -n 1)
-          
-          # Adding 'v' prefix for the git tag (results in v1.0.0)
           TAG="v$VERSION"
-          
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Found version: $TAG"
 
-      - name: Push Tag
+      - name: Create and push tag
+        id: push_tag
         run: |
-          # Check if tag already exists
+          TAG="${{ steps.get_version.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists. Skipping."
+            echo "created=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Creating and pushing tag $TAG"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag $TAG
-            git push origin $TAG
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "created=true" >> "$GITHUB_OUTPUT"
           fi

@@ -1,9 +1,14 @@
-name: Create Release
+name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -17,15 +22,8 @@ jobs:
       - name: Checkout code at tag
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
-
-      - name: Extract version from tag
-        id: version
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#v}"
-          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Verify dist assets exist
         run: |
@@ -39,7 +37,7 @@ jobs:
 
       - name: Verify version consistency
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ inputs.version }}"
           JS_VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' \
             dist/schedule-state-card.js | head -n 1)
           if [ -z "$JS_VERSION" ]; then
@@ -54,8 +52,8 @@ jobs:
       - name: Build release notes
         id: notes
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ inputs.tag }}"
+          VERSION="${{ inputs.version }}"
 
           PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
@@ -96,11 +94,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "Schedule State Card ${{ steps.version.outputs.version }}"
+          tag_name: ${{ inputs.tag }}
+          name: "Schedule State Card ${{ inputs.version }}"
           body_path: ${{ steps.notes.outputs.notes_file }}
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
+          prerelease: ${{ contains(inputs.tag, '-') }}
           files: |
             dist/schedule-state-card.js
             dist/schedule-state-card-editor.js
