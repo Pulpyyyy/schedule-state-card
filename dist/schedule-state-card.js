@@ -1,4 +1,4 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.8 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+console.info("%c 🙂 Schedule State Card %c v2.0.9 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -966,7 +966,7 @@ class ConditionEvaluator {
     }
 
     /**
-     * Evaluate all given template strings via HA's REST API (Jinja2 engine)
+     * Evaluate all given template strings via HA's WebSocket (Jinja2 engine)
      * and store results in templateCache.
      *
      * Cache is invalidated whenever cacheKey changes — cacheKey should be the
@@ -992,7 +992,7 @@ class ConditionEvaluator {
 
         await Promise.all(uncached.map(async (tmpl) => {
             try {
-                const result = await hass.callApi('POST', 'template', { template: tmpl });
+                const result = await this._evaluateTemplateViaWS(hass, tmpl);
                 this.templateCache.set(tmpl, String(result).trim().toLowerCase() === 'true');
             } catch (e) {
                 errorLog('ConditionEvaluator', 'Template evaluation error via HA API:', tmpl, e);
@@ -1000,6 +1000,32 @@ class ConditionEvaluator {
         }));
 
         return true;
+    }
+
+    /**
+     * Evaluate a Jinja2 template via WebSocket (render_template).
+     * Works for non-admin users, unlike the REST /api/template endpoint.
+     */
+    _evaluateTemplateViaWS(hass, template) {
+        return new Promise((resolve, reject) => {
+            let unsubscribe;
+            const timer = setTimeout(() => {
+                if (unsubscribe) unsubscribe();
+                reject(new Error('Template evaluation timeout'));
+            }, 5000);
+
+            hass.connection.subscribeMessage(
+                (msg) => {
+                    clearTimeout(timer);
+                    if (unsubscribe) unsubscribe();
+                    resolve(msg.result);
+                },
+                { type: 'render_template', template }
+            ).then(u => { unsubscribe = u; }).catch(e => {
+                clearTimeout(timer);
+                reject(e);
+            });
+        });
     }
 
     evaluateCondition(condition) {
@@ -2014,7 +2040,7 @@ class ScheduleStateCard extends HTMLElement {
     /**
      * Collect all unique `condition: template` value_template strings from every
      * entity layer and ask ConditionEvaluator to refresh their cached results via
-     * HA's /api/template endpoint.
+     * HA's WebSocket render_template (works for non-admin users).
      *
      * The cache key is the most recent last_update across all configured entities.
      * This ties cache invalidation to HA's own evaluation cycle (every ~1 minute),
