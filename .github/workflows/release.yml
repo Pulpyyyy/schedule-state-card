@@ -95,7 +95,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
-          name: "Schedule State Card ${{ inputs.version }}"
+          name: "${{ inputs.version }}"
           body_path: ${{ steps.notes.outputs.notes_file }}
           draft: false
           prerelease: ${{ contains(inputs.tag, '-') }}
