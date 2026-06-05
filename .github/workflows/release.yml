@@ -38,10 +38,10 @@ jobs:
       - name: Verify version consistency
         run: |
           VERSION="${{ inputs.version }}"
-          JS_VERSION=$(grep -oP 'Schedule State Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' \
+          JS_VERSION=$(grep -oP 'CARD_VERSION\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' \
             dist/schedule-state-card.js | head -n 1)
           if [ -z "$JS_VERSION" ]; then
-            echo "WARNING: Could not extract version from JS banner. Proceeding anyway."
+            echo "WARNING: Could not extract CARD_VERSION from JS. Proceeding anyway."
           elif [ "$JS_VERSION" != "$VERSION" ]; then
             echo "ERROR: Tag version '$VERSION' does not match JS version '$JS_VERSION'." >&2
             exit 1

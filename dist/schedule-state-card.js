@@ -1,4 +1,6 @@
-console.info("%c 🙂 Schedule State Card %c v2.0.9 %c", "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
+const CARD_VERSION = "2.2.0";
+
+console.info(`%c 🙂 Schedule State Card %c v${CARD_VERSION} %c`, "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
 /**
  * DEBUG MODE - Activate with ?debug in URL
@@ -2098,7 +2100,35 @@ class ScheduleStateCard extends HTMLElement {
         return document.createElement('schedule-state-card-editor');
     }
 
-    static getStubConfig() {
+    static getStubConfig(hass, entities, entitiesFallback) {
+        // HA 2026.6 entity-first card picker: pre-fill a schedule_state sensor.
+        // Filter on the entity-registry platform so only entities created by the
+        // schedule_state integration are picked (not every sensor).
+        // 1) entity selected in the picker, 2) fallback list, 3) first available in hass.
+        const isScheduleSensor = (id) => hass?.entities?.[id]?.platform === 'schedule_state';
+
+        const pick = (list) => (list || []).filter(isScheduleSensor);
+
+        let chosen = pick(entities);
+        if (!chosen.length) chosen = pick(entitiesFallback);
+        if (!chosen.length && hass?.entities) {
+            chosen = Object.keys(hass.entities).filter(isScheduleSensor);
+        }
+
+        const entityId = chosen[0];
+        if (entityId) {
+            return {
+                entities: [{
+                    entity: entityId,
+                    name: hass?.states?.[entityId]?.attributes?.friendly_name || entityId
+                }],
+                title: "Schedule Planning",
+                colors: {
+                    ...DEFAULT_COLORS
+                }
+            };
+        }
+
         return {
             entities: [{
                 entity: "sensor.schedule_consigne_rdc",
@@ -4282,5 +4312,24 @@ window.customCards = window.customCards || [];
 window.customCards.push({
     type: "schedule-state-card",
     name: "Schedule State Card",
-    description: "Visualizes schedules defined via Schedule_state with color customization."
+    description: "Visualizes schedules defined via Schedule_state with color customization.",
+    documentationURL: "https://github.com/Pulpyyyy/schedule-state-card",
+    preview: true,
+    // HA 2026.6 entity-first card picker: suggest this card only when a sensor
+    // created by the schedule_state integration is selected (entity-registry platform).
+    getEntitySuggestion: (hass, entityId) => {
+        if (hass?.entities?.[entityId]?.platform !== 'schedule_state') {
+            return null;
+        }
+        const state = hass.states[entityId];
+        return {
+            config: {
+                type: 'custom:schedule-state-card',
+                entities: [{
+                    entity: entityId,
+                    name: state?.attributes?.friendly_name || entityId
+                }]
+            }
+        };
+    }
 });

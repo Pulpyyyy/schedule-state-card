@@ -369,6 +369,10 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             p.hass           = this._hass;
             p.value          = this._entities[i]?.entity || '';
             p.includeDomains = ['sensor'];
+            // Only list sensors created by the schedule_state integration (entity-registry platform).
+            // allow-custom-entity below still lets users type any entity_id manually.
+            p.entityFilter = (entity) =>
+                this._hass.entities?.[entity.entity_id]?.platform === 'schedule_state';
             p.setAttribute('allow-custom-entity', '');
             p.style.cssText  = 'display:block;margin-bottom:8px;width:100%;';
             // Listener on the element itself (not a slot div) — most reliable
