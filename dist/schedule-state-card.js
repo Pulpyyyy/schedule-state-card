@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.2.0";
+const CARD_VERSION = "2.2.1";
 
 console.info(`%c 🙂 Schedule State Card %c v${CARD_VERSION} %c`, "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
@@ -31,7 +31,10 @@ const debugLog = (prefix = '', ...args) => {
  */
 const debugWarn = (prefix = '', msg, ...args) => {
     if (DEBUG_MODE) {
-        if (prefix && typeof prefix === 'string' && prefix !== '') {
+        if (msg === undefined) {
+            // Single-argument call: the message was passed in the prefix slot
+            console.warn('[ScheduleStateCard WARN]', prefix);
+        } else if (prefix && typeof prefix === 'string' && prefix !== '') {
             console.warn('[ScheduleStateCard WARN]', `[${prefix}]`, msg, ...args);
         } else {
             console.warn('[ScheduleStateCard WARN]', msg, ...args);
@@ -46,7 +49,10 @@ const debugWarn = (prefix = '', msg, ...args) => {
  * @param {...any} args - Additional arguments
  */
 const errorLog = (prefix = '', msg, ...args) => {
-    if (prefix && typeof prefix === 'string' && prefix !== '') {
+    if (msg === undefined) {
+        // Single-argument call: the message was passed in the prefix slot
+        console.error('[ScheduleStateCard ERROR]', prefix);
+    } else if (prefix && typeof prefix === 'string' && prefix !== '') {
         console.error('[ScheduleStateCard ERROR]', `[${prefix}]`, msg, ...args);
     } else {
         console.error('[ScheduleStateCard ERROR]', msg, ...args);
@@ -69,6 +75,8 @@ const errorLog = (prefix = '', msg, ...args) => {
  * }
  */
 class ColorCacheSingleton {
+    static MAX_ENTRIES = 500;
+
     constructor() {
         if (ColorCacheSingleton.instance) {
             return ColorCacheSingleton.instance;
@@ -121,10 +129,17 @@ class ColorCacheSingleton {
     
     /**
      * Store a calculated color
+     * Bounded cache: sensors with continuously varying values (prices, fine
+     * temperatures) would otherwise grow the map forever during a session.
+     * Colors are deterministic hashes, so evicting only costs a recompute.
      * @param {string} key - "value|unit" format
      * @param {Object} colorData - {color, textColor}
      */
     set(key, colorData) {
+        if (this.cache.size >= ColorCacheSingleton.MAX_ENTRIES && !this.cache.has(key)) {
+            // Map preserves insertion order: drop the oldest entry
+            this.cache.delete(this.cache.keys().next().value);
+        }
         this.cache.set(key, colorData);
     }
     
@@ -527,7 +542,7 @@ const TRANSLATIONS = {
         cond_sunset: "Pôr do sol",
         cond_combined_result: "Agenda Combinada",
         cond_combined_schedule_toggle: "Resultado da Agenda Combinada (Clique para mostrar/ocultar regras)",
-        cond_after: "después de",
+        cond_after: "após",
         cond_before: "antes de",
         days: {
             mon: "Segunda-feira",
@@ -555,8 +570,8 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuração de Cores",
         editor_active_layer_label: "Cor da Camada Ativa",
         editor_inactive_layer_label: "Cor da Camada Inativa",
-        editor_combined_folded_label: "Combined Icon Color (Folded)",
-        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_combined_folded_label: "Cor do Ícone Combinado (Recolhido)",
+        editor_combined_unfolded_label: "Cor do Ícone Combinado (Expandido)",
         editor_cursor_label: "Cor do Cursor Temporal",
         editor_color_hex_label: "Cor Hex",
         editor_color_picker_label: "Seletor de Cor",
@@ -630,8 +645,8 @@ const TRANSLATIONS = {
         editor_colors_label: "Configuração de Cores",
         editor_active_layer_label: "Cor da Camada Ativa",
         editor_inactive_layer_label: "Cor da Camada Inativa",
-        editor_combined_folded_label: "Combined Icon Color (Folded)",
-        editor_combined_unfolded_label: "Combined Icon Color (Unfolded)",
+        editor_combined_folded_label: "Cor do Ícone Combinado (Recolhido)",
+        editor_combined_unfolded_label: "Cor do Ícone Combinado (Expandido)",
         editor_cursor_label: "Cor do Cursor Temporal",
         editor_color_hex_label: "Cor Hex",
         editor_color_picker_label: "Seletor de Cor",
@@ -785,6 +800,7 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_MARGIN_X: 10,
     TOOLTIP_HIDE_DELAY_MS: 50,
     TOOLTIP_SHOW_DELAY_MS: 200,
+    TOOLTIP_AUTOHIDE_MS: 4000,
     TOGGLE_LOCK_MS: 300,
     HOURS_TO_SHOW: [6, 12, 18],
     MAX_ENTITIES: 50,
@@ -800,7 +816,7 @@ const LAYOUT_CONSTANTS = {
  * @returns {string} Escaped text safe for innerHTML
  */
 function escapeHtml(text) {
-    if (!text) return "";
+    if (text === null || text === undefined) return "";
     const str = String(text);
     const map = {
         "&": "&amp;",
@@ -819,7 +835,7 @@ function escapeHtml(text) {
  * @returns {string} Escaped text safe for HTML attributes
  */
 function escapeHtmlAttribute(text) {
-    if (!text) return "";
+    if (text === null || text === undefined) return "";
     const str = String(text);
     const map = {
         "&": "&amp;",
@@ -976,12 +992,15 @@ class ConditionEvaluator {
      * cycle (typically every minute) rather than a fixed time window.
      *
      * All templates are fetched in parallel in a single Promise.all().
-     * Returns true if any result actually changed (triggers re-render).
+     * Returns true only when at least one server result was fetched (triggers
+     * re-render). Failed evaluations are cached with the JS fallback value so a
+     * permanently failing template does not retry a WS round-trip on every
+     * hass update.
      *
      * @param {Object} hass - Home Assistant hass object
      * @param {string[]} templates - List of value_template strings to evaluate
      * @param {string} cacheKey - Invalidation key (sensor last_update string)
-     * @returns {Promise<boolean>} true if cache was updated
+     * @returns {Promise<boolean>} true if cache was updated with server results
      */
     async refreshTemplateCache(hass, templates, cacheKey) {
         if (this._templateCacheKey !== cacheKey) {
@@ -992,16 +1011,23 @@ class ConditionEvaluator {
         const uncached = templates.filter(t => !this.templateCache.has(t));
         if (!uncached.length) return false;
 
+        let changed = false;
         await Promise.all(uncached.map(async (tmpl) => {
             try {
                 const result = await this._evaluateTemplateViaWS(hass, tmpl);
                 this.templateCache.set(tmpl, String(result).trim().toLowerCase() === 'true');
+                changed = true;
             } catch (e) {
                 errorLog('ConditionEvaluator', 'Template evaluation error via HA API:', tmpl, e);
+                // Cache the same value _evaluateTemplateCondition would compute
+                // live (JS fallback, else true) — no visual change, no WS retry spam.
+                const inner = tmpl.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
+                const fallback = evaluateNowInExpression(inner);
+                this.templateCache.set(tmpl, fallback !== null ? fallback : true);
             }
         }));
 
-        return true;
+        return changed;
     }
 
     /**
@@ -1011,7 +1037,9 @@ class ConditionEvaluator {
     _evaluateTemplateViaWS(hass, template) {
         return new Promise((resolve, reject) => {
             let unsubscribe;
+            let timedOut = false;
             const timer = setTimeout(() => {
+                timedOut = true;
                 if (unsubscribe) unsubscribe();
                 reject(new Error('Template evaluation timeout'));
             }, 5000);
@@ -1023,7 +1051,12 @@ class ConditionEvaluator {
                     resolve(msg.result);
                 },
                 { type: 'render_template', template }
-            ).then(u => { unsubscribe = u; }).catch(e => {
+            ).then(u => {
+                unsubscribe = u;
+                // Subscription established AFTER the timeout fired: the promise is
+                // already rejected — unsubscribe immediately so nothing leaks
+                if (timedOut) unsubscribe();
+            }).catch(e => {
                 clearTimeout(timer);
                 reject(e);
             });
@@ -1241,9 +1274,6 @@ class CombinedLayerBuilder {
 
     _sortBlocks(blocks, defaultLayer, activeConditionalLayers) {
         return blocks.sort((a, b) => {
-            const layerIdxA = activeConditionalLayers.indexOf(a._source_layer);
-            const layerIdxB = activeConditionalLayers.indexOf(b._source_layer);
-
             const isADefault = a._source_layer === defaultLayer;
             const isBDefault = b._source_layer === defaultLayer;
 
@@ -1372,10 +1402,14 @@ class LanguageHelper {
     }
 
     getLanguage() {
-        if (this._hass?.locale?.language) {
-            return TRANSLATIONS[this._hass.locale.language] ? this._hass.locale.language : "en";
-        }
-        return "en";
+        // HA sends BCP47 codes ("pt-BR"); TRANSLATIONS keys use "_" ("pt_BR").
+        // Try the normalized full code, then the base language, then English.
+        const raw = this._hass?.locale?.language;
+        if (!raw) return "en";
+        const norm = raw.replace("-", "_");
+        if (TRANSLATIONS[norm]) return norm;
+        const base = norm.split("_")[0];
+        return TRANSLATIONS[base] ? base : "en";
     }
 
     t(key) {
@@ -1401,7 +1435,6 @@ class AppState {
 
         // Cache storage - for expensive calculations
         this.caches = {
-            colors: new Map(), // Color calculations by state value
             dom: null // DOM metrics (container width, etc.)
         };
 
@@ -1419,25 +1452,6 @@ class AppState {
      */
     isLayerVisible(entityId) {
         return this.layerVisibility.get(entityId) === true;
-    }
-
-    /**
-     * Toggle layer visibility for an entity
-     * @param {string} entityId - Home Assistant entity ID
-     */
-    toggleLayerVisibility(entityId, dayId = null) {
-        if (this._isToggling) return;
-        this._isToggling = true;
-        
-        const targetDay = dayId || this.selectedDay;
-        const visibilityKey = `${entityId}-${targetDay}`;
-        
-        this._state.toggleLayerVisibility(visibilityKey);
-        this.updateContent();
-        
-        setTimeout(() => {
-            this._isToggling = false;
-        }, LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
     }
 
     /**
@@ -1517,7 +1531,6 @@ class AppState {
      * Invalidate all caches to force recalculation
      */
     invalidateAllCaches() {
-        this.caches.colors.clear();
         this.caches.dom = null;
     }
 
@@ -1544,7 +1557,8 @@ class AppState {
     resetOnDisconnect() {
         this.clearAllTimers();
         this.invalidateAllCaches();
-        this.layerVisibility.clear();
+        // layerVisibility is intentionally KEPT: HA re-parents cards in the DOM
+        // (masonry re-layout), and collapsing everything on each move is bad UX
         this.eventListener = null;
         this.lastUpdateTime = 0;
     }
@@ -1560,7 +1574,6 @@ class AppState {
                 return acc;
             }, {}),
             cachedDOMMetrics: this.caches.dom !== null,
-            colorCacheSize: this.caches.colors.size,
             lastUpdateTime: this.lastUpdateTime
         });
     }
@@ -1613,12 +1626,12 @@ class ScheduleStateCard extends HTMLElement {
         };
 
         this._isToggling = false;
+        this._appliedOverrideKeys = null;
 
         this.currentTime = this.getCurrentTime();
         this.selectedDay = this.currentTime.day;
         this.selectedEntity = null;
 
-        this._blockMetricsCache = new Map();
         this.timeHelper = new TimeHelper();
         this.conditionEvaluator = null;
         this.combinedLayerBuilder = null;
@@ -1668,7 +1681,7 @@ class ScheduleStateCard extends HTMLElement {
      */
     _prettifyNowInConditionText(text) {
         const inner = text.replace(/^Custom:\s*/i, '').replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
-        const lang = this.getLanguage();
+        const lang = this.getLanguage().replace("_", "-"); // BCP47 form for Intl ("pt_BR" would throw)
 
         // Per-attribute display: label shown before the values + formatter for each number
         const attrDisplay = {
@@ -1766,7 +1779,17 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     use12HourFormat() {
-        return this._hass?.locale?.time_format === "12" || this.getLanguage() === "en";
+        const tf = this._hass?.locale?.time_format;
+        if (tf === "12") return true;
+        if (tf === "24") return false;
+        // "language" / "system" (or unset): let Intl decide from the locale,
+        // so en-GB gets 24h while en-US gets 12h instead of forcing 12h on all English
+        const locale = tf === "system" ? undefined : (this._hass?.locale?.language || "en").replace("_", "-");
+        try {
+            return new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hour12 === true;
+        } catch (e) {
+            return false;
+        }
     }
 
     formatHour(hour) {
@@ -1795,6 +1818,23 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
+     * Build the layer-visibility key for an entity/day.
+     * "days" layout shows one day at a time: keep the expanded state per ENTITY
+     * so switching days preserves expansion (allows day-to-day comparison).
+     * "entities" layout shows all 7 days at once, each with its own toggle,
+     * so the key must include the day.
+     * @param {string} entityId - Home Assistant entity ID
+     * @param {string|null} dayId - Day identifier (defaults to selectedDay)
+     * @returns {string} Visibility key
+     */
+    _visibilityKey(entityId, dayId = null) {
+        if (this._config.layout === "entities") {
+            return `${entityId}-${dayId || this.selectedDay}`;
+        }
+        return entityId;
+    }
+
+    /**
      * Toggle layer visibility for an entity on a specific day
      * @param {string} entityId - Home Assistant entity ID
      * @param {string} dayId - Day identifier
@@ -1803,7 +1843,7 @@ class ScheduleStateCard extends HTMLElement {
         if (this._isToggling) return;
         this._isToggling = true;
 
-        const visibilityKey = `${entityId}-${dayId}`;
+        const visibilityKey = this._visibilityKey(entityId, dayId);
         const currentState = this._state.layerVisibility.get(visibilityKey);
         const newState = !currentState;
 
@@ -1861,10 +1901,24 @@ class ScheduleStateCard extends HTMLElement {
             ...this._config.colors
         };
 
-        // Apply color overrides to the global singleton cache
-        if (this._config.color_overrides && typeof this._config.color_overrides === 'object') {
+        // Apply color overrides to the global singleton cache (theme-like: shared
+        // across all card instances on the page). Reconcile first: remove overrides
+        // this card applied on a previous setConfig that are no longer in its
+        // config, so YAML edits take effect without a full page reload.
+        const newOverrideKeys = new Set(
+            this._config.color_overrides && typeof this._config.color_overrides === 'object'
+                ? Object.keys(this._config.color_overrides)
+                : []
+        );
+        if (this._appliedOverrideKeys) {
+            for (const key of this._appliedOverrideKeys) {
+                if (!newOverrideKeys.has(key)) COLOR_CACHE.removeOverride(key);
+            }
+        }
+        this._appliedOverrideKeys = newOverrideKeys;
+        if (newOverrideKeys.size > 0) {
             COLOR_CACHE.setOverridesFromConfig(this._config.color_overrides);
-            debugLog(`Applied ${Object.keys(this._config.color_overrides).length} color overrides`);
+            debugLog(`Applied ${newOverrideKeys.size} color overrides`);
         }
 
         if (this._hass) this.render();
@@ -1958,8 +2012,9 @@ class ScheduleStateCard extends HTMLElement {
                 
                 const strValue = String(value).trim();
                 
-                // Accept CSS variables (var(...))
-                if (strValue.includes('var(')) {
+                // Accept CSS variables (var(...)) — strict form only, same rule as
+                // validateStyleValue, to prevent style-attribute breakout via config
+                if (/^var\(--[a-z0-9-]+(\s*,\s*(#[0-9a-f]{6}|rgba?\([^()<>"';{}]+\)|hsla?\([^()<>"';{}]+\)))?\)$/i.test(strValue)) {
                     validated[key] = strValue;
                     continue;
                 }
@@ -2011,6 +2066,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     set hass(hass) {
+        const oldHass = this._hass;
         this.initializeServices(hass);
         this._hass = hass;
         this._langHelper.setHass(hass);
@@ -2022,6 +2078,13 @@ class ScheduleStateCard extends HTMLElement {
         // On completion, updateContent() is called again so the card reflects the
         // server-evaluated results (any new templates that weren't yet cached).
         this._refreshTemplateConditions(hass);
+
+        // Dirty-check: hass is replaced on ANY state change in the house. Skip the
+        // full re-render unless something this card actually depends on changed:
+        // configured sensors, entities referenced by conditions/templates, or locale.
+        if (oldHass && oldHass.locale === hass.locale && !this._relevantStatesChanged(oldHass, hass)) {
+            return;
+        }
 
         const now = Date.now();
         const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
@@ -2088,9 +2151,76 @@ class ScheduleStateCard extends HTMLElement {
 
         if (templates.size === 0) return;
 
+        // No last_update attribute on any entity: fall back to minute resolution
+        // so time-based templates are still re-evaluated periodically instead of
+        // being frozen at their first result for the whole session.
+        if (!cacheKey) {
+            const now = new Date();
+            cacheKey = `local-${now.getHours()}:${now.getMinutes()}`;
+        }
+
         this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey)
             .then(updated => { if (updated) this.updateContent(); })
             .catch(e => errorLog('ScheduleStateCard', 'Failed to refresh template conditions:', e));
+    }
+
+    /**
+     * Collect every entity_id this card's rendering depends on: the configured
+     * schedule sensors plus entities referenced inside their blocks' conditions
+     * (state / numeric_state / nested and-or-not / template) and dynamic state
+     * templates (states(...) / state_attr(...)).
+     */
+    _collectRelevantEntityIds(hass) {
+        const ids = new Set();
+
+        for (const entityConfig of this._config?.entities || []) {
+            const entityId = typeof entityConfig === 'string' ? entityConfig : entityConfig.entity;
+            if (!entityId) continue;
+            ids.add(entityId);
+
+            const layers = hass.states[entityId]?.attributes?.layers;
+            if (!layers) continue;
+            for (const dayLayers of Object.values(layers)) {
+                for (const layer of dayLayers) {
+                    for (const block of layer.blocks || []) {
+                        for (const cond of block.raw_conditions || []) {
+                            this._addConditionEntityIds(cond, ids);
+                        }
+                        const tmpl = block.raw_state_template || block.state_value;
+                        if (typeof tmpl === 'string') {
+                            for (const m of tmpl.matchAll(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/g)) {
+                                ids.add(m[1]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return ids;
+    }
+
+    _addConditionEntityIds(cond, ids) {
+        if (!cond || typeof cond !== 'object') return;
+        if (cond.entity_id) {
+            const list = Array.isArray(cond.entity_id) ? cond.entity_id : [cond.entity_id];
+            for (const id of list) ids.add(id);
+        }
+        if (typeof cond.value_template === 'string') {
+            for (const m of cond.value_template.matchAll(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/g)) {
+                ids.add(m[1]);
+            }
+        }
+        if (Array.isArray(cond.conditions)) {
+            for (const c of cond.conditions) this._addConditionEntityIds(c, ids);
+        }
+    }
+
+    _relevantStatesChanged(oldHass, hass) {
+        // HA state objects are immutable — identity comparison is enough
+        for (const id of this._collectRelevantEntityIds(hass)) {
+            if (oldHass.states[id] !== hass.states[id]) return true;
+        }
+        return false;
     }
 
     static async getConfigElement() {
@@ -2129,12 +2259,10 @@ class ScheduleStateCard extends HTMLElement {
             };
         }
 
+        // No schedule_state sensor found: return an empty config and let the
+        // user pick an entity in the editor (no broken hardcoded example)
         return {
-            entities: [{
-                entity: "sensor.schedule_consigne_rdc",
-                name: "RDC",
-                icon: "mdi:thermometer"
-            }],
+            entities: [],
             title: "Schedule Planning",
             colors: {
                 ...DEFAULT_COLORS
@@ -2143,7 +2271,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     getCardSize() {
-        return this._config.entities.length + 2;
+        return (this._config?.entities?.length ?? 1) + 2;
     }
 
     get type() {
@@ -2208,59 +2336,6 @@ class ScheduleStateCard extends HTMLElement {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
-    }
-
-    /**
-     * Lifecycle hook - called when component is removed from DOM
-     * Cleans all listeners and timers to prevent memory leaks
-     */
-    disconnectedCallback() {
-        // Stop timeline updates
-        this.stopTimelineUpdate();
-
-        // Clean all timers stored in _state
-        if (this._state && this._state.timers) {
-            if (this._state.timers.debounce) {
-                clearTimeout(this._state.timers.debounce);
-            }
-            if (this._state.timers.tooltip) {
-                clearTimeout(this._state.timers.tooltip);
-            }
-        }
-
-        // Clean global event listener from content
-        if (this._state && this._state.eventListener) {
-            const content = this.shadowRoot?.querySelector("#content");
-            if (content) {
-                this._detachEventHandlers(content, this._state.eventListener);
-            }
-        }
-
-        // Clean day button handlers
-        if (this._dayButtonHandlers && this._dayButtonHandlers.length > 0) {
-            const buttons = this.shadowRoot?.querySelectorAll(".day-button");
-            if (buttons) {
-                buttons.forEach((btn, idx) => {
-                    if (this._dayButtonHandlers[idx]) {
-                        btn.removeEventListener("click", this._dayButtonHandlers[idx]);
-                    }
-                });
-            }
-        }
-
-        // Clean entity selector handler
-        if (this._entitySelectorHandler) {
-            const selector = this.shadowRoot?.querySelector("#entity-selector");
-            if (selector) {
-                selector.removeEventListener("change", this._entitySelectorHandler);
-            }
-        }
-
-        // Clean references
-        this._state = null;
-        this._dayButtonHandlers = [];
-        this._entitySelectorHandler = null;
-        this.tooltipElement = null;
     }
 
     /**
@@ -2380,29 +2455,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Build CSS style string for a schedule block
-     * Centralizes block styling logic
-     * 
-     * @param {Object} params - Style parameters object
-     * @returns {string} CSS style string
-     */
-    _buildBlockStyle(params) {
-        const {
-            left,
-            width,
-            top,
-            borderRadius,
-            textColor,
-            backgroundColor
-        } = params;
-
-        const validatedBgColor = this.validateStyleValue(backgroundColor);
-        const validatedTextColor = this.validateStyleValue(textColor);
-
-        return `left:${left}%;width:${width}%;top:${top}px;border-radius:${borderRadius};color:${validatedTextColor};background-color:${validatedBgColor};`;
-    }
-
-    /**
      * Format time for display by removing seconds if present
      * @param {string} time - Time string (e.g., "14:30:00" or "14:30")
      * @returns {string} Formatted time without seconds (e.g., "14:30")
@@ -2477,103 +2529,6 @@ class ScheduleStateCard extends HTMLElement {
         return tooltipText;
     }
 
-    sanitizeUrl(url) {
-        // Handle empty/null
-        if (!url) return "";
-
-        const str = String(url).trim().toLowerCase();
-
-        // Block dangerous protocols
-        if (str.startsWith("javascript:") ||
-            str.startsWith("data:") ||
-            str.startsWith("vbscript:") ||
-            str.startsWith("file:")) {
-            debugWarn("Blocked unsafe URL protocol:", url);
-            return "";
-        }
-
-        // Allow safe URLs
-        if (str.startsWith("http://") ||
-            str.startsWith("https://") ||
-            str.startsWith("/") ||
-            str.startsWith("./") ||
-            str.startsWith("../")) {
-            return url;
-        }
-
-        // Default: allow if no protocol (relative URLs)
-        return url;
-    }
-
-    createSafeElement(tagName, attributes = {}, textContent = "") {
-        // Create the element
-        const element = document.createElement(tagName);
-
-        // Set attributes safely
-        for (const [key, value] of Object.entries(attributes)) {
-            // Skip dangerous attributes
-            if (key.toLowerCase().startsWith("on")) {
-                debugWarn("Blocked event handler attribute:", key);
-                continue;
-            }
-
-            // Sanitize URLs in href/src
-            if (key.toLowerCase() === "href" || key.toLowerCase() === "src") {
-                const sanitized = this.sanitizeUrl(value);
-                if (sanitized) {
-                    element.setAttribute(key, sanitized);
-                }
-                continue;
-            }
-
-            // Set other attributes
-            element.setAttribute(key, String(value));
-        }
-
-        // Set text content (NOT innerHTML) to prevent XSS
-        if (textContent) {
-            element.textContent = textContent;
-        }
-
-        return element;
-    }
-
-    /**
-     * Generate CSS style string for layer icon
-     * Centralizes icon styling logic
-     * 
-     * @param {Object} params - Icon style parameters object
-     * @returns {string} CSS style string
-     */
-    _buildIconStyle(params) {
-        const {
-            isActive,
-            isCombined,
-            isUnfolded,
-            isSelectedDayToday
-        } = params;
-
-        let bgColor;
-        let filter = "filter:brightness(1.1);";
-
-        if (isCombined) {
-            bgColor = isUnfolded ?
-                this._colors.combined_unfolded_layer :
-                this._colors.combined_folded_layer;
-            filter = isUnfolded ? "filter:brightness(1.3);" : "filter:brightness(1.1);";
-        } else {
-            bgColor = isActive ?
-                this._colors.active_layer :
-                this._colors.inactive_layer;
-            filter = isActive ? "filter:brightness(1.3);" : "";
-        }
-
-        const opacity = !isSelectedDayToday ? "opacity:0.5;" : "";
-        const brightnessAdjust = !isSelectedDayToday ? "filter:brightness(0.8);" : filter;
-
-        return `background:${bgColor};${opacity}${brightnessAdjust}`;
-    }
-
     /**
      * Update timeline cursor position if today is selected
      * Centralizes cursor update logic with bounds checking
@@ -2634,7 +2589,7 @@ class ScheduleStateCard extends HTMLElement {
         const lower = original.toLowerCase();
 
         // Allow CSS variables (they're safe when properly formed)
-        if (/^var\(--[a-z0-9-]+(\s*,\s*#[0-9a-f]{6}|rgba?\([^)]+\)|hsla?\([^)]+\))?\)$/i.test(original)) {
+        if (/^var\(--[a-z0-9-]+(\s*,\s*(#[0-9a-f]{6}|rgba?\([^()<>"';{}]+\)|hsla?\([^()<>"';{}]+\)))?\)$/i.test(original)) {
             return original;
         }
 
@@ -2851,7 +2806,7 @@ class ScheduleStateCard extends HTMLElement {
             const state = this._hass.states[entity];
             return state && state.state === value ? "true" : "false";
         });
-        expr = expr.replace(/\band(s*)\b/gi, "&&").replace(/\bor\b/gi, "||").replace(/\bnot\b/gi, "!");
+        expr = expr.replace(/\band\b/gi, "&&").replace(/\bor\b/gi, "||").replace(/\bnot\b/gi, "!");
         return this._safeBooleanEval(expr);
     }
 
@@ -2967,51 +2922,6 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         return this.tooltipElement;
-    }
-
-    colorizeParentheses(text) {
-        let result = "";
-        let depth = 0;
-
-        for (let i = 0; i < text.length; i++) {
-            const char = text[i];
-
-            if (char === "(") {
-                const hue = (depth * 60) % 360;
-                // Validate hue value to prevent CSS injection
-                const safeHue = this.validateStyleValue(String(hue));
-                const color = `hsl(${safeHue}, 80%, 70%)`;
-
-                // Use single quotes for style attribute to avoid double escaping issues
-                result += `<span style='color:${this.validateStyleValue(color)};font-weight:bold;'>(</span>`;
-                depth++;
-            } else if (char === ")") {
-                depth = Math.max(0, depth - 1);
-                const hue = (depth * 60) % 360;
-                // Validate hue value to prevent CSS injection
-                const safeHue = this.validateStyleValue(String(hue));
-                const color = `hsl(${safeHue}, 80%, 70%)`;
-
-                // Use single quotes for style attribute
-                result += `<span style='color:${this.validateStyleValue(color)};font-weight:bold;'>)</span>`;
-            } else if (char === "<") {
-                result += "&lt;";
-            } else if (char === ">") {
-                result += "&gt;";
-            } else if (char === "&") {
-                result += "&amp;";
-            } else if (char === '"') {
-                result += "&quot;";
-            } else if (char === "'") {
-                result += "&#39;";
-            } else if (char === "\n") {
-                result += "<br>";
-            } else {
-                result += char;
-            }
-        }
-
-        return result;
     }
 
     showTooltip(event, text) {
@@ -3211,6 +3121,26 @@ class ScheduleStateCard extends HTMLElement {
             // Tooltip hover display
             const tooltipTarget = e.target.closest(".schedule-block, .icon-row[data-tooltip]");
 
+            // Tap display (touch devices have no mouseover): show immediately,
+            // then auto-hide. Σ-toggle and room-name clicks returned above.
+            if (e.type === "click" && tooltipTarget) {
+                const tooltip = tooltipTarget.dataset.tooltip;
+                if (tooltip) {
+                    this.clearTooltipTimer();
+                    this.showTooltip({ clientX: e.clientX, clientY: e.clientY }, tooltip);
+                    const hideTimer = setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_AUTOHIDE_MS);
+                    this._state.setTimer('tooltip', hideTimer);
+                }
+                return;
+            }
+
+            // Tap outside any tooltip target: dismiss an open tooltip
+            if (e.type === "click") {
+                this.clearTooltipTimer();
+                this.hideTooltip();
+                return;
+            }
+
             if (e.type === "mouseover" && tooltipTarget) {
                 const tooltip = tooltipTarget.dataset.tooltip;
                 this.clearTooltipTimer();
@@ -3306,7 +3236,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderErrorCard(entityId, message) {
-        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" data-entity-id="' + entityId + '" style="color:var(--error-color);">' + entityId + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + message + "</div></div></div>";
+        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" data-entity-id="' + escapeHtmlAttribute(entityId) + '" style="color:var(--error-color);">' + escapeHtml(entityId) + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + escapeHtml(message) + "</div></div></div>";
     }
 
     renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState, dayId = null) {
@@ -3399,14 +3329,12 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _filterLayersForDisplay(allLayers, entityId, layersMetadata, dayId = null) {
-        // Use dayId if provided, otherwise use selectedDay
-        const keyDay = dayId || this.selectedDay;
-        const visibilityKey = `${entityId}-${keyDay}`;
+        const visibilityKey = this._visibilityKey(entityId, dayId);
         this._state.initializeLayerVisibility(visibilityKey, false);
         const isExpanded = this._state.isLayerVisible(visibilityKey);
 
         const entityName = this.getEntityNameForLog(entityId);
-        debugLog(entityName, "[_filterLayersForDisplay] entityId:", entityId, "dayId:", dayId, "keyDay:", keyDay, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
+        debugLog(entityName, "[_filterLayersForDisplay] entityId:", entityId, "dayId:", dayId, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
 
         const result = [];
 
@@ -3543,15 +3471,9 @@ class ScheduleStateCard extends HTMLElement {
             }
         `;
 
+        // Only rules NOT already in generateStylesheet()
         const additionalStyle = `
-            .schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:1!important}
-            .icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}
-            .icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}
             .combined-layer-toggle{padding-left:0;padding-right:0}
-            .sch-z-default{z-index:1}
-            .sch-z-layer{z-index:1}
-            .sch-z-combined{z-index:1}
-            .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
         `;
 
         const styleContent = dynamicStyles + baseStylesheet + additionalStyle;
@@ -3581,15 +3503,9 @@ class ScheduleStateCard extends HTMLElement {
             }
         `;
 
+        // Only rules NOT already in generateStylesheet()
         const additionalStyle = `
-            .schedule-block.combined-layer-block{opacity:1;border:1px dashed var(--primary-text-color);box-shadow:0 0 10px var(--info-color);z-index:1!important}
-            .icon-row.combined-icon-row .layer-number{cursor:pointer;position:relative;font-size:16px!important;line-height:24px;overflow:hidden}
-            .icon-row.combined-icon-row .layer-number:hover{filter:brightness(1.3)}
             .combined-layer-toggle{padding-left:0;padding-right:0}
-            .sch-z-default{z-index:1}
-            .sch-z-layer{z-index:1}
-            .sch-z-combined{z-index:1}
-            .layer-number{width:24px;height:24px;color:white;border-radius:50%;font-size:11px;font-weight:bold;display:flex;align-items:center;justify-content:center;transition:all .2s}
             .entity-selector-wrapper{margin-bottom: 16px;display:flex;justify-content:center;touch-action: manipulation;}
             .entity-selector{padding:8px 12px;border:1px solid var(--divider-color);border-radius:4px;background:var(--primary-background-color);color:var(--primary-text-color);font-size:14px;min-width:200px;touch-action: manipulation;pointer-events: auto;}
             .entity-selector:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 0 2px var(--primary-color)33;}
@@ -3621,27 +3537,28 @@ class ScheduleStateCard extends HTMLElement {
         const conditionalLayers = allLayers.filter(l => !l.is_default_layer && !l.is_combined_layer);
         const hasCollapsibleLayers = defaultLayer || conditionalLayers.length > 0;
 
+        const foldedBg = this.validateStyleValue(this._colors.combined_folded_layer);
+        const unfoldedBg = this.validateStyleValue(this._colors.combined_unfolded_layer);
+
         let toggleClass = "";
-        let iconStyle = `background:${this._colors.combined_folded_layer};filter:brightness(1.1);`;
+        let iconStyle = `background:${foldedBg};filter:brightness(1.1);`;
 
         if (!isSelectedDayToday) {
-            iconStyle = `background:${this._colors.combined_folded_layer};opacity:0.5;filter:brightness(0.8);`;
+            iconStyle = `background:${foldedBg};opacity:0.5;filter:brightness(0.8);`;
         }
 
         if (hasCollapsibleLayers) {
             toggleClass = " combined-layer-toggle";
 
-            // Use dayId if provided, otherwise use selectedDay
-            const keyDay = dayId || this.selectedDay;
-            const visibilityKey = `${entityId}-${keyDay}`;
+            const visibilityKey = this._visibilityKey(entityId, dayId);
             const isExpanded = this._state.isLayerVisible(visibilityKey);
 
-            debugLog(entityName, "[_renderCombinedLayerIcon] entityId:", entityId, "dayId:", dayId, "keyDay:", keyDay, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
+            debugLog(entityName, "[_renderCombinedLayerIcon] entityId:", entityId, "dayId:", dayId, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
 
             if (isExpanded) {
-                iconStyle = `background:${this._colors.combined_unfolded_layer};filter:brightness(1.3);`;
+                iconStyle = `background:${unfoldedBg};filter:brightness(1.3);`;
                 if (!isSelectedDayToday) {
-                    iconStyle = `background:${this._colors.combined_unfolded_layer};opacity:0.5;filter:brightness(0.8);`;
+                    iconStyle = `background:${unfoldedBg};opacity:0.5;filter:brightness(0.8);`;
                 }
             }
         }
@@ -3686,8 +3603,8 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         const iconStyle = meta.isActive ?
-            `background:${this._colors.active_layer};filter:brightness(1.3);` :
-            `background:${this._colors.inactive_layer};opacity:0.5;`;
+            `background:${this.validateStyleValue(this._colors.active_layer)};filter:brightness(1.3);` :
+            `background:${this.validateStyleValue(this._colors.inactive_layer)};opacity:0.5;`;
 
         const opacityAdjust = !isSelectedDayToday ? "opacity:0.5;" : "";
         const finalStyle = opacityAdjust ? `${iconStyle}${opacityAdjust}` : iconStyle;
@@ -3696,8 +3613,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     _renderBlock(block, currentLayer, meta, top, containerWidth, unitOfMeasurement, isSelectedDayToday) {
-        // PERFORMANCE OPTIMIZATION: Use cached block metrics
-        // This eliminates redundant time parsing and calculations
         const metrics = this._getBlockMetrics(block);
         const {
             startMin,
@@ -3710,8 +3625,8 @@ class ScheduleStateCard extends HTMLElement {
             width
         } = dimensions;
 
-        // Get state and color
-        const rawState = block.state_value || "";
+        // Get state and color — "??" (not "||") so a state value of 0 is kept
+        const rawState = block.state_value ?? "";
         const rawTemplate = block.raw_state_template || rawState;
         const isDynamic = this.isDynamicTemplate(rawTemplate);
         const resolvedState = this.resolveTemplate(rawState);
@@ -3724,8 +3639,9 @@ class ScheduleStateCard extends HTMLElement {
             (escapedUnit ? escapedState + " " + escapedUnit : escapedState) :
             "";
 
-        // Get colors
-        const colorData = this.getColorForState(resolvedState || "default", unit || unitOfMeasurement);
+        // Get colors — explicit emptiness check so a state value of 0 keeps its own color
+        const hasStateValue = resolvedState !== null && resolvedState !== undefined && String(resolvedState).trim() !== "";
+        const colorData = this.getColorForState(hasStateValue ? resolvedState : "default", unit || unitOfMeasurement);
         const color = block.color || colorData.color;
         const textColor = colorData.textColor;
 
@@ -3863,14 +3779,10 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         this._state.invalidateDOMCache();
-        if (this._blockMetricsCache) {
-            this._blockMetricsCache.clear();
-        }
 
         let timelines = "";
 
         if (groupByDay) {
-            const days = this.getDays();
             for (let i = 0; i < this._config.entities.length; i++) {
                 const entityConfig = this._config.entities[i];
                 const entityId = typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
@@ -3892,7 +3804,7 @@ class ScheduleStateCard extends HTMLElement {
                 const roomIcon = customIcon || attrs.icon || "mdi:thermometer";
                 const unitOfMeasurement = attrs.unit_of_measurement || "";
 
-                const visibilityKey = `${entityId}-${this.selectedDay}`;
+                const visibilityKey = this._visibilityKey(entityId);
                 this._state.initializeLayerVisibility(visibilityKey, false);
 
                 this.conditionEvaluator.setSelectedDay(this.selectedDay);
@@ -3964,8 +3876,10 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     generateStylesheet() {
-        // Support for card_mod styles
-        const cardModStyle = this._config.card_mod?.style || '';
+        // Support for card_mod styles — string only, and strip "<" so the value
+        // can never terminate the <style> block or inject HTML into shadowRoot
+        const rawCardMod = this._config.card_mod?.style;
+        const cardModStyle = typeof rawCardMod === 'string' ? rawCardMod.replace(/</g, '') : '';
 
         return `
             :host {
@@ -4265,6 +4179,15 @@ class ScheduleStateCard extends HTMLElement {
 
     connectedCallback() {
         this.startTimelineUpdate();
+
+        // HA re-parents cards in the DOM (masonry re-layout, view switches, edit
+        // preview), which fires disconnectedCallback + connectedCallback on the
+        // SAME element. disconnectedCallback detached every listener, so the card
+        // must be fully rebuilt when it comes back, or it stays frozen.
+        if (this._wasDisconnected && this._config?.entities && this._hass) {
+            this._wasDisconnected = false;
+            this.render();
+        }
     }
 
     disconnectedCallback() {
@@ -4273,30 +4196,43 @@ class ScheduleStateCard extends HTMLElement {
          * Ensures no memory leaks or lingering resources
          */
 
+        // Mark for full rebuild on reconnection (HA re-parents cards in the DOM)
+        this._wasDisconnected = true;
+
         // Stop timeline updates
         this.stopTimelineUpdate();
 
-        // âœ… COMPLETE CLEANUP VIA CENTRALIZED STATE
-        this._state.resetOnDisconnect();
+        // Detach listeners BEFORE resetOnDisconnect() nulls the stored references
+        const container = this.shadowRoot?.querySelector("#content");
+        if (container && this._state?.eventListener) {
+            this._detachEventHandlers(container, this._state.eventListener);
+        }
 
-        // Clean up UI elements
+        const dayButtons = this.shadowRoot?.querySelectorAll(".day-button");
+        if (dayButtons) {
+            dayButtons.forEach((btn, idx) => {
+                if (this._dayButtonHandlers[idx]) {
+                    btn.removeEventListener("click", this._dayButtonHandlers[idx]);
+                }
+            });
+        }
+        this._dayButtonHandlers = [];
+
+        if (this._entitySelectorHandler) {
+            const selector = this.shadowRoot?.querySelector("#entity-selector");
+            if (selector) {
+                selector.removeEventListener("change", this._entitySelectorHandler);
+            }
+            this._entitySelectorHandler = null;
+        }
+
+        // Clear timers, caches and visibility state
+        this._state?.resetOnDisconnect();
+
+        // Clean up the tooltip appended to document.body
         if (this.tooltipElement) {
             this.tooltipElement.remove();
             this.tooltipElement = null;
-        }
-
-        // PERFORMANCE FIX: Clear metrics cache to free memory
-        if (this._blockMetricsCache) {
-            this._blockMetricsCache.clear();
-            this._blockMetricsCache = null;
-        }
-
-        // Detach remaining listeners
-        const container = this.shadowRoot?.querySelector("#content");
-        if (container && this._state.eventListener) {
-            container.removeEventListener("click", this._state.eventListener);
-            container.removeEventListener("mouseover", this._state.eventListener);
-            container.removeEventListener("mouseout", this._state.eventListener);
         }
     }
 
@@ -4317,19 +4253,38 @@ window.customCards.push({
     preview: true,
     // HA 2026.6 entity-first card picker: suggest this card only when a sensor
     // created by the schedule_state integration is selected (entity-registry platform).
+    // Returns an array so the picker offers both layouts as separate variants.
     getEntitySuggestion: (hass, entityId) => {
         if (hass?.entities?.[entityId]?.platform !== 'schedule_state') {
             return null;
         }
         const state = hass.states[entityId];
-        return {
-            config: {
-                type: 'custom:schedule-state-card',
-                entities: [{
-                    entity: entityId,
-                    name: state?.attributes?.friendly_name || entityId
-                }]
+        const entities = [{
+            entity: entityId,
+            name: state?.attributes?.friendly_name || entityId
+        }];
+
+        // Localized variant labels (same normalization as LanguageHelper)
+        const norm = (hass?.locale?.language || 'en').replace('-', '_');
+        const tr = TRANSLATIONS[norm] || TRANSLATIONS[norm.split('_')[0]] || TRANSLATIONS.en;
+
+        return [
+            {
+                label: tr.editor_layout_days || TRANSLATIONS.en.editor_layout_days,
+                config: {
+                    type: 'custom:schedule-state-card',
+                    entities: entities.map(e => ({ ...e })),
+                    layout: 'days'
+                }
+            },
+            {
+                label: tr.editor_layout_entities || TRANSLATIONS.en.editor_layout_entities,
+                config: {
+                    type: 'custom:schedule-state-card',
+                    entities: entities.map(e => ({ ...e })),
+                    layout: 'entities'
+                }
             }
-        };
+        ];
     }
 });

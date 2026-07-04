@@ -33,13 +33,38 @@ class ScheduleStateCardEditor extends HTMLElement {
         this._renderId        = 0;
         this._overrideBgRgb   = [33, 150, 243];   // default #2196F3
         this._overrideTextRgb = [255, 255, 255];  // default #ffffff
+        this._helpersPromise  = null;
+    }
+
+    // HA lazy-loads its form components (ha-entity-picker, ha-selector, …).
+    // If this editor opens before any native dialog loaded them, the elements
+    // created by _applyHAProps stay un-upgraded and render blank. Rendering the
+    // config element of a built-in entities card forces HA to load them all.
+    _ensureHaComponents() {
+        if (!this._helpersPromise) {
+            this._helpersPromise = (async () => {
+                try {
+                    const helpers = await window.loadCardHelpers?.();
+                    const card = helpers?.createCardElement({ type: 'entities', entities: [] });
+                    await card?.constructor?.getConfigElement?.();
+                } catch (e) {
+                    // Best effort — components are usually already loaded
+                }
+            })();
+        }
+        return this._helpersPromise;
     }
 
     // ── i18n ────────────────────────────────────────────────────────────────
     _lang() {
-        const tr = window._scheduleStateCardShared?.TRANSLATIONS;
-        const l  = this._hass?.locale?.language;
-        return (l && tr?.[l]) ? l : 'en';
+        // HA sends BCP47 codes ("pt-BR"); TRANSLATIONS keys use "_" ("pt_BR").
+        const tr  = window._scheduleStateCardShared?.TRANSLATIONS;
+        const raw = this._hass?.locale?.language;
+        if (!raw || !tr) return 'en';
+        const norm = raw.replace('-', '_');
+        if (tr[norm]) return norm;
+        const base = norm.split('_')[0];
+        return tr[base] ? base : 'en';
     }
     t(key) {
         const tr = window._scheduleStateCardShared?.TRANSLATIONS;
@@ -66,6 +91,9 @@ class ScheduleStateCardEditor extends HTMLElement {
         this._hass = hass;
         if (!this._rendered) {
             this._render();
+            // Once HA's form components are force-loaded, re-render so the
+            // programmatically created pickers upgrade with correct props
+            this._ensureHaComponents().then(() => { if (this._hass) this._render(); });
         } else {
             // Propagate hass to HA pickers already in the DOM (includes inside slots)
             this.shadowRoot.querySelectorAll(
@@ -102,6 +130,16 @@ class ScheduleStateCardEditor extends HTMLElement {
     _rgbToHex(arr) {
         if (!Array.isArray(arr)) return '#2196F3';
         return '#' + arr.map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+
+    // Whitelist a config-sourced color before injecting it into a style attribute
+    // (color_overrides can be hand-written in YAML — never trust it in innerHTML)
+    _safeCssColor(value, fallback) {
+        const v = String(value || '').trim();
+        if (/^#[0-9a-f]{3,8}$/i.test(v)) return v;
+        if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+)?\s*\)$/.test(v)) return v;
+        if (/^hsla?\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*(,\s*[\d.]+)?\s*\)$/.test(v)) return v;
+        return fallback;
     }
 
     // ── render ───────────────────────────────────────────────────────────────
@@ -303,8 +341,8 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
         const overrides = this._config.color_overrides || {};
         const rows = Object.entries(overrides).map(([key, val]) => {
             const [value, unit] = key.split('|');
-            const bg   = val?.color     || '#cccccc';
-            const text = val?.textColor || '#ffffff';
+            const bg   = this._safeCssColor(val?.color, '#cccccc');
+            const text = this._safeCssColor(val?.textColor, '#ffffff');
             return `
 <div class="override-row">
   <div class="override-chip" style="background:${bg};color:${text};">${escapeHtml(value)}${unit ? ' ' + escapeHtml(unit) : ''}</div>
