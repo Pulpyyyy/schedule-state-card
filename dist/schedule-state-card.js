@@ -3307,22 +3307,120 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Condition text shown in the layer-number tooltip.
-     * Issue #16: HA conditions support an "alias" field. When every top-level
-     * condition of the layer provides one, display the aliases (joined with the
-     * translated AND) instead of the integration-generated condition_text.
-     * Any layer without full alias coverage falls back to the previous behavior.
+     * Recursively describe an HA condition object for display (issue #16).
+     *   1. cond.alias wins — even on an and/or/not wrapper.
+     *   2. and/or/not: describe each sub-condition, join with the translated
+     *      operator; groups of 2+ get parentheses.
+     *   3. Leaf without alias: technical text built from the structured dict.
+     * @param {Object} cond - Raw HA condition dict (from block.raw_conditions)
+     * @returns {string}
+     */
+    describeCondition(cond) {
+        if (!cond || typeof cond !== 'object') return "";
+
+        // 1. Explicit alias always wins
+        if (typeof cond.alias === 'string' && cond.alias.trim()) {
+            return cond.alias.trim();
+        }
+
+        // 2. Logical wrappers: recurse and join with the translated operator
+        const type = cond.condition;
+        if (type === 'and' || type === 'or') {
+            const parts = (cond.conditions || []).map(c => this.describeCondition(c)).filter(Boolean);
+            if (!parts.length) return "";
+            if (parts.length === 1) return parts[0];
+            const op = type === 'and' ? this.t('cond_and') : this.t('cond_or');
+            return `(${parts.join(` ${op} `)})`;
+        }
+        if (type === 'not') {
+            const parts = (cond.conditions || []).map(c => this.describeCondition(c)).filter(Boolean);
+            if (!parts.length) return "";
+            return `${this.t('cond_not')} (${parts.join(` ${this.t('cond_and')} `)})`;
+        }
+
+        // 3. Technical leaf
+        return this._describeLeafCondition(cond);
+    }
+
+    /**
+     * Technical description of a leaf condition (no alias), built from the
+     * structured dict instead of the server-flattened condition_text.
+     */
+    _describeLeafCondition(cond) {
+        const type = cond.condition;
+        const entityList = () => {
+            const list = Array.isArray(cond.entity_id) ? cond.entity_id : [cond.entity_id];
+            return list.filter(Boolean).join(', ');
+        };
+
+        if (type === 'state') {
+            const states = Array.isArray(cond.state) ? cond.state.join('|') : cond.state;
+            return `${entityList()} == ${states}`;
+        }
+
+        if (type === 'numeric_state') {
+            const entity = entityList();
+            if (cond.above !== undefined && cond.below !== undefined) {
+                return `${cond.above} < ${entity} < ${cond.below}`;
+            }
+            if (cond.above !== undefined) return `${entity} > ${cond.above}`;
+            if (cond.below !== undefined) return `${entity} < ${cond.below}`;
+            return entity;
+        }
+
+        if (type === 'time') {
+            const parts = [];
+            if (Array.isArray(cond.weekday) && cond.weekday.length) {
+                const days = this.t('days');
+                parts.push(`${this.t('cond_day')}: ${cond.weekday.map(d => days[d] || d).join(', ')}`);
+            }
+            if (cond.after) parts.push(`${this.t('cond_after')} ${this._formatTimeForDisplay(String(cond.after))}`);
+            if (cond.before) parts.push(`${this.t('cond_before')} ${this._formatTimeForDisplay(String(cond.before))}`);
+            if (cond.month !== undefined && cond.month !== null) {
+                const months = Array.isArray(cond.month) ? cond.month : [cond.month];
+                const lang = this.getLanguage().replace('_', '-');
+                const names = months.map(m => new Intl.DateTimeFormat(lang, { month: 'long' }).format(new Date(2000, m - 1, 1)));
+                parts.push(`${this.t('cond_month')}: ${names.join(', ')}`);
+            }
+            return parts.join(', ');
+        }
+
+        if (type === 'template') {
+            const tmpl = cond.value_template || '';
+            const pretty = this._prettifyNowInConditionText(String(tmpl));
+            if (pretty !== null) return pretty;
+            const inner = String(tmpl).replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
+            return inner.length > 60 ? inner.slice(0, 57) + '…' : inner;
+        }
+
+        if (type === 'sun') {
+            const evName = (ev) => ev === 'sunrise' ? this.t('cond_sunrise') : this.t('cond_sunset');
+            const parts = [];
+            if (cond.after) parts.push(`${this.t('cond_after')} ${evName(cond.after)}`);
+            if (cond.before) parts.push(`${this.t('cond_before')} ${evName(cond.before)}`);
+            return parts.join(', ');
+        }
+
+        // Unknown condition type
+        return type || "";
+    }
+
+    /**
+     * Condition text shown in the layer-number tooltip (issue #16).
+     * Built from the structured raw_conditions (which carry the HA "alias"
+     * field) via describeCondition; the event's condition list is an implicit
+     * AND. Falls back to the server-flattened condition_text when no
+     * structured conditions are available (compat).
      */
     _getLayerConditionText(layer) {
         if (!layer.is_combined_layer && this.conditionEvaluator) {
             const conditions = this.conditionEvaluator._collectUniqueConditions(layer.blocks || []);
-            if (conditions.length) {
-                const aliases = conditions.map(c =>
-                    (typeof c.alias === 'string' && c.alias.trim()) ? c.alias.trim() : null
-                );
-                if (aliases.every(a => a !== null)) {
-                    return [...new Set(aliases)].join(` ${this.t('cond_and')} `);
-                }
+            const parts = conditions.map(c => this.describeCondition(c)).filter(Boolean);
+            if (parts.length) {
+                const text = [...new Set(parts)].join(` ${this.t('cond_and')} `);
+                // A single parenthesized group needs no outer parentheses
+                const m = parts.length === 1 ? text.match(/^\((.*)\)$/) : null;
+                return m ? m[1] : text;
             }
         }
         return this._translateConditionText(layer.condition_text || "");
