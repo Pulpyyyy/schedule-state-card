@@ -3306,6 +3306,28 @@ class ScheduleStateCard extends HTMLElement {
         return `<div class="room-timeline"><div class="room-header">${headerHtml}</div><div class="timeline-container"><div class="no-schedule">${this.t("no_schedule")}</div></div></div>`;
     }
 
+    /**
+     * Condition text shown in the layer-number tooltip.
+     * Issue #16: HA conditions support an "alias" field. When every top-level
+     * condition of the layer provides one, display the aliases (joined with the
+     * translated AND) instead of the integration-generated condition_text.
+     * Any layer without full alias coverage falls back to the previous behavior.
+     */
+    _getLayerConditionText(layer) {
+        if (!layer.is_combined_layer && this.conditionEvaluator) {
+            const conditions = this.conditionEvaluator._collectUniqueConditions(layer.blocks || []);
+            if (conditions.length) {
+                const aliases = conditions.map(c =>
+                    (typeof c.alias === 'string' && c.alias.trim()) ? c.alias.trim() : null
+                );
+                if (aliases.every(a => a !== null)) {
+                    return [...new Set(aliases)].join(` ${this.t('cond_and')} `);
+                }
+            }
+        }
+        return this._translateConditionText(layer.condition_text || "");
+    }
+
     _prepareLayersMetadata(allLayers) {
         const metadata = new Map();
 
@@ -3321,7 +3343,7 @@ class ScheduleStateCard extends HTMLElement {
                 isDefault,
                 isCombined,
                 isActive,
-                conditionText: this._translateConditionText(layer.condition_text || "")
+                conditionText: this._getLayerConditionText(layer)
             });
         });
 
