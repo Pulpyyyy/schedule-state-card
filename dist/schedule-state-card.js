@@ -2826,29 +2826,16 @@ class ScheduleStateCard extends HTMLElement {
     }
 
 
-    _evaluateConditionsForLayer(layer) {
+    /**
+     * Evaluate a layer's conditions against a specific day (issue #17).
+     * dayId defaults to the globally selected day; the "entities" layout renders
+     * all 7 days at once and must pass each row's own day, otherwise weekday
+     * conditions are all evaluated against today.
+     */
+    _evaluateConditionsForLayer(layer, dayId = null) {
         if (!this.conditionEvaluator) return true;
-        this.conditionEvaluator.setSelectedDay(this.selectedDay);
+        this.conditionEvaluator.setSelectedDay(dayId || this.selectedDay);
         return this.conditionEvaluator.evaluateLayer(layer);
-    }
-
-    _evaluateCondition(condition) {
-        if (!this.conditionEvaluator) return true;
-        this.conditionEvaluator.setSelectedDay(this.selectedDay);
-        return this.conditionEvaluator.evaluateCondition(condition);
-    }
-
-    createCombinedLayer(layers, selectedDay) {
-        if (!this.combinedLayerBuilder) return null;
-
-        const defaultLayer = layers.find(l => l.is_default_layer);
-        const activeConditionalLayers = layers.filter(l => 
-            !l.is_default_layer && 
-            !l.is_combined_layer && 
-            this._evaluateConditionsForLayer(l)
-        );
-
-        return this.combinedLayerBuilder.build(defaultLayer, activeConditionalLayers);
     }
 
     _getBlockMetrics(block) {
@@ -3253,8 +3240,8 @@ class ScheduleStateCard extends HTMLElement {
             return this._renderEmptyTimeline(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
         }
 
-        // Prepare metadata once (reuse everywhere)
-        const layersMetadata = this._prepareLayersMetadata(allLayers);
+        // Prepare metadata once (reuse everywhere) — evaluated for the rendered day
+        const layersMetadata = this._prepareLayersMetadata(allLayers, dayId);
         const layersToDisplay = this._filterLayersForDisplay(allLayers, entityId, layersMetadata, dayId);
 
         // If nothing to display, show empty state
@@ -3426,14 +3413,14 @@ class ScheduleStateCard extends HTMLElement {
         return this._translateConditionText(layer.condition_text || "");
     }
 
-    _prepareLayersMetadata(allLayers) {
+    _prepareLayersMetadata(allLayers, dayId = null) {
         const metadata = new Map();
 
         allLayers.forEach((layer, idx) => {
             const isDefault = layer.is_default_layer === true;
             const isCombined = layer.is_combined_layer === true;
             const isActive = !isDefault && !isCombined ?
-                this._evaluateConditionsForLayer(layer) :
+                this._evaluateConditionsForLayer(layer, dayId) :
                 null;
 
             metadata.set(layer, {
@@ -3859,19 +3846,26 @@ class ScheduleStateCard extends HTMLElement {
         return headerHtml;
     }
 
-    _buildLayersForDay(dayLayers) {
+    _buildLayersForDay(dayLayers, dayId = null) {
         // Find default layer
         const defaultLayer = dayLayers.find(l => l.is_default_layer);
-        
+
         // Get all conditional layers (non-default, non-combined)
         const allConditionalLayers = dayLayers.filter(layer =>
             !layer.is_default_layer && !layer.is_combined_layer
         );
 
         // Filter to only active conditional layers (those whose conditions are met)
+        // for the day being rendered (issue #17)
         const activeConditionalLayers = allConditionalLayers.filter(layer =>
-            this._evaluateConditionsForLayer(layer)
+            this._evaluateConditionsForLayer(layer, dayId)
         );
+
+        // blockAppliesToSelectedDay (used by the combined builder) must also
+        // target the rendered day, not the globally selected one
+        if (this.conditionEvaluator) {
+            this.conditionEvaluator.setSelectedDay(dayId || this.selectedDay);
+        }
 
         // Build combined layer from default + active conditionals
         const combinedLayer = this.combinedLayerBuilder.build(defaultLayer, activeConditionalLayers);
@@ -3930,7 +3924,7 @@ class ScheduleStateCard extends HTMLElement {
                 this.conditionEvaluator.setSelectedDay(this.selectedDay);
 
                 let dayLayers = layers[this.selectedDay] || [];
-                const allLayers = this._buildLayersForDay(dayLayers);
+                const allLayers = this._buildLayersForDay(dayLayers, this.selectedDay);
 
                 const entityName = this.getEntityNameForLog(entityId);
                 debugLog(entityName, "[Days Layout] Rendering timeline for entityId:", entityId, "selectedDay:", this.selectedDay, "allLayers count:", allLayers.length);
@@ -3966,7 +3960,7 @@ class ScheduleStateCard extends HTMLElement {
                     this.conditionEvaluator.setSelectedDay(dayId);
 
                     let dayLayers = layers[dayId] || [];
-                    const allLayers = this._buildLayersForDay(dayLayers);
+                    const allLayers = this._buildLayersForDay(dayLayers, dayId);
 
                     const entityName = this.getEntityNameForLog(this.selectedEntity);
                     debugLog(entityName, "[Entities Layout] Rendering timeline for entityId:", this.selectedEntity, "dayId:", dayId, "allLayers count:", allLayers.length);
