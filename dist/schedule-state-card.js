@@ -2270,11 +2270,39 @@ class ScheduleStateCard extends HTMLElement {
         }
 
         // Template-referenced entities (states()/state_attr()): attributes
-        // matter, keep full identity comparison
+        // matter. A schedule sensor can reference ITSELF via state_attr
+        // (e.g. an extra_attribute read back in its own template) — full
+        // identity comparison would let its beating last_update re-trigger a
+        // render on every server poll, so for configured sensors we compare
+        // attributes key by key ignoring last_update instead.
         for (const id of templateIds) {
-            if (oldHass.states[id] !== hass.states[id]) return true;
+            const o = oldHass.states[id];
+            const n = hass.states[id];
+            if (o === n) continue;
+            if (!scheduleIds.has(id)) return true;
+            if (!o || !n) return true;
+            if (o.state !== n.state) return true;
+            if (this._attrsChangedIgnoringNoise(o.attributes, n.attributes)) return true;
         }
 
+        return false;
+    }
+
+    /**
+     * Shallow per-key comparison of two attribute objects, ignoring
+     * last_update (rewritten by schedule_state on every re-evaluation even
+     * when nothing changed). The websocket client applies attribute diffs,
+     * so unchanged values keep their object identity — `!==` per key is
+     * both cheap and exact.
+     */
+    _attrsChangedIgnoringNoise(oa, na) {
+        const a = oa || {};
+        const b = na || {};
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        keys.delete('last_update');
+        for (const k of keys) {
+            if (a[k] !== b[k]) return true;
+        }
         return false;
     }
 
