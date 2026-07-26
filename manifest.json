@@ -7,6 +7,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Pulpyyyy/schedule-state-card/issues",
   "requirements": [],
-  "version": "2.2.2",
+  "version": "2.2.3",
   "homeassistant": "2023.12.0"
 }

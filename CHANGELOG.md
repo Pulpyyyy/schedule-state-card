@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.3] - 2026-07-26
+
+### Fixed
+- **Self-referencing templates no longer defeat the render dirty-check**: a `schedule_state` sensor can read back one of its own attributes inside its template (e.g. `state_attr('sensor.x', 'over_head')`), which put the sensor in its own template-referenced set where full identity comparison let the beating `last_update` attribute re-trigger a full render on every server poll (30 s). Attributes of such sensors are now compared key by key ignoring `last_update`; real attribute changes still trigger a render.
+
 ## [2.2.2] - 2026-07-26
 
 ### Fixed
