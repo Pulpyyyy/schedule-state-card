@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.2] - 2026-07-26
+
+### Fixed
+- **"By Entities" layout: day-based conditions are now evaluated against each rendered day** ([#17](https://github.com/Pulpyyyy/schedule-state-card/issues/17)): weekday-conditioned overrides were evaluated against today on all 7 rows, so every day looked like the current one. The combined layer and the active/inactive badges now reflect each day's own evaluation. The "By Days" view is unchanged.
+
+### Performance
+- **`set hass` work fully decoupled from state churn**: the card no longer re-walks every configured sensor's `layers` tree (10-40 KB) on every state change in the house. The relevant-entity collection is memoized on the `layers` object identity, the dirty-check ignores attribute noise the card never renders (schedule_state's beating `last_update`, trend sensors' `gradient`), and the template-condition cache is clock-keyed (one evaluation per minute, matching HA's own cycle) instead of being tied to `last_update` — which also means time-based conditions keep working if the integration stops rewriting unchanged states. A re-render now only happens when a schedule, a referenced entity, or a template condition result actually changes.
+
 ## [2.2.1] - 2026-07-05
 
 All changes since the last published release, `v2.0.9` (2.2.0 was never released; its content is included here).
