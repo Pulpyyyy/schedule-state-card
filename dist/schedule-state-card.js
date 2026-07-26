@@ -980,16 +980,18 @@ class ConditionEvaluator {
         this.hass = hass;
         this.selectedDay = selectedDay;
         this.templateCache = new Map();  // value_template string → boolean
-        this._templateCacheKey = null;   // invalidated when sensor last_update changes
+        this._templateCacheKey = null;   // invalidated when the minute-resolution clock key changes
     }
 
     /**
      * Evaluate all given template strings via HA's WebSocket (Jinja2 engine)
      * and store results in templateCache.
      *
-     * Cache is invalidated whenever cacheKey changes — cacheKey should be the
-     * sensor's last_update attribute, so the cache tracks HA's own evaluation
-     * cycle (typically every minute) rather than a fixed time window.
+     * Cache is invalidated whenever cacheKey changes. The caller passes a
+     * minute-resolution clock key (see set hass), NOT the sensor's
+     * last_update attribute: last_update is bookkeeping the card must ignore
+     * (see _attrsChangedIgnoringNoise), so templates are re-evaluated at most
+     * once per minute regardless of how often the sensor re-writes its state.
      *
      * All templates are fetched in parallel in a single Promise.all().
      * Returns true only when a template's boolean RESULT actually changed
