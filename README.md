@@ -183,15 +183,14 @@ The key format is `"value|unit"`:
 - `"off|"` - Matches state value "off" with no unit (note the empty unit part)
 - `"mode1|"` - Matches text states without units
 
-**Benefits:**
-- ✅ Shared color mapping across all cards (global singleton cache)
-- ✅ Consistent colors for the same values
-- ✅ Better performance (colors calculated once, reused everywhere)
-- ✅ Manual control when automatic colors aren't suitable
-- ✅ Works with all units and state values
+**Shared across cards:**
+- An override declared in one card applies to every Schedule State Card on the page, so you can define a color once and get consistent colors everywhere.
+- A key stays defined as long as at least one card declares it: removing it from one card doesn't affect another card that still declares it.
+- If several cards declare the same key with different colors, the most recently configured card wins. Declare a shared key in a single card to avoid ambiguity.
+- In the visual editor, override changes are previewed live on the whole dashboard; closing the editor without saving restores the previous colors.
 
 **Performance Note:**
-The card uses a global color cache singleton that is shared across all instances. Colors are calculated once and reused, significantly improving performance when multiple cards are displayed with similar state values.
+Automatic colors are calculated once and cached globally, so multiple cards displaying the same state values reuse them.
 
 ## Understanding the Schedule Display
 

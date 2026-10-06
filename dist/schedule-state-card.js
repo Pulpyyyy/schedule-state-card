@@ -89,11 +89,25 @@ class ColorCacheSingleton {
         this.cache = new Map();
         
         /**
-         * Manual overrides: allows forcing specific colors for state+unit combinations
+         * Manual overrides: allows forcing specific colors for state+unit combinations.
+         * Effective view derived from _overrideOwners (see setOwnerOverrides).
          * @type {Map<string, {color: string, textColor: string}>}
          */
         this.overrides = new Map();
-        
+
+        /**
+         * Per-card contributions to the shared overrides:
+         * key → Map(card → {color, textColor}), in application order.
+         * @type {Map<string, Map<Object, {color: string, textColor: string}>>}
+         */
+        this._overrideOwners = new Map();
+
+        /**
+         * Cards to re-render when an effective override changes: card → callback
+         * @type {Map<Object, Function>}
+         */
+        this._overrideListeners = new Map();
+
         /**
          * Statistics for debugging
          */
@@ -144,7 +158,9 @@ class ColorCacheSingleton {
     }
     
     /**
-     * Add or update a manual override
+     * Add or update a manual override, bypassing per-card ownership.
+     * Cards go through setOwnerOverrides; kept for an editor still cached
+     * from an older release.
      * @param {string} key - "value|unit" format
      * @param {string} color - CSS color (hex, hsl, rgb, etc.)
      * @param {string} textColor - Text color for contrast
@@ -155,7 +171,7 @@ class ColorCacheSingleton {
     }
     
     /**
-     * Remove an override
+     * Remove an override, bypassing per-card ownership (see setOverride)
      * @param {string} key - "value|unit" format
      */
     removeOverride(key) {
@@ -176,19 +192,80 @@ class ColorCacheSingleton {
     }
     
     /**
-     * Set multiple overrides at once (from config)
-     * @param {Object} overridesMap - {key: {color, textColor}, ...}
+     * Replace one card's contribution to the shared overrides (from its config).
+     *
+     * Overrides are shared across all cards on the page (theme-like): a key
+     * declared by any card colors that value everywhere. Each card owns its
+     * own declarations, so a key disappears only when NO card declares it
+     * anymore — removing it from one card (or from the editor preview) never
+     * strips it from another card that still declares it. When several cards
+     * declare the same key with different colors, the most recently
+     * configured card wins.
+     *
+     * @param {Object} owner - The card instance
+     * @param {Object|null} overridesMap - {key: {color, textColor}, ...}; null releases all
+     * @returns {boolean} true if an effective override changed
      */
-    setOverridesFromConfig(overridesMap) {
-        if (!overridesMap || typeof overridesMap !== 'object') return;
-        
-        for (const [key, value] of Object.entries(overridesMap)) {
-            if (value && value.color) {
-                this.setOverride(key, value.color, value.textColor || '#fff');
+    setOwnerOverrides(owner, overridesMap) {
+        const next = new Map();
+        if (overridesMap && typeof overridesMap === 'object') {
+            for (const [key, value] of Object.entries(overridesMap)) {
+                if (value && value.color) {
+                    next.set(key, { color: value.color, textColor: value.textColor || '#fff' });
+                }
             }
         }
+
+        const touched = new Set(next.keys());
+        for (const [key, owners] of this._overrideOwners) {
+            if (owners.has(owner) && !next.has(key)) {
+                owners.delete(owner);
+                touched.add(key);
+            }
+        }
+        for (const [key, def] of next) {
+            let owners = this._overrideOwners.get(key);
+            if (!owners) this._overrideOwners.set(key, owners = new Map());
+            // delete + set moves this card's contribution last: it now wins conflicts
+            owners.delete(owner);
+            owners.set(owner, def);
+        }
+
+        let changed = false;
+        for (const key of touched) {
+            const owners = this._overrideOwners.get(key);
+            const before = this.overrides.get(key);
+            const after = owners?.size ? [...owners.values()].pop() : undefined;
+            if (after) {
+                this.overrides.set(key, after);
+            } else {
+                this.overrides.delete(key);
+                this._overrideOwners.delete(key);
+            }
+            if (before?.color !== after?.color || before?.textColor !== after?.textColor) changed = true;
+        }
+
+        if (changed) {
+            for (const [card, callback] of this._overrideListeners) {
+                if (card !== owner) callback();
+            }
+        }
+        return changed;
     }
-    
+
+    /**
+     * Be notified when an effective override changes because of another card
+     * @param {Object} owner - The card instance
+     * @param {Function} callback - Called with no arguments
+     */
+    subscribeOverrides(owner, callback) {
+        this._overrideListeners.set(owner, callback);
+    }
+
+    unsubscribeOverrides(owner) {
+        this._overrideListeners.delete(owner);
+    }
+
     /**
      * Clear all caches (useful for testing)
      */
@@ -1668,7 +1745,8 @@ class ScheduleStateCard extends HTMLElement {
         };
 
         this._isToggling = false;
-        this._appliedOverrideKeys = null;
+        this._overridesReleased = false;
+        this._inEditorPreview = false;
         this._relevantIdsCache = null;
 
         this.currentTime = this.getCurrentTime();
@@ -1948,24 +2026,11 @@ class ScheduleStateCard extends HTMLElement {
         this._relevantIdsCache = null;
 
         // Apply color overrides to the global singleton cache (theme-like: shared
-        // across all card instances on the page). Reconcile first: remove overrides
-        // this card applied on a previous setConfig that are no longer in its
-        // config, so YAML edits take effect without a full page reload.
-        const newOverrideKeys = new Set(
-            this._config.color_overrides && typeof this._config.color_overrides === 'object'
-                ? Object.keys(this._config.color_overrides)
-                : []
-        );
-        if (this._appliedOverrideKeys) {
-            for (const key of this._appliedOverrideKeys) {
-                if (!newOverrideKeys.has(key)) COLOR_CACHE.removeOverride(key);
-            }
-        }
-        this._appliedOverrideKeys = newOverrideKeys;
-        if (newOverrideKeys.size > 0) {
-            COLOR_CACHE.setOverridesFromConfig(this._config.color_overrides);
-            debugLog(`Applied ${newOverrideKeys.size} color overrides`);
-        }
+        // across all card instances on the page). This card's previous
+        // declarations are replaced, so YAML edits take effect without a full
+        // page reload, while keys still declared by other cards are kept.
+        COLOR_CACHE.setOwnerOverrides(this, this._config.color_overrides);
+        this._overridesReleased = false;
 
         if (this._hass) this.render();
     }
@@ -4462,6 +4527,18 @@ class ScheduleStateCard extends HTMLElement {
     connectedCallback() {
         this.startTimelineUpdate();
 
+        // Shared color overrides: re-render when another card changes one.
+        // The edit-dialog preview gave its declarations back on disconnect
+        // (see disconnectedCallback): declare them again if it comes back.
+        COLOR_CACHE.subscribeOverrides(this, () => {
+            if (this._config && this._hass && this.shadowRoot.querySelector("#content")) this.updateContent();
+        });
+        this._inEditorPreview = this._detectEditorPreview();
+        if (this._overridesReleased && this._config) {
+            COLOR_CACHE.setOwnerOverrides(this, this._config.color_overrides);
+            this._overridesReleased = false;
+        }
+
         // HA re-parents cards in the DOM (masonry re-layout, view switches, edit
         // preview), which fires disconnectedCallback + connectedCallback on the
         // SAME element. disconnectedCallback detached every listener, so the card
@@ -4472,6 +4549,17 @@ class ScheduleStateCard extends HTMLElement {
         }
     }
 
+    /**
+     * Whether this card is the live preview of HA's card edit dialog. Walks up
+     * through shadow roots; must run while connected.
+     */
+    _detectEditorPreview() {
+        for (let node = this.parentNode; node; node = node.parentNode || node.host) {
+            if (node.localName === "hui-dialog-edit-card") return true;
+        }
+        return false;
+    }
+
     disconnectedCallback() {
         /**
          * Complete cleanup when component is removed from DOM
@@ -4480,6 +4568,16 @@ class ScheduleStateCard extends HTMLElement {
 
         // Mark for full rebuild on reconnection (HA re-parents cards in the DOM)
         this._wasDisconnected = true;
+
+        // A dashboard card keeps declaring its shared color overrides while
+        // detached (view switch: other cards may rely on them). The edit-dialog
+        // preview gives them back, so closing the dialog without saving
+        // restores the dashboard's colors.
+        COLOR_CACHE.unsubscribeOverrides(this);
+        if (this._inEditorPreview) {
+            COLOR_CACHE.setOwnerOverrides(this, null);
+            this._overridesReleased = true;
+        }
 
         // Stop timeline updates
         this.stopTimelineUpdate();

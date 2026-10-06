@@ -4,7 +4,7 @@
  *   ha-entity-picker, ha-icon-picker, ha-selector (color_rgb)
  *   ha-textfield, ha-formfield, ha-switch, ha-select
  *
- * Globals (TRANSLATIONS, DEFAULT_COLORS, COLOR_CACHE) are accessed lazily from
+ * Globals (TRANSLATIONS, DEFAULT_COLORS) are accessed lazily from
  * window._scheduleStateCardShared, set by schedule-state-card.js at runtime.
  * This file is loaded as an ES module via dynamic import(), so it cannot access
  * top-level const from the classic script directly.
@@ -560,7 +560,6 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
                 const key      = btn.dataset.overrideKey;
                 const overrides = { ...(this._config.color_overrides || {}) };
                 delete overrides[key];
-                window._scheduleStateCardShared?.COLOR_CACHE?.removeOverride(key);
                 this._config = { ...this._config, color_overrides: overrides };
                 this._fire();
                 this._render();
@@ -576,7 +575,6 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             const textColor = this._rgbToHex(this._overrideTextRgb);
             const key       = `${value}|${unit}`;
             const overrides = { ...(this._config.color_overrides || {}), [key]: { color: bgColor, textColor } };
-            window._scheduleStateCardShared?.COLOR_CACHE?.setOverride(key, bgColor, textColor);
             this._config = { ...this._config, color_overrides: overrides };
             this._fire();
             this._render();
