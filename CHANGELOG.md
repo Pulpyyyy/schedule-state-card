@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.4] - 2026-10-06
+
+### Fixed
+- **Template conditions no longer show a stale or fallback result**: the template cache was emptied at each new minute before Home Assistant's answers came back, so a render in between (every night at midnight, for instance) showed template-conditioned layers as active, and the error stayed on screen when HA's answer had not changed. Changing an entity used in a template now updates the card at once instead of up to ~2 minutes later, and templates nested in `and`/`or`/`not` are now evaluated by HA instead of always counting as true.
+- **Plain state values are shown verbatim**: values such as `08:30`, `2024-01-05` or `2 persons` were displayed as `8`, `2018` and `2`.
+- **Dashboard tab no longer freezes on some templates**: a state template using `not` or parentheses could make the card loop forever. `{% if %}` conditions containing spaces (e.g. `is_state('binary_sensor.home', 'on')`) now pick the right branch.
+- **Editor and README now show the right default layout** ("By Days"): on a new card, selecting "By Entities" in the editor did nothing.
+- **Shared color overrides**: overrides stay shared across all cards, but removing one from a card no longer removes it from another card that still declares it, and deleting an override in the editor no longer changes the dashboard's colors when the editor is cancelled. When two cards declare the same key, the most recently configured one wins.
+
 ## [2.2.3] - 2026-07-26
 
 ### Fixed
