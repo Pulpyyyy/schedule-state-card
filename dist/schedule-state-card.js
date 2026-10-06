@@ -975,49 +975,81 @@ function evaluateNowInExpression(inner) {
     return null;
 }
 
+/**
+ * Entity ids a Jinja template reads: states('x'), state_attr('x', …),
+ * is_state('x', …), is_state_attr('x', …), has_value('x') and states.x.y.
+ *
+ * @param {*} template - Template string (anything else yields [])
+ * @returns {string[]}
+ */
+function extractTemplateEntityIds(template) {
+    if (typeof template !== 'string') return [];
+    const ids = [];
+    for (const m of template.matchAll(/\b(?:states|state_attr|is_state|is_state_attr|has_value)\(\s*['"]([^'"]+)['"]|\bstates\.([a-z_]+\.[a-z0-9_]+)/g)) {
+        ids.push(m[1] || m[2]);
+    }
+    return ids;
+}
+
 class ConditionEvaluator {
     constructor(hass, selectedDay = "mon") {
         this.hass = hass;
         this.selectedDay = selectedDay;
-        this.templateCache = new Map();  // value_template string → boolean
-        this._templateCacheKey = null;   // invalidated when the minute-resolution clock key changes
+        this.templateCache = new Map();      // value_template string → boolean (last known HA result)
+        this._templateCacheKeys = new Map(); // value_template string → clock key of its last fetch
+        this._templateRequests = new Map();  // value_template string → id of its in-flight request
+        this._templateRequestId = 0;
     }
 
     /**
-     * Evaluate all given template strings via HA's WebSocket (Jinja2 engine)
+     * Evaluate the given template strings via HA's WebSocket (Jinja2 engine)
      * and store results in templateCache.
      *
-     * Cache is invalidated whenever cacheKey changes. The caller passes a
-     * minute-resolution clock key (see set hass), NOT the sensor's
-     * last_update attribute: last_update is bookkeeping the card must ignore
-     * (see _attrsChangedIgnoringNoise), so templates are re-evaluated at most
-     * once per minute regardless of how often the sensor re-writes its state.
+     * A template is re-fetched when its clock key is older than cacheKey, or
+     * unconditionally when listed in `force` (an entity it references changed).
+     * The caller passes a minute-resolution clock key (see set hass), NOT the
+     * sensor's last_update attribute: last_update is bookkeeping the card must
+     * ignore (see _attrsChangedIgnoringNoise).
+     *
+     * Stale results are NEVER cleared before the fresh ones arrive: a render
+     * happening in between keeps showing the last known HA result instead of
+     * the "not yet cached → true" fallback, which would otherwise stick on
+     * screen whenever the fresh result equals the previous one.
      *
      * All templates are fetched in parallel in a single Promise.all().
-     * Returns true only when a template's boolean RESULT actually changed
-     * compared to the previous cache — re-fetching identical values (the
-     * common case with a clock-driven cache key) does not trigger a
-     * re-render. Failed evaluations are cached with the JS fallback value so
-     * a permanently failing template does not retry a WS round-trip on every
-     * refresh.
+     * Returns true only when a template's boolean RESULT actually changed —
+     * re-fetching identical values (the common case with a clock-driven key)
+     * does not trigger a re-render. Failed evaluations are cached with the JS
+     * fallback value so a permanently failing template does not retry a WS
+     * round-trip on every refresh.
      *
      * @param {Object} hass - Home Assistant hass object
      * @param {string[]} templates - List of value_template strings to evaluate
      * @param {string} cacheKey - Invalidation key (minute-resolution clock)
+     * @param {Set<string>} [force] - Templates to re-fetch regardless of cacheKey
      * @returns {Promise<boolean>} true if at least one cached result changed
      */
-    async refreshTemplateCache(hass, templates, cacheKey) {
-        const previous = new Map(this.templateCache);
-        if (this._templateCacheKey !== cacheKey) {
-            this.templateCache.clear();
-            this._templateCacheKey = cacheKey;
+    async refreshTemplateCache(hass, templates, cacheKey, force = null) {
+        // Forget templates no longer referenced by any layer
+        const wanted = new Set(templates);
+        for (const t of [...this.templateCache.keys()]) {
+            if (!wanted.has(t)) {
+                this.templateCache.delete(t);
+                this._templateCacheKeys.delete(t);
+            }
         }
 
-        const uncached = templates.filter(t => !this.templateCache.has(t));
-        if (!uncached.length) return false;
+        // An in-flight request for the current key is enough, unless forced:
+        // a forced request supersedes it (its answer may predate the change)
+        const toFetch = templates.filter(t => force?.has(t) ||
+            (this._templateCacheKeys.get(t) !== cacheKey && !this._templateRequests.has(t)));
+        if (!toFetch.length) return false;
 
         let changed = false;
-        await Promise.all(uncached.map(async (tmpl) => {
+        await Promise.all(toFetch.map(async (tmpl) => {
+            const requestId = ++this._templateRequestId;
+            this._templateRequests.set(tmpl, requestId);
+            this._templateCacheKeys.set(tmpl, cacheKey);
             let value;
             try {
                 const result = await this._evaluateTemplateViaWS(hass, tmpl);
@@ -1030,8 +1062,11 @@ class ConditionEvaluator {
                 const fallback = evaluateNowInExpression(inner);
                 value = fallback !== null ? fallback : true;
             }
+            // A newer (forced) request for this template was issued meanwhile: its answer wins
+            if (this._templateRequests.get(tmpl) !== requestId) return;
+            this._templateRequests.delete(tmpl);
+            if (this.templateCache.get(tmpl) !== value) changed = true;
             this.templateCache.set(tmpl, value);
-            if (previous.get(tmpl) !== value) changed = true;
         }));
 
         return changed;
@@ -2093,9 +2128,10 @@ class ScheduleStateCard extends HTMLElement {
             return;
         }
 
-        // Something relevant changed: layers may carry new template conditions.
-        // Periodic freshness is handled by the 1-minute timer, not by this call.
-        this._refreshTemplateConditions(hass);
+        // Something relevant changed: layers may carry new template conditions,
+        // and templates referencing a changed entity must be re-evaluated now.
+        // Periodic freshness is handled by the 1-minute timer.
+        this._refreshTemplateConditions(hass, oldHass);
 
         const now = Date.now();
         const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
@@ -2126,15 +2162,26 @@ class ScheduleStateCard extends HTMLElement {
      *
      * Called from the 1-minute timeline timer (freshness heartbeat) and from
      * set hass AFTER the dirty-check (new templates can only appear when a
-     * relevant entity's layers changed). Re-render is triggered only when a
-     * template's boolean result actually flipped.
+     * relevant entity's layers changed). From set hass, `oldHass` is passed so
+     * templates referencing an entity that just changed are re-fetched at once
+     * instead of waiting for the next minute. Re-render is triggered only when
+     * a template's boolean result actually flipped.
      *
      * @param {Object} hass - Home Assistant hass object
+     * @param {Object} [oldHass] - Previous hass, to detect changed template entities
      */
-    _refreshTemplateConditions(hass) {
+    _refreshTemplateConditions(hass, oldHass = null) {
         if (!this._config?.entities || !this.conditionEvaluator) return;
 
         const templates = new Set();
+        // Templates nested in and/or/not are evaluated too — collect them all
+        const collect = (cond) => {
+            if (!cond || typeof cond !== 'object') return;
+            if (cond.condition === 'template' && typeof cond.value_template === 'string') {
+                templates.add(cond.value_template);
+            }
+            if (Array.isArray(cond.conditions)) cond.conditions.forEach(collect);
+        };
 
         for (const entityConfig of this._config.entities) {
             const entityId = typeof entityConfig === 'string' ? entityConfig : entityConfig.entity;
@@ -2146,11 +2193,7 @@ class ScheduleStateCard extends HTMLElement {
             for (const dayLayers of Object.values(layers)) {
                 for (const layer of dayLayers) {
                     for (const block of layer.blocks || []) {
-                        for (const cond of block.raw_conditions || []) {
-                            if (cond.condition === 'template' && cond.value_template) {
-                                templates.add(cond.value_template);
-                            }
-                        }
+                        (block.raw_conditions || []).forEach(collect);
                     }
                 }
             }
@@ -2158,9 +2201,16 @@ class ScheduleStateCard extends HTMLElement {
 
         if (templates.size === 0) return;
 
+        let force = null;
+        if (oldHass) {
+            const { scheduleIds } = this._collectRelevantEntityIds(hass);
+            force = new Set([...templates].filter(t =>
+                extractTemplateEntityIds(t).some(id => this._templateEntityChanged(id, oldHass, hass, scheduleIds))));
+        }
+
         const cacheKey = `minute-${Math.floor(Date.now() / 60000)}`;
 
-        this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey)
+        this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey, force)
             .then(updated => { if (updated) this.updateContent(); })
             .catch(e => errorLog('ScheduleStateCard', 'Failed to refresh template conditions:', e));
     }
@@ -2211,11 +2261,7 @@ class ScheduleStateCard extends HTMLElement {
                             this._addConditionEntityIds(cond, result);
                         }
                         const tmpl = block.raw_state_template || block.state_value;
-                        if (typeof tmpl === 'string') {
-                            for (const m of tmpl.matchAll(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/g)) {
-                                result.templateIds.add(m[1]);
-                            }
-                        }
+                        for (const id of extractTemplateEntityIds(tmpl)) result.templateIds.add(id);
                     }
                 }
             }
@@ -2231,11 +2277,7 @@ class ScheduleStateCard extends HTMLElement {
             const list = Array.isArray(cond.entity_id) ? cond.entity_id : [cond.entity_id];
             for (const id of list) result.conditionIds.add(id);
         }
-        if (typeof cond.value_template === 'string') {
-            for (const m of cond.value_template.matchAll(/(?:states|state_attr)\(\s*['"]([^'"]+)['"]/g)) {
-                result.templateIds.add(m[1]);
-            }
-        }
+        for (const id of extractTemplateEntityIds(cond.value_template)) result.templateIds.add(id);
         if (Array.isArray(cond.conditions)) {
             for (const c of cond.conditions) this._addConditionEntityIds(c, result);
         }
@@ -2278,16 +2320,25 @@ class ScheduleStateCard extends HTMLElement {
         // render on every server poll, so for configured sensors we compare
         // attributes key by key ignoring last_update instead.
         for (const id of templateIds) {
-            const o = oldHass.states[id];
-            const n = hass.states[id];
-            if (o === n) continue;
-            if (!scheduleIds.has(id)) return true;
-            if (!o || !n) return true;
-            if (o.state !== n.state) return true;
-            if (this._attrsChangedIgnoringNoise(o.attributes, n.attributes)) return true;
+            if (this._templateEntityChanged(id, oldHass, hass, scheduleIds)) return true;
         }
 
         return false;
+    }
+
+    /**
+     * Whether a template-referenced entity changed in a way a template can
+     * see (state or any attribute), ignoring last_update noise on configured
+     * schedule sensors (see _relevantStatesChanged).
+     */
+    _templateEntityChanged(id, oldHass, hass, scheduleIds) {
+        const o = oldHass.states[id];
+        const n = hass.states[id];
+        if (o === n) return false;
+        if (!scheduleIds.has(id)) return true;
+        if (!o || !n) return true;
+        if (o.state !== n.state) return true;
+        return this._attrsChangedIgnoringNoise(o.attributes, n.attributes);
     }
 
     /**
