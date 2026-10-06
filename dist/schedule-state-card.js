@@ -2810,15 +2810,18 @@ class ScheduleStateCard extends HTMLElement {
     resolveTemplate(template) {
         if (!template || typeof template !== "string") return template;
         if (!this._hass) return template;
+        // Attribute-supplied string: bound the regex work below
+        if (template.length > 2000) return template;
         let result = template.trim();
-        result = result.replace(/\{\{|\}\}/g, "").replace(/\{%|%\}/g, "").trim();
-        const ifElifMatch = result.match(/if\s+(.+?)\s+(.+?)\s+elif\s+(.+?)\s+(.+?)\s+else\s+(.+?)$/is);
-        if (ifElifMatch) {
-            result = this.evalCondition(ifElifMatch[1].trim()) ? ifElifMatch[2].trim() : this.evalCondition(ifElifMatch[3].trim()) ? ifElifMatch[4].trim() : ifElifMatch[5].trim();
-        } else {
-            const ifMatch = result.match(/if\s+(.+?)\s+(.+?)\s+else\s+(.+?)$/is);
-            if (ifMatch) result = this.evalCondition(ifMatch[1].trim()) ? ifMatch[2].trim() : ifMatch[3].trim();
+        // {% if c %}A{% elif c2 %}B{% else %}C{% endif %} — matched on the
+        // delimiters, so conditions may contain spaces (is_state('x', 'on'))
+        const ifMatch = result.match(/^\{%-?\s*if\s+([\s\S]*?)\s*-?%\}([\s\S]*?)(?:\{%-?\s*elif\s+([\s\S]*?)\s*-?%\}([\s\S]*?))?\{%-?\s*else\s*-?%\}([\s\S]*?)\{%-?\s*endif\s*-?%\}$/);
+        if (ifMatch) {
+            if (this.evalCondition(ifMatch[1])) result = ifMatch[2];
+            else if (ifMatch[3] !== undefined && this.evalCondition(ifMatch[3])) result = ifMatch[4];
+            else result = ifMatch[5];
         }
+        result = result.replace(/\{\{|\}\}/g, "").replace(/\{%|%\}/g, "").trim();
         result = result.replace(/states\(\s*['"]([^'"]+)['"]\s*\)/g, (match, entity) => {
             const state = this._hass.states[entity];
             return state ? String(state.state) : "0";
@@ -2952,13 +2955,36 @@ class ScheduleStateCard extends HTMLElement {
 
     _safeBooleanEval(expr) {
         expr = expr.trim().replace(/\bfalse\b/g, "0").replace(/\btrue\b/g, "1");
+        if (!/^[01&|()!\s]+$/.test(expr)) return false;
+        // Recursive descent (precedence ! > && > ||, parentheses): every step
+        // consumes a token, so malformed input fails instead of looping
+        const tokens = expr.match(/&&|\|\||[01()!&|]/g) || [];
+        let pos = 0;
+        const parseOr = () => {
+            let value = parseAnd();
+            while (tokens[pos] === "||") { pos++; const rhs = parseAnd(); value = value || rhs; }
+            return value;
+        };
+        const parseAnd = () => {
+            let value = parseUnary();
+            while (tokens[pos] === "&&") { pos++; const rhs = parseUnary(); value = value && rhs; }
+            return value;
+        };
+        const parseUnary = () => {
+            const token = tokens[pos++];
+            if (token === "!") return !parseUnary();
+            if (token === "0" || token === "1") return token === "1";
+            if (token === "(") {
+                const value = parseOr();
+                if (tokens[pos++] !== ")") throw new Error("Mismatched parentheses");
+                return value;
+            }
+            throw new Error(`Unexpected token: ${token}`);
+        };
         try {
-            if (!/^[01&|()!\s]+$/.test(expr)) return false;
-            let result = expr;
-            while (result.includes("!")) result = result.replace(/!([01])/g, (m, v) => v === "1" ? "0" : "1");
-            while (result.includes("&&")) result = result.replace(/([01])\s*&&\s*([01])/g, (m, a, b) => (a === "1" && b === "1") ? "1" : "0");
-            while (result.includes("||")) result = result.replace(/([01])\s*\|\|\s*([01])/g, (m, a, b) => (a === "1" || b === "1") ? "1" : "0");
-            return result.replace(/\s/g, "") === "1";
+            const value = parseOr();
+            if (pos !== tokens.length) throw new Error(`Unexpected token: ${tokens[pos]}`);
+            return value;
         } catch (e) {
             errorLog("Schedule card: condition evaluation failed", e);
             return false;
@@ -3876,7 +3902,9 @@ class ScheduleStateCard extends HTMLElement {
         const rawState = block.state_value ?? "";
         const rawTemplate = block.raw_state_template || rawState;
         const isDynamic = this.isDynamicTemplate(rawTemplate);
-        const resolvedState = this.resolveTemplate(rawState);
+        // Only an unrendered template goes through the client-side resolver:
+        // plain values ("08:30", "2024-01-05", "2 persons") are shown verbatim
+        const resolvedState = this.isDynamicTemplate(rawState) ? this.resolveTemplate(rawState) : rawState;
         const unit = block.unit || unitOfMeasurement || "";
 
         // Use escapeHtml for text content (preserves "/" for units like €/kWh)
