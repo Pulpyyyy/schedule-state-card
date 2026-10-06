@@ -37,13 +37,13 @@ The card supports two different layout modes to suit your viewing preferences:
 
 ![Layout](.img/layout.gif)
 
-### By Entities Layout (Default)
+### By Entities Layout
 - Shows all days of the week for a selected entity
 - Perfect when you want to see the complete weekly schedule for one specific entity
 - Use case: Compare how a thermostat schedule varies throughout the week
 - Switch between entities using the entity selector dropdown
 
-### By Days Layout
+### By Days Layout (Default)
 - Shows all entities for a selected day
 - Perfect when you want to see multiple entities scheduled for the same day
 - Use case: View all scheduled tasks/temperatures for a specific day
@@ -65,8 +65,8 @@ entities:
 ```
 
 #### Layout Options
-- `entities` - Display entities horizontally, days vertically (default)
-- `days` - Display days horizontally, entities vertically
+- `days` - One timeline per entity for the selected day, with day selector buttons (default)
+- `entities` - The seven days of the week for the entity picked in the selector
   
 ## Installation
 
@@ -117,7 +117,7 @@ colors:
 | `entities[].entity` | string | Entity ID of the schedule sensor |
 | `entities[].name` | string | Custom display name |
 | `entities[].icon` | string | MDI icon identifier |
-| `layout` | string | Display layout: "entities" (default) or "days" |
+| `layout` | string | Display layout: "days" (default) or "entities" |
 | `show_state_in_title` | boolean | Display current state value in card header (default: true) |
 | `colors` | object | Color configuration (see below) |
 

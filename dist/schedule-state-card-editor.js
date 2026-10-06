@@ -472,7 +472,8 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 
         // --- ha-select layout ---
         const layoutSel = sr.querySelector('#layout-selector');
-        if (layoutSel) layoutSel.value = this._config.layout || 'entities';
+        // Same default as the card's setConfig: anything but "entities" renders by days
+        if (layoutSel) layoutSel.value = this._config.layout === 'entities' ? 'entities' : 'days';
     }
 
     // ── event listeners ──────────────────────────────────────────────────────
