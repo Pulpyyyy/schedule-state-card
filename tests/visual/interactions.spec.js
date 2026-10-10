@@ -160,3 +160,15 @@ test("the 7 day buttons fit on one row, on a desktop column and on a phone", asy
         }
     }
 });
+
+test("12-hour labels keep their number on one line", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] }, { timeFormat: "12" });
+    const labels = await page.locator(".timeline-hour").evaluateAll(cells => cells
+        .filter(c => c.textContent)
+        .map(c => {
+            const range = document.createRange();
+            range.selectNodeContents(c);
+            return [c.textContent, range.getClientRects().length];
+        }));
+    expect(labels).toEqual([["6 AM", 1], ["12 PM", 1], ["6 PM", 1]]);
+});

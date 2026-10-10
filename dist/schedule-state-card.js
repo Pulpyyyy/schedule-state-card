@@ -4440,6 +4440,9 @@ class ScheduleStateCard extends HTMLElement {
                 justify-content: center;
                 font-weight: 600;
                 padding-bottom: 4px;
+                /* "6 AM" is wider than its one-hour cell: wrapped, the number
+                   went up behind the blocks and only "AM" showed */
+                white-space: nowrap;
             }
 
             .timeline-hour:empty {
