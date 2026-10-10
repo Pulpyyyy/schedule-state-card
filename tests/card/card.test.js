@@ -169,6 +169,28 @@ describe("days layout", () => {
         expect(timeline(card, "SST Mode").rows.length).toBeGreaterThan(1);
     });
 
+    it("describes every block and layer badge to screen readers", async () => {
+        const day = [{ is_default_layer: true, condition_text: "default", blocks: [
+            { start: "00:00", end: "12:00", state_value: "Tom & Jerry", is_default_bg: true },
+            { start: "12:00", end: "23:59", state_value: "21", is_default_bg: true },
+        ] }];
+        const hass = hassOf({ states: { "sensor.text": { entity_id: "sensor.text", state: "x", attributes: { friendly_name: "Text", unit_of_measurement: "°C", layers: { mon: day } } } } });
+        const card = mountCard({ layout: "days", entities: ["sensor.text", "sensor.sst_thermostat"] }, hass);
+        await settle();
+        const labels = [...card.shadowRoot.querySelectorAll(".schedule-block")].map(b => [b.getAttribute("role"), b.getAttribute("aria-label")]);
+        expect(labels[0][0]).toBe("img");
+        expect(labels[0][1]).toMatch(/: 00:00 - 12:00\. State: Tom & Jerry °C/);
+        expect(labels[1][1]).toMatch(/: 12:00 - 23:59\. State: 21 °C/);
+        // One spoken line, no pictograms, no escaped entities
+        for (const [, label] of labels) expect(label).not.toMatch(/\n|&amp;|🌡|📊|💬|🔄/u);
+
+        clickSigma(card, 1);
+        await settle();
+        const badges = [...card.shadowRoot.querySelectorAll(".icon-row .layer-number[role=img]")].map(b => b.getAttribute("aria-label"));
+        expect(badges[0]).toBe("Schedule Rule 0. Default state");
+        expect(badges.some(l => /^Schedule Rule \d\. Condition: /.test(l))).toBe(true);
+    });
+
     it("exposes its controls to assistive technologies", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
         await settle();

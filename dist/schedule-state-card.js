@@ -2858,6 +2858,15 @@ class ScheduleStateCard extends HTMLElement {
         return "";
     }
 
+    /** Tooltip text as a spoken label: one line, without the pictograms. */
+    _spokenLabel(text) {
+        return String(text)
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2139}\u{FE0F}]/gu, "")
+            .replace(/\s*\n\s*/g, ". ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+    }
+
     decodeHtmlEntities(text) {
         const map = {
             "&amp;": "&",
@@ -3943,7 +3952,7 @@ class ScheduleStateCard extends HTMLElement {
         const opacityAdjust = !isSelectedDayToday ? "opacity:0.5;" : "";
         const finalStyle = opacityAdjust ? `${iconStyle}${opacityAdjust}` : iconStyle;
 
-        return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
+        return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" role="img" aria-label="${escapeHtmlAttribute(this._spokenLabel(iconTooltipText))}" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
     }
 
     _renderBlock(block, currentLayer, meta, top, unitOfMeasurement, isSelectedDayToday) {
@@ -4021,7 +4030,9 @@ class ScheduleStateCard extends HTMLElement {
 
         // Full label (already escaped): CSS cuts it to the block's real width
         // with an ellipsis (.block-center text-overflow)
-        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${stateDisplay}</span></div>`;
+        // Screen readers get the tooltip's content (the tooltip itself only
+        // appears on hover or tap)
+        return `<div class="${blockClass}" style="${style}" role="img" aria-label="${escapeHtmlAttribute(this._spokenLabel(this.decodeHtmlEntities(tooltip)))}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center" aria-hidden="true">${stateDisplay}</span></div>`;
     }
 
     updateContent() {
