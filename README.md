@@ -250,9 +250,11 @@ sensor:
   - platform: schedule_state
     name: "Bedroom Temperature"
     default_state: "18"
-    unit_of_measurement: "°C"
     allow_wrap: false
     extra_attributes:
+      # schedule_state has no unit option: an extra attribute gives the
+      # sensor its unit, which the card shows next to every value
+      unit_of_measurement: "°C"
       custom_attr: "value"
     events:
       - start: "06:00"
@@ -272,7 +274,7 @@ sensor:
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `start` | time | ✓ | Event start time (HH:MM format) |
-| `end` | time | ✓ | Event end time (HH:MM format) |
+| `end` | time | ✓ | Event end time (HH:MM format). An event ending at `00:00` is ignored by schedule_state: end the day with `23:59`, or use `allow_wrap` for an event that crosses midnight |
 | `state` | string | ✓ | State value (supports Jinja2 templates) |
 | `unit` | string | | Unit of measurement (overrides sensor unit) |
 | `description` | string | | Tooltip description |
@@ -281,6 +283,8 @@ sensor:
 | `allow_wrap` | bool | | Event wraps past midnight (no border radius applied) |
 | `condition` | list | | Conditions for this layer to be active |
 | `months` | list | | Legacy month filter (use in time condition instead) |
+
+With schedule_state 0.20.4, `unit`, `description` and `tooltip` are not passed on to the card: the unit comes from the sensor (see `unit_of_measurement` above) and the tooltip is built by the card.
 
 ### Condition Reference
 
