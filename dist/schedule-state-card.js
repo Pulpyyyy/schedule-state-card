@@ -4211,11 +4211,6 @@ class ScheduleStateCard extends HTMLElement {
         
         const content = this.shadowRoot.querySelector("#content");
         if (!content) return "";
-        
-        if (this._state.eventListener) {
-            this._detachEventHandlers(content, this._state.eventListener);
-            this._state.eventListener = null;
-        }
 
         this._state.invalidateDOMCache();
 
@@ -4299,10 +4294,14 @@ class ScheduleStateCard extends HTMLElement {
 
         const newHTML = `<div class="schedules-container">${timelines}</div>`;
 
-        if (content.innerHTML !== newHTML) {
-            content.innerHTML = newHTML;
-        }
-        // Always re-attach listeners since they are detached at line 3470
+        // Same output as last time: keep the DOM (icons, hover state, open
+        // tooltip) instead of rebuilding it. Comparing with content.innerHTML
+        // never matched: the browser re-serializes the escaped text and the
+        // time cursor is added after rendering.
+        if (newHTML === this._lastContentHTML && content.firstChild) return;
+        this._lastContentHTML = newHTML;
+        content.innerHTML = newHTML;
+        // Replaces the previous listener (attached to the same #content)
         this.attachAllListeners();
     }
 

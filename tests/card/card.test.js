@@ -267,6 +267,23 @@ describe("reactivity", () => {
         ]);
     });
 
+    it("keeps its DOM when a relevant change does not change what is shown", async () => {
+        const hass = hassOf();
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hass);
+        await settle();
+        const block = card.shadowRoot.querySelector(".schedule-block");
+        // 10 -> 11 °C: read by the conditions (below 5, above 25), flips none
+        card.hass = withStates(hass, { "input_number.sst_outdoor": "11" });
+        await settle();
+        expect(block.isConnected).toBe(true);
+
+        // A change that flips a layer rebuilds it
+        card.hass = withStates(hass, { "input_number.sst_outdoor": "0" });
+        await settle();
+        expect(block.isConnected).toBe(false);
+        expect(card.shadowRoot.querySelector(".schedule-block")).not.toBeNull();
+    });
+
     it("ignores changes it does not depend on", async () => {
         const hass = hassOf();
         const card = mountCard({ layout: "days", entities: ["sensor.sst_issue_18"] }, hass);
