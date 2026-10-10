@@ -7,7 +7,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots"
+    "test:visual:update": "playwright test --update-snapshots",
+    "test:ha": "playwright test -c playwright.ha.config.js",
+    "test:ha:update": "playwright test -c playwright.ha.config.js --update-snapshots"
   },
   "devDependencies": {
     "@fontsource/roboto": "^5.3.0",

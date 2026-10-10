@@ -18,3 +18,6 @@ coverage/
 # versioned; captures made on Windows/macOS stay local
 tests/visual/__screenshots__/**/*-win32.png
 tests/visual/__screenshots__/**/*-darwin.png
+
+# Tier B screenshots depend on the test instance and its HA version
+tests/ha/e2e/__screenshots__/
