@@ -66,6 +66,23 @@ describe("days layout", () => {
         ]);
     });
 
+    it("Σ merges the same value from two layers when folded, and cuts it per layer when unfolded", async () => {
+        const block = (start, end, state_value, extra = {}) => ({ start, end, state_value, ...extra });
+        const day = [
+            { condition_key: "a", condition_text: "", blocks: [block("08:00", "10:00", "21")] },
+            { condition_key: "b", condition_text: "", blocks: [block("10:00", "12:00", "21")] },
+            { is_default_layer: true, condition_text: "default", blocks: [block("00:00", "23:59", "19", { is_default_bg: true })] },
+        ];
+        const hass = hassOf({ states: { "sensor.two_layers": { entity_id: "sensor.two_layers", state: "21", attributes: { friendly_name: "Two layers", layers: { mon: day } } } } });
+        const card = mountCard({ layout: "days", entities: ["sensor.two_layers"] }, hass);
+        await settle();
+        expect(sigmaOf(timeline(card, "Two layers"))).toEqual(["00:00-08:00 19", "08:00-12:00 21", "12:00-23:59 19"]);
+
+        clickSigma(card);
+        await settle();
+        expect(sigmaOf(timeline(card, "Two layers"))).toEqual(["00:00-08:00 19", "08:00-10:00 21", "10:00-12:00 21", "12:00-23:59 19"]);
+    });
+
     it("Σ toggle expands every layer with its active state, and collapses back", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hassOf());
         await settle();

@@ -4,14 +4,19 @@ import { makeHass, dayLayers } from "../helpers/hass.js";
 
 const { TimeHelper, ConditionEvaluator, CombinedLayerBuilder } = loadCard();
 
-/** Σ of a layer list, the way the card builds it for one day. */
-function sigma(layers, day, hass = makeHass()) {
+function combinedOf(layers, day, hass) {
     const evaluator = new ConditionEvaluator(hass, day);
     const defaultLayer = layers.find(l => l.is_default_layer);
     const active = layers.filter(l => !l.is_default_layer && !l.is_combined_layer && evaluator.evaluateLayer(l));
-    const combined = new CombinedLayerBuilder(new TimeHelper(), evaluator).build(defaultLayer, active);
-    return combined.blocks.map(b => `${b.start}-${b.end} ${b.state_value}`);
+    return new CombinedLayerBuilder(new TimeHelper(), evaluator).build(defaultLayer, active);
 }
+const describeBlocks = (blocks) => blocks.map(b => `${b.start}-${b.end} ${b.state_value}`);
+
+/** Σ of a layer list as shown with the layers unfolded (cut per layer). */
+const sigma = (layers, day, hass = makeHass()) => describeBlocks(combinedOf(layers, day, hass).blocks);
+
+/** Σ as shown folded: identical neighbours merged even across layers. */
+const sigmaFolded = (layers, day, hass = makeHass()) => describeBlocks(combinedOf(layers, day, hass).packed_blocks);
 
 const block = (start, end, state_value, extra = {}) => ({ start, end, state_value, ...extra });
 const layer = (blocks, extra = {}) => ({ blocks, ...extra });
@@ -46,18 +51,48 @@ describe("Σ combined layer", () => {
         ]);
     });
 
-    it("keeps segments of different layers apart even with the same value", () => {
-        const layers = [
+    describe("same value from different layers", () => {
+        const layers = () => [
             layer([block("08:00", "10:00", "21")], { condition_key: "a" }),
             layer([block("10:00", "12:00", "21")], { condition_key: "b" }),
             defaultLayer("19"),
         ];
-        expect(sigma(layers, "mon")).toEqual([
-            "00:00-08:00 19",
-            "08:00-10:00 21",
-            "10:00-12:00 21",
-            "12:00-23:59 19",
-        ]);
+
+        it("unfolded: stays cut where the layer changes (the result may change there)", () => {
+            expect(sigma(layers(), "mon")).toEqual([
+                "00:00-08:00 19",
+                "08:00-10:00 21",
+                "10:00-12:00 21",
+                "12:00-23:59 19",
+            ]);
+        });
+
+        it("folded: merged, like the schedule_state entity", () => {
+            expect(sigmaFolded(layers(), "mon")).toEqual([
+                "00:00-08:00 19",
+                "08:00-12:00 21",
+                "12:00-23:59 19",
+            ]);
+        });
+
+        it("folded: a merged span no longer claims the first piece's wrap times", () => {
+            const wrapped = [
+                layer([block("00:00", "06:00", "17", { wraps_start: true, original_start: "22:30", original_end: "06:00" })]),
+                layer([block("06:00", "08:00", "17")]),
+                defaultLayer("19"),
+            ];
+            const merged = combinedOf(wrapped, "mon", makeHass()).packed_blocks[0];
+            expect([merged.start, merged.end, merged.wraps_start, merged.wraps_end]).toEqual(["00:00", "08:00", false, false]);
+        });
+
+        it("folded: values that differ in anything rendered stay apart", () => {
+            const differ = [
+                layer([block("08:00", "10:00", "21", { icon: "mdi:sun" })]),
+                layer([block("10:00", "12:00", "21", { icon: "mdi:moon" })]),
+                defaultLayer("19"),
+            ];
+            expect(sigmaFolded(differ, "mon")).toEqual(sigma(differ, "mon"));
+        });
     });
 
     it("keeps adjacent segments of one layer apart when they render differently", () => {
@@ -113,7 +148,8 @@ describe("Σ combined layer", () => {
         // nobody configured
         it("never invents a 23:59-00:00 slot", () => {
             for (const id of SENSORS) for (const day of DAYS) for (const states of SITUATIONS) {
-                const segments = sigma(dayLayers(id, day), day, makeHass({ states }));
+                const hass = makeHass({ states });
+                const segments = [...sigma(dayLayers(id, day), day, hass), ...sigmaFolded(dayLayers(id, day), day, hass)];
                 expect(segments.filter(s => s.startsWith("23:59-")), `${id} ${day} ${JSON.stringify(states)}`).toEqual([]);
             }
         });
@@ -139,6 +175,14 @@ describe("Σ combined layer", () => {
         const result = {};
         for (const id of ["sensor.sst_thermostat", "sensor.sst_price", "sensor.sst_mode", "sensor.sst_dynamic"]) {
             result[id] = { mon: sigma(dayLayers(id, "mon"), "mon"), sat: sigma(dayLayers(id, "sat"), "sat") };
+        }
+        expect(result).toMatchSnapshot();
+    });
+
+    it("folded Σ of every fixture sensor (characterization)", () => {
+        const result = {};
+        for (const id of ["sensor.sst_thermostat", "sensor.sst_price", "sensor.sst_mode", "sensor.sst_dynamic", "sensor.sst_issue_18"]) {
+            result[id] = { mon: sigmaFolded(dayLayers(id, "mon"), "mon"), sat: sigmaFolded(dayLayers(id, "sat"), "sat") };
         }
         expect(result).toMatchSnapshot();
     });

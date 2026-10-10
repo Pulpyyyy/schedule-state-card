@@ -1359,7 +1359,9 @@ class CombinedLayerBuilder {
         return {
             is_combined_layer: true,
             condition_text: "Combined Schedule",
-            blocks: filled
+            blocks: filled,
+            // Shown when Σ is folded: the layers are hidden, only the result matters
+            packed_blocks: this._packAcrossLayers(filled)
         };
     }
 
@@ -1515,8 +1517,8 @@ class CombinedLayerBuilder {
      * starts, comes from the same layer and renders identically. Breakpoints
      * come from every active layer, so a winning block is otherwise cut wherever
      * a losing layer has a boundary. Segments of different layers stay apart even
-     * with the same value (schedule_state would merge them): they depend on
-     * different conditions, so the cut shows where the result could change.
+     * with the same value while the layers are unfolded: they depend on different
+     * conditions, so the cut shows where the result could change.
      */
     _pushSegment(result, segment, sourceBlock) {
         const prev = result[result.length - 1];
@@ -1534,8 +1536,28 @@ class CombinedLayerBuilder {
         result.push(segment);
     }
 
-    _canMerge(a, b) {
-        return a._source_layer === b._source_layer && ['state_value', 'raw_state_template', 'unit', 'color', 'icon', 'is_default_bg', 'description']
+    /**
+     * Folded Σ: also merge identical neighbours from different layers, like the
+     * schedule_state entity does (its IntervalDict merges adjacent equal values).
+     * Copies the merged segments: the unfolded view keeps the per-layer cuts.
+     */
+    _packAcrossLayers(segments) {
+        const result = [];
+        for (const segment of segments) {
+            const prev = result[result.length - 1];
+            if (prev && prev.end === segment.start && this._canMerge(prev, segment, true)) {
+                // Always pieces of different blocks: show the real merged span
+                result[result.length - 1] = { ...prev, end: segment.end, wraps_start: false, wraps_end: false };
+                continue;
+            }
+            result.push(segment);
+        }
+        return result;
+    }
+
+    _canMerge(a, b, acrossLayers = false) {
+        return (acrossLayers || a._source_layer === b._source_layer) &&
+            ['state_value', 'raw_state_template', 'unit', 'color', 'icon', 'is_default_bg', 'description']
             .every(key => (a[key] ?? null) === (b[key] ?? null));
     }
 }
@@ -3753,6 +3775,7 @@ class ScheduleStateCard extends HTMLElement {
         const blockParts = [];
         const iconParts = [];
         const isSelectedDayToday = dayId ? (dayId === this.currentTime.day) : this.isToday();
+        const isExpanded = this._state.isLayerVisible(this._visibilityKey(entityId, dayId));
 
         for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
             const currentLayer = layersToDisplay[layerIdx];
@@ -3777,8 +3800,10 @@ class ScheduleStateCard extends HTMLElement {
             );
             if (iconHtml) iconParts.push(iconHtml);
 
-            // Render all blocks in this layer
-            for (const block of currentLayer.blocks) {
+            // Render all blocks in this layer (folded Σ: merged across layers)
+            const blocks = currentLayer.is_combined_layer && !isExpanded ?
+                currentLayer.packed_blocks : currentLayer.blocks;
+            for (const block of blocks) {
                 const blockHtml = this._renderBlock(
                     block,
                     currentLayer,
