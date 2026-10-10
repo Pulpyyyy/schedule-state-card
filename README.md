@@ -30,6 +30,7 @@ A powerful Home Assistant custom card that visualizes schedules with dynamic sta
 - 🔄 **Smart Debouncing** - Optimized performance with intelligent update handling
 - 📋 **State Display in Title** - Toggle to show current state value in card header
 - 🔀 **Dual Layout Modes** - Switch between "By Entities" and "By Days" view layouts
+- ⌨️ **Keyboard and Screen Reader Support** - Reach the Σ toggle and the entity name with Tab; every block and layer badge is described to screen readers
 
 ## Layout Modes
 
@@ -143,13 +144,15 @@ colors:
 
 | Color | Used For | Default |
 |-------|----------|---------|
-| `active_layer` | Active conditional layers (icon highlight) | `#2196F3` (Blue) |
-| `inactive_layer` | Inactive conditional layers (dimmed icon) | `#BDBDBD` (Gray) |
-| `combined_folded_layer` | Sigma (Σ) icon when layers are collapsed | `#FF9800` (Orange) |
-| `combined_unfolded_layer` | Sigma (Σ) icon when layers are expanded | `#2196F3` (Blue) |
-| `cursor` | Timeline cursor (current time line) | `#FDD835` (Yellow) |
+| `active_layer` | Active conditional layers (icon highlight) | Theme primary color, else `#2196F3` (Blue) |
+| `inactive_layer` | Inactive conditional layers (dimmed icon) | Theme secondary text color, else `#BDBDBD` (Gray) |
+| `combined_folded_layer` | Sigma (Σ) icon when layers are collapsed | Theme warning color, else `#FF9800` (Orange) |
+| `combined_unfolded_layer` | Sigma (Σ) icon when layers are expanded | Theme primary color, else `#2196F3` (Blue) |
+| `cursor` | Timeline cursor (current time line) | Theme `label-badge-yellow`, else `#FDD835` (Yellow) |
 
-**Note:** Schedule block colors are automatically generated based on their state values, ensuring visual distinction between different states.
+Only the colors you set are stored in the card's configuration (the visual editor writes only the ones you change); the others follow the defaults above.
+
+**Note:** Schedule block colors are automatically generated based on their state values, ensuring visual distinction between different states. The block text is black or white, whichever contrasts more with the block color.
 
 ### Color Overrides (Manual State-to-Color Mapping)
 
@@ -222,10 +225,11 @@ Resulting Σ (Combined):
 
 ### Layer Interaction
 
-Click the **Σ (Sigma)** icon to toggle layer visibility:
+Click the **Σ (Sigma)** icon (or focus it with Tab and press Enter or Space) to toggle layer visibility:
 
 - **Expanded view**: See Layer 0, all conditional layers, and the combined result
 - **Collapsed view**: See only the combined result (Σ layer)
+- **Merged blocks**: In Σ, consecutive segments of the same layer with the same value are shown as one block. When collapsed, identical neighbours from different layers are merged too, like the `schedule_state` entity does
 - **Visual feedback**: Icon color changes based on state
   - `combined_folded_layer` color when collapsed
   - `combined_unfolded_layer` color when expanded
@@ -234,12 +238,13 @@ Click the **Σ (Sigma)** icon to toggle layer visibility:
 
 - **Bright colored icon** - Layer is active (condition matches)
 - **Dimmed/Gray icon** - Layer is inactive (condition not met)
+- **Outlined 0 icon** - Default layer: neither active nor inactive, it applies wherever no active layer does (its tooltip reads "ℹ️ Default state")
 - **Sigma (Σ) icon** - Shows the combined result of all active layers
   - Changes color based on `combined_folded_layer` (collapsed) or `combined_unfolded_layer` (expanded)
 
 ### Day Selection
 
-Use the day selector buttons at the top of the card to switch between days and view day-specific schedules. The current day is highlighted, and the timeline updates to show the current time indicator only for today.
+Use the day selector buttons at the top of the card to switch between days and view day-specific schedules. The seven buttons share one row and show the browser's short day names in your language (`Mon`, `lun.`, `Mo`…); the full name appears on hover. The selected day is highlighted (today when the card loads, following midnight), and the timeline shows the current time indicator only for today.
 
 ## Schedule YAML Configuration
 
@@ -349,11 +354,11 @@ state: "{{ states('sensor.schedule_master_schedule') }}"
 
 ### Dynamic Value Indicators
 
-The card automatically detects and displays dynamic values:
+A block whose value comes from a template says so in its tooltip, with the entity the template reads:
 
-- **🔄 Icon** - Schedule state reference (sensor references another schedule sensor)
-- **📊 Icon** - Other sensor reference (templates referencing regular sensors)
-- **No Icon** - Static values
+- **🔄** - The value reads another schedule sensor
+- **📊** - The value reads another sensor
+- No such line - Static value
 
 ## Visual Editor
 
@@ -464,18 +469,22 @@ sensor:
 
 ## Icons and Display
 
-### Block Icons
+### Block Tooltip
 
-- 📅 - Regular event
-- 🔄 - Dynamic value (schedule state reference)
-- 📊 - Dynamic value (other sensor)
+A block shows its value only. Hover it (or tap it on a touch screen) to see:
+
+- Its time range (with the event's own times when it wraps past midnight)
+- 🌡️ - Its value and unit
+- Whether it is the default state, or the combined result (Σ)
+- 🔄 / 📊 - For a value computed by a template: the entity it reads (see [Dynamic Value Indicators](#dynamic-value-indicators))
+- 💬 - The event's description, when the integration provides one
 
 ### Layer Icons
 
 - **Colored circle** - Layer is active
 - **Dimmed circle** - Layer is inactive
 - **Σ (Sigma)** - Combined layer toggle
-- **0** - Default layer
+- **Outlined 0** - Default layer (neutral: neither active nor inactive)
 
 ## Troubleshooting
 
