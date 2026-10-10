@@ -2568,7 +2568,8 @@ class ScheduleStateCard extends HTMLElement {
             // This ensures cursor remains visible when day transitions
             if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
                 this.selectedDay = this.currentTime.day;
-                // Re-render content for the new day to update timeline containers
+                // updateContent() redraws the timelines, not the day buttons
+                this._syncDayButtons();
                 this.updateContent();
                 return; // updateContent already calls updateTimeline
             }
@@ -3467,14 +3468,19 @@ class ScheduleStateCard extends HTMLElement {
             this._dayButtonHandlers[idx] = (e) => {
                 const newDay = e.target.dataset.day;
                 if (newDay !== this.selectedDay) {
-                    dayButtons.forEach(btn => btn.classList.remove("active"));
-                    e.target.classList.add("active");
                     this.selectedDay = newDay;
+                    this._syncDayButtons();
                     this.updateContent();
                 }
             };
             button.addEventListener("click", this._dayButtonHandlers[idx]);
         });
+    }
+
+    /** Highlights the selected day's button ("days" layout). */
+    _syncDayButtons() {
+        this.shadowRoot.querySelectorAll(".day-button").forEach(btn =>
+            btn.classList.toggle("active", btn.dataset.day === this.selectedDay));
     }
 
     attachEntitySelectorListener() {

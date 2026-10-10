@@ -297,8 +297,7 @@ describe("reactivity", () => {
         expect(parseFloat(cursor.style.left)).toBeLessThan(0.1);
     });
 
-    // updateContent() redraws the timelines but not the day buttons
-    it.fails("highlights the new day in the selector after midnight (known bug)", async () => {
+    it("highlights the new day in the selector after midnight", async () => {
         const card = await passMidnight();
         expect(readCard(card).days.find(d => d.active).id).toBe("tue");
     });
