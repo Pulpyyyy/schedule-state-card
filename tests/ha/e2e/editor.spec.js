@@ -85,3 +85,23 @@ test("an entity name can be edited", async ({ page }) => {
     await editor.locator('[data-field="name"] input').fill("Salon");
     await expect(preview(page).locator(".room-name").first()).toHaveText("Salon");
 });
+
+test("changing a color writes that color only", async ({ page }) => {
+    const editor = await openEditor(page);
+    // Listen first, then change the color
+    await editor.evaluate(el => el.addEventListener("config-changed",
+        e => { el.__colors = e.detail.config.colors; }));
+    await editor.locator(".color-selector-slot").first().locator('input[type="color"]').fill("#ff0000");
+    await expect.poll(() => editor.evaluate(el => el.__colors && Object.keys(el.__colors))).toEqual(["active_layer"]);
+});
+
+test("entity buttons are labelled in the user's language", async ({ page }) => {
+    const editor = await openEditor(page);
+    for (const button of [editor.locator(".edit-btn").first(), editor.locator(".remove-btn").first()]) {
+        const label = await button.getAttribute("aria-label");
+        expect(label).toBeTruthy();
+        expect(await button.getAttribute("title")).toBe(label);
+    }
+    // The test user's profile is not English: the labels must not be the old hard-coded ones
+    expect(await editor.locator(".edit-btn").first().getAttribute("aria-label")).not.toBe("Edit");
+});

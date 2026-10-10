@@ -364,6 +364,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Text",
         editor_override_add_button: "Add Override",
         editor_override_no_overrides: "No overrides configured",
+        editor_edit: "Edit",
+        editor_delete: "Delete",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -439,6 +441,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texte",
         editor_override_add_button: "Ajouter un Remplacement",
         editor_override_no_overrides: "Aucun remplacement configuré",
+        editor_edit: "Modifier",
+        editor_delete: "Supprimer",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -514,6 +518,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Text",
         editor_override_add_button: "Überschreibung Hinzufügen",
         editor_override_no_overrides: "Keine Überschreibungen konfiguriert",
+        editor_edit: "Bearbeiten",
+        editor_delete: "Löschen",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -589,6 +595,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Agregar Sobrescritura",
         editor_override_no_overrides: "No hay sobrescrituras configuradas",
+        editor_edit: "Editar",
+        editor_delete: "Eliminar",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -664,6 +672,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
         editor_override_no_overrides: "Nenhuma substituição configurada",
+        editor_edit: "Editar",
+        editor_delete: "Eliminar",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -739,6 +749,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
         editor_override_no_overrides: "Nenhuma substituição configurada",
+        editor_edit: "Editar",
+        editor_delete: "Excluir",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -2417,10 +2429,7 @@ class ScheduleStateCard extends HTMLElement {
                     entity: entityId,
                     name: hass?.states?.[entityId]?.attributes?.friendly_name || entityId
                 }],
-                title: "Schedule Planning",
-                colors: {
-                    ...DEFAULT_COLORS
-                }
+                title: "Schedule Planning"
             };
         }
 
@@ -2428,10 +2437,7 @@ class ScheduleStateCard extends HTMLElement {
         // user pick an entity in the editor (no broken hardcoded example)
         return {
             entities: [],
-            title: "Schedule Planning",
-            colors: {
-                ...DEFAULT_COLORS
-            }
+            title: "Schedule Planning"
         };
     }
 

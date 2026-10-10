@@ -283,6 +283,15 @@ describe("days layout", () => {
     });
 });
 
+describe("new card", () => {
+    it("pre-fills a schedule sensor without freezing the default colors in the YAML", () => {
+        const Card = customElements.get("schedule-state-card");
+        const config = Card.getStubConfig(hassOf(), ["sensor.sst_mode"]);
+        expect(config.entities.map(e => e.entity)).toEqual(["sensor.sst_mode"]);
+        expect(config).not.toHaveProperty("colors");
+    });
+});
+
 describe("entities layout", () => {
     it("shows the week of the selected entity, one timeline per day", async () => {
         const card = mountCard({ layout: "entities", entities: SENSORS }, hassOf());
