@@ -875,7 +875,7 @@ const DAY_ABBREVIATION_MAP = {
  * Eliminates magic numbers throughout the codebase
  */
 const LAYOUT_CONSTANTS = {
-    BLOCK_HEIGHT: 20,
+    BLOCK_HEIGHT: 24,
     VERTICAL_GAP: 8,
     TOP_MARGIN: 4,
     BOTTOM_MARGIN: 20,
@@ -1003,7 +1003,7 @@ class TimeHelper {
         return "4px";
     }
 
-    _calculateContainerHeight(layerCount, blockHeight = 20, verticalGap = 8, topMargin = 4, bottomMargin = 20) {
+    _calculateContainerHeight(layerCount, blockHeight = LAYOUT_CONSTANTS.BLOCK_HEIGHT, verticalGap = LAYOUT_CONSTANTS.VERTICAL_GAP, topMargin = LAYOUT_CONSTANTS.TOP_MARGIN, bottomMargin = LAYOUT_CONSTANTS.BOTTOM_MARGIN) {
         if (layerCount === 0) return topMargin + bottomMargin;
         return topMargin + layerCount * blockHeight + (layerCount - 1) * verticalGap + bottomMargin;
     }
@@ -2435,15 +2435,15 @@ class ScheduleStateCard extends HTMLElement {
 
     /**
      * Height in HA's masonry units (~50 px), layers folded. Measured: a
-     * timeline ~114 px, the title ~45 px, the row of day buttons and
+     * timeline ~118 px, the title ~45 px, the row of day buttons and
      * padding ~59 px (entity selector and padding ~62 px). The "entities"
      * layout always shows 7 timelines, whatever the number of entities.
      */
     getCardSize() {
         const title = this._config?.title ? 45 : 0;
-        if (this._config?.layout === "entities") return Math.ceil((62 + title + 7 * 114) / 50);
+        if (this._config?.layout === "entities") return Math.ceil((62 + title + 7 * 118) / 50);
         const timelines = Math.max(1, this._config?.entities?.length ?? 1);
-        return Math.ceil((59 + title + timelines * 114) / 50);
+        return Math.ceil((59 + title + timelines * 118) / 50);
     }
 
     /** Sections view: full width by default, never narrower than half. */
