@@ -88,7 +88,8 @@ export function readCard(card) {
     return {
         title: header && !header.classList.contains("hidden") ? root.querySelector(".card-title").textContent : null,
         days: [...root.querySelectorAll(".day-button")].map(b => ({
-            id: b.dataset.day, label: b.textContent, active: b.classList.contains("active"),
+            id: b.dataset.day, label: b.textContent, name: b.getAttribute("aria-label") ?? b.textContent,
+            active: b.classList.contains("active"),
         })),
         entityOptions: [...root.querySelectorAll("#entity-selector option")].map(o => o.value),
         timelines: [...root.querySelectorAll(".room-timeline")].map(readTimeline),

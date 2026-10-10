@@ -274,17 +274,15 @@ describe("days layout", () => {
     it("speaks the user's language", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf({ language: "fr" }));
         await settle();
-        expect(readCard(card).days.map(d => d.label)).toMatchInlineSnapshot(`
-          [
-            "Lundi",
-            "Mardi",
-            "Mercredi",
-            "Jeudi",
-            "Vendredi",
-            "Samedi",
-            "Dimanche",
-          ]
-        `);
+        // Short names on the buttons, full names for screen readers
+        expect(readCard(card).days.map(d => d.name)).toEqual(["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]);
+        expect(readCard(card).days.map(d => d.label)).toEqual(["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]);
+    });
+
+    it("keeps full day names on the rows of the entities layout", async () => {
+        const card = mountCard({ layout: "entities", entities: ["sensor.sst_mode"] }, hassOf());
+        await settle();
+        expect(readCard(card).timelines.map(t => t.name)).toEqual(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
     });
 
     it("reports a missing entity without breaking the others", async () => {

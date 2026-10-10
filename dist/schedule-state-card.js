@@ -2452,15 +2452,15 @@ class ScheduleStateCard extends HTMLElement {
 
     /**
      * Height in HA's masonry units (~50 px), layers folded. Measured: a
-     * timeline ~114 px, the title ~45 px, the day buttons and padding
-     * ~100 px (entity selector and padding ~62 px). The "entities" layout
-     * always shows 7 timelines, whatever the number of entities.
+     * timeline ~114 px, the title ~45 px, the row of day buttons and
+     * padding ~59 px (entity selector and padding ~62 px). The "entities"
+     * layout always shows 7 timelines, whatever the number of entities.
      */
     getCardSize() {
         const title = this._config?.title ? 45 : 0;
         if (this._config?.layout === "entities") return Math.ceil((62 + title + 7 * 114) / 50);
         const timelines = Math.max(1, this._config?.entities?.length ?? 1);
-        return Math.ceil((100 + title + timelines * 114) / 50);
+        return Math.ceil((59 + title + timelines * 114) / 50);
     }
 
     /** Sections view: full width by default, never narrower than half. */
@@ -2472,11 +2472,25 @@ class ScheduleStateCard extends HTMLElement {
         return this._config.type || 'custom:schedule-state-card';
     }
 
+    /**
+     * The week from Monday: full name (translations) and short name (the
+     * browser's abbreviation in the user's language, e.g. "Mon", "lun."),
+     * so that the 7 day buttons fit on one row.
+     */
     getDays() {
         const dayTranslations = this.t("days");
-        return DAY_ORDER.map(id => ({
+        let short = null;
+        try {
+            const format = new Intl.DateTimeFormat(this.getLanguage().replace("_", "-"), { weekday: "short" });
+            // 2024-01-01 was a Monday
+            short = (index) => format.format(new Date(2024, 0, 1 + index));
+        } catch (e) {
+            // Unknown locale: the buttons keep the full names
+        }
+        return DAY_ORDER.map((id, index) => ({
             id,
-            label: dayTranslations[id]
+            label: dayTranslations[id],
+            short: short ? short(index) : dayTranslations[id]
         }));
     }
 
@@ -3820,7 +3834,7 @@ class ScheduleStateCard extends HTMLElement {
 
         const styleContent = dynamicStyles + baseStylesheet + additionalStyle;
 
-        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" aria-pressed="' + (day.id === this.selectedDay) + '" data-day="' + day.id + '">' + escapeHtml(day.label) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
+        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" aria-pressed="' + (day.id === this.selectedDay) + '" aria-label="' + escapeHtmlAttribute(day.label) + '" title="' + escapeHtmlAttribute(day.label) + '" data-day="' + day.id + '">' + escapeHtml(day.short) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -4268,16 +4282,20 @@ class ScheduleStateCard extends HTMLElement {
                 margin: 0;
             }
 
+            /* One row of 7 equal buttons, aligned with the timelines */
             .day-selector {
                 display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
+                gap: 4px;
                 margin-bottom: 16px;
-                justify-content: center;
             }
 
             .day-button {
-                padding: 8px 6px;
+                flex: 1 1 0;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 8px 0;
                 border: none;
                 border-radius: 8px;
                 background: var(--primary-background-color);

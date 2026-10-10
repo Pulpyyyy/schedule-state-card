@@ -149,3 +149,14 @@ test("hour labels are readable", async ({ page }) => {
     expect(opacity).toBe("1");
     expect(color).not.toBe("rgba(0, 0, 0, 0)");
 });
+
+test("the 7 day buttons fit on one row, on a desktop column and on a phone", async ({ page }) => {
+    for (const width of [1280, 360]) {
+        await page.setViewportSize({ width, height: 800 });
+        for (const language of ["en", "fr", "de"]) {
+            await mount(page, { title: "Planning", layout: "days", entities: SENSORS.slice(0, 1) }, { language });
+            const tops = await page.locator(".day-button").evaluateAll(buttons => buttons.map(b => b.getBoundingClientRect().top));
+            expect(new Set(tops).size, `${width}px ${language}`).toBe(1);
+        }
+    }
+});
