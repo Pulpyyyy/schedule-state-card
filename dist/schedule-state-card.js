@@ -4262,7 +4262,8 @@ class ScheduleStateCard extends HTMLElement {
 
             .day-button.active {
                 background: var(--primary-color);
-                color: white;
+                /* The theme's text color for the primary color (not always white) */
+                color: var(--text-primary-color, white);
                 border-color: var(--primary-color);
             }
 
@@ -4378,8 +4379,9 @@ class ScheduleStateCard extends HTMLElement {
             .timeline-hour {
                 position: relative;
                 flex: 1;
-                border-right: 1px solid var(--secondary-text-color);
-                opacity: 0.4;
+                /* Faint grid lines, readable hour labels: the opacity used to
+                   dim the labels too (about 1.6:1 contrast) */
+                border-right: 1px solid color-mix(in srgb, var(--secondary-text-color) 40%, transparent);
                 font-size: 11px;
                 color: var(--secondary-text-color);
                 display: flex;
@@ -4463,7 +4465,13 @@ class ScheduleStateCard extends HTMLElement {
                 position: relative;
                 font-size: 16px !important;
                 line-height: 24px;
-                overflow: hidden;
+            }
+
+            /* A finger-sized hit area (40 px) around the 24 px Σ badge */
+            .combined-layer-toggle::after {
+                content: "";
+                position: absolute;
+                inset: -8px;
             }
 
             .combined-layer-toggle:hover {
@@ -4482,7 +4490,6 @@ class ScheduleStateCard extends HTMLElement {
                 position: relative;
                 font-size: 16px !important;
                 line-height: 24px;
-                overflow: hidden;
             }
 
             .sch-z-default {

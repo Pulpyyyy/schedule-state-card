@@ -131,3 +131,21 @@ test("the size declared to the dashboard matches the rendered height", async ({ 
         expect(Math.abs(size - height / 50), JSON.stringify(config)).toBeLessThanOrEqual(1);
     }
 });
+
+test("the Σ toggle answers a tap slightly off its badge", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
+    const box = await page.locator(".combined-layer-toggle").boundingBox();
+    // 6 px below the 24 px badge: inside the 40 px hit area
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height + 6);
+    await expect(page.locator(".icon-row")).not.toHaveCount(1);
+});
+
+test("hour labels are readable", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
+    const [color, opacity] = await page.locator(".timeline-hour", { hasText: "12h" }).evaluate(el => {
+        const style = getComputedStyle(el);
+        return [style.color, style.opacity];
+    });
+    expect(opacity).toBe("1");
+    expect(color).not.toBe("rgba(0, 0, 0, 0)");
+});
