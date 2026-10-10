@@ -1749,7 +1749,8 @@ class ScheduleStateCard extends HTMLElement {
             ...DEFAULT_COLORS
         };
 
-        this._isToggling = false;
+        // Σ toggles locked for a moment after a click (keys of _visibilityKey)
+        this._togglingKeys = new Set();
         this._overridesReleased = false;
         this._inEditorPreview = false;
         this._relevantIdsCache = null;
@@ -1966,10 +1967,12 @@ class ScheduleStateCard extends HTMLElement {
      * @param {string} dayId - Day identifier
      */
     toggleLayerVisibility(entityId, dayId) {
-        if (this._isToggling) return;
-        this._isToggling = true;
-
         const visibilityKey = this._visibilityKey(entityId, dayId);
+        // Ignores a repeated click on the same toggle (a double-fired event
+        // would fold it right back), not a click on another entity's toggle
+        if (this._togglingKeys.has(visibilityKey)) return;
+        this._togglingKeys.add(visibilityKey);
+
         const currentState = this._state.layerVisibility.get(visibilityKey);
         const newState = !currentState;
 
@@ -1980,9 +1983,7 @@ class ScheduleStateCard extends HTMLElement {
         this._state.layerVisibility.set(visibilityKey, newState);
         this.updateContent();
 
-        setTimeout(() => {
-            this._isToggling = false;
-        }, LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
+        setTimeout(() => this._togglingKeys.delete(visibilityKey), LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
     }
 
     setConfig(config) {

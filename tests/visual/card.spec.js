@@ -20,9 +20,6 @@ test.describe("days layout", () => {
     test("expanded layers", async ({ page }) => {
         const card = await mount(page, { title: "Planning", layout: "days", entities: ["sensor.sst_thermostat", "sensor.sst_mode"] });
         await sigma(page, 0).click();
-        // The card ignores Σ clicks for 300 ms after the previous one (all
-        // entities share the lock)
-        await page.clock.runFor(350);
         await sigma(page, 1).click();
         await shot(page, card, "days-expanded.png");
     });

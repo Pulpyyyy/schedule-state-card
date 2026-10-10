@@ -137,6 +137,24 @@ describe("days layout", () => {
         expect(timeline(card, "SST Thermostat").rows.map(r => r.label)).toEqual(["Σ"]);
     });
 
+    it("Σ toggles of two entities respond to quick successive clicks", async () => {
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat", "sensor.sst_mode"] }, hassOf());
+        await settle();
+        clickSigma(card, 0);
+        clickSigma(card, 1);
+        await settle();
+        expect(readCard(card).timelines.map(t => t.rows.length > 1)).toEqual([true, true]);
+    });
+
+    it("a double-fired click does not fold the layers right back", async () => {
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
+        await settle();
+        clickSigma(card);
+        clickSigma(card);
+        await settle();
+        expect(timeline(card, "SST Mode").rows.length).toBeGreaterThan(1);
+    });
+
     it("keeps the expanded state when switching days", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
         await settle();
