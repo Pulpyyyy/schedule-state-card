@@ -103,6 +103,33 @@ describe("Σ combined layer", () => {
         expect(sigma(layers, "mon")).toEqual(["00:00-23:59 19"]);
     });
 
+    describe("end of day", () => {
+        const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+        const SENSORS = ["sensor.sst_thermostat", "sensor.sst_price", "sensor.sst_mode", "sensor.sst_dynamic", "sensor.sst_issue_18"];
+        const SITUATIONS = [{}, { "input_boolean.sst_away": "on" }, { "input_number.sst_outdoor": "0" }, { "input_number.sst_outdoor": "39" }];
+
+        // schedule_state ends the default layer (and events written up to
+        // midnight) at 23:59: Σ must not fill the last minute with a slot
+        // nobody configured
+        it("never invents a 23:59-00:00 slot", () => {
+            for (const id of SENSORS) for (const day of DAYS) for (const states of SITUATIONS) {
+                const segments = sigma(dayLayers(id, day), day, makeHass({ states }));
+                expect(segments.filter(s => s.startsWith("23:59-")), `${id} ${day} ${JSON.stringify(states)}`).toEqual([]);
+            }
+        });
+
+        it("keeps a 23:59 end as 23:59, and an explicit midnight end as 00:00", () => {
+            expect(sigma(dayLayers("sensor.sst_price", "mon"), "mon").at(-1)).toBe("22:00-23:59 0.1952");
+            // the wrapping event 22:30 -> 06:30 reaches midnight explicitly
+            expect(sigma(dayLayers("sensor.sst_thermostat", "mon"), "mon").at(-1)).toBe("22:30-00:00 17");
+        });
+
+        it("keeps a 23:59-00:00 slot that exists explicitly", () => {
+            const layers = [layer([block("23:59", "00:00", "last minute")]), defaultLayer("19")];
+            expect(sigma(layers, "mon")).toEqual(["00:00-23:59 19", "23:59-00:00 last minute"]);
+        });
+    });
+
     it("is null without a default layer", () => {
         const evaluator = new ConditionEvaluator(makeHass(), "mon");
         expect(new CombinedLayerBuilder(new TimeHelper(), evaluator).build(null, [])).toBeNull();

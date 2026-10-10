@@ -34,6 +34,14 @@ const styleNumber = (el, prop) => {
 
 const rowOf = (el) => Math.round((styleNumber(el, "top") - TOP_MARGIN) / (BLOCK_HEIGHT + VERTICAL_GAP));
 
+// The card escapes the tooltip text, then decodes it when showing it
+const decodeEntities = (text) => text.replace(/&(amp|lt|gt|quot|#39);/g,
+    (_, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[e]);
+
+// Full value of a block, from its tooltip: the label on the block itself is
+// truncated to the block's width
+const valueOf = (tooltip) => tooltip.match(/🌡️ [^:\n]+: ([^\n]*)/)?.[1] ?? null;
+
 function readTimeline(timeline) {
     const rows = new Map();
     const row = (i) => {
@@ -51,13 +59,15 @@ function readTimeline(timeline) {
         const left = styleNumber(block, "left");
         const width = styleNumber(block, "width");
         const from = left * 14.4;
+        const tooltip = decodeEntities(block.dataset.tooltip ?? "");
         row(rowOf(block)).blocks.push({
             from: toTime(from),
             to: toTime(from + width * 14.4),
+            value: valueOf(tooltip),
             text: block.querySelector(".block-center")?.textContent ?? "",
             kind: block.classList.contains("combined-layer-block") ? "combined"
                 : block.classList.contains("default-block") ? "default" : "layer",
-            tooltip: block.dataset.tooltip ?? "",
+            tooltip,
             background: block.style.backgroundColor,
             color: block.style.color,
         });
@@ -85,9 +95,9 @@ export function readCard(card) {
     };
 }
 
-/** Σ row of a timeline as "HH:MM-HH:MM text" strings. */
+/** Σ row of a timeline as "HH:MM-HH:MM value" strings (full values, not truncated labels). */
 export const sigmaOf = (timeline) =>
-    timeline.rows.find(r => r.label === "Σ")?.blocks.map(b => `${b.from}-${b.to} ${b.text}`) ?? null;
+    timeline.rows.find(r => r.label === "Σ")?.blocks.map(b => `${b.from}-${b.to} ${b.value}`) ?? null;
 
 export function clickSigma(card, index = 0) {
     card.shadowRoot.querySelectorAll(".combined-layer-toggle")[index].click();

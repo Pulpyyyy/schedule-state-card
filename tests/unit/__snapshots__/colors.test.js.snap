@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`state colors > are stable across releases for the same value and unit 1`] = `
+[
+  [
+    "19",
+    {
+      "color": "hsl(299.2, 77%, 37%)",
+      "textColor": "#ffffff",
+    },
+  ],
+  [
+    "21",
+    {
+      "color": "hsl(3.7, 54%, 51%)",
+      "textColor": "#ffffff",
+    },
+  ],
+  [
+    "0",
+    {
+      "color": "hsl(93.4, 51%, 46%)",
+      "textColor": "#ffffff",
+    },
+  ],
+  [
+    "eco",
+    {
+      "color": "hsl(226.8, 79%, 63%)",
+      "textColor": "#ffffff",
+    },
+  ],
+  [
+    "comfort",
+    {
+      "color": "hsl(177.2, 58%, 62%)",
+      "textColor": "#000000",
+    },
+  ],
+  [
+    "0 €/kWh",
+    {
+      "color": "hsl(126.5, 63%, 46%)",
+      "textColor": "#ffffff",
+    },
+  ],
+]
+`;
