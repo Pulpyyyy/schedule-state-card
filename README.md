@@ -354,11 +354,11 @@ state: "{{ states('sensor.schedule_master_schedule') }}"
 
 ### Dynamic Value Indicators
 
-The card automatically detects and displays dynamic values:
+A block whose value comes from a template says so in its tooltip, with the entity the template reads:
 
-- **🔄 Icon** - Schedule state reference (sensor references another schedule sensor)
-- **📊 Icon** - Other sensor reference (templates referencing regular sensors)
-- **No Icon** - Static values
+- **🔄** - The value reads another schedule sensor
+- **📊** - The value reads another sensor
+- No such line - Static value
 
 ## Visual Editor
 
@@ -469,11 +469,15 @@ sensor:
 
 ## Icons and Display
 
-### Block Icons
+### Block Tooltip
 
-- 📅 - Regular event
-- 🔄 - Dynamic value (schedule state reference)
-- 📊 - Dynamic value (other sensor)
+A block shows its value only. Hover it (or tap it on a touch screen) to see:
+
+- Its time range (with the event's own times when it wraps past midnight)
+- 🌡️ - Its value and unit
+- Whether it is the default state, or the combined result (Σ)
+- 🔄 / 📊 - For a value computed by a template: the entity it reads (see [Dynamic Value Indicators](#dynamic-value-indicators))
+- 💬 - The event's description, when the integration provides one
 
 ### Layer Icons
 
