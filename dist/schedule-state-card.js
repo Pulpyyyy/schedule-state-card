@@ -1478,12 +1478,12 @@ class CombinedLayerBuilder {
                 const segStartStr = this.timeHelper.minutesToTime(segStart);
                 const segEndStr = segEnd === this.timeHelper.MINUTES_PER_DAY ? '00:00' : this.timeHelper.minutesToTime(segEnd);
 
-                result.push({
+                this._pushSegment(result, {
                     ...coveringBlock,
                     start: segStartStr,
                     end: segEndStr,
                     is_default_bg: false
-                });
+                }, coveringBlock);
             } else {
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeHelper.timeToMinutes(defBlock.start);
@@ -1494,13 +1494,13 @@ class CombinedLayerBuilder {
                         const segStartStr = this.timeHelper.minutesToTime(segStart);
                         const segEndStr = segEnd === this.timeHelper.MINUTES_PER_DAY ? '00:00' : this.timeHelper.minutesToTime(segEnd);
 
-                        result.push({
+                        this._pushSegment(result, {
                             ...defBlock,
                             start: segStartStr,
                             end: segEndStr,
                             _source_layer: defaultLayer,
                             is_default_bg: true
-                        });
+                        }, defBlock);
                         break;
                     }
                 }
@@ -1508,6 +1508,35 @@ class CombinedLayerBuilder {
         }
 
         return result;
+    }
+
+    /**
+     * Append a segment, or extend the previous one when it ends where this one
+     * starts, comes from the same layer and renders identically. Breakpoints
+     * come from every active layer, so a winning block is otherwise cut wherever
+     * a losing layer has a boundary. Segments of different layers stay apart even
+     * with the same value (schedule_state would merge them): they depend on
+     * different conditions, so the cut shows where the result could change.
+     */
+    _pushSegment(result, segment, sourceBlock) {
+        const prev = result[result.length - 1];
+        if (prev && prev.end === segment.start && this._canMerge(prev, segment)) {
+            prev.end = segment.end;
+            // Pieces of different blocks: the original times of the first block's
+            // wrap no longer describe the merged span, show the real one instead
+            if (prev._segment_source !== sourceBlock) {
+                prev.wraps_start = false;
+                prev.wraps_end = false;
+            }
+            return;
+        }
+        Object.defineProperty(segment, '_segment_source', { value: sourceBlock, writable: true });
+        result.push(segment);
+    }
+
+    _canMerge(a, b) {
+        return a._source_layer === b._source_layer && ['state_value', 'raw_state_template', 'unit', 'color', 'icon', 'is_default_bg', 'description']
+            .every(key => (a[key] ?? null) === (b[key] ?? null));
     }
 }
 
