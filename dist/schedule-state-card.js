@@ -3929,14 +3929,10 @@ class ScheduleStateCard extends HTMLElement {
 
         if (meta.isDefault) {
             displayLayerIndex = "0";
-            iconTooltipText = this.t("layer_label") + " 0";
-
-            if (meta.conditionText) {
-                iconTooltipText += meta.isActive ? "\n✅ " : "\n❌ ";
-                iconTooltipText += this.t("condition_label") + ": " + meta.conditionText;
-            } else {
-                iconTooltipText += "\n" + this.t("default_state_label");
-            }
+            // Neither active nor inactive: it applies wherever no active layer
+            // does. (schedule_state gives it the condition text "default",
+            // which used to show it as a failed condition.)
+            iconTooltipText = this.t("layer_label") + " 0\nℹ️ " + this.t("default_state_label");
         } else {
             const condLayerIndex = conditionalLayers.findIndex(l => l === currentLayer);
             displayLayerIndex = String(condLayerIndex + 1);
@@ -3950,7 +3946,11 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        const iconStyle = meta.isActive ?
+        // Default layer: a neutral outlined badge, unlike the filled active
+        // ones and the dimmed inactive ones
+        const iconStyle = meta.isDefault ?
+            "background:transparent;color:var(--primary-text-color);box-shadow:inset 0 0 0 2px var(--secondary-text-color);" :
+            meta.isActive ?
             `background:${this.validateStyleValue(this._colors.active_layer)};filter:brightness(1.3);` :
             `background:${this.validateStyleValue(this._colors.inactive_layer)};opacity:0.5;`;
 

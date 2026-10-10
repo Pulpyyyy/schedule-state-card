@@ -83,6 +83,18 @@ describe("days layout", () => {
         expect(sigmaOf(timeline(card, "Two layers"))).toEqual(["00:00-08:00 19", "08:00-10:00 21", "10:00-12:00 21", "12:00-23:59 19"]);
     });
 
+    it("shows the default layer as neither active nor inactive", async () => {
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hassOf());
+        await settle();
+        clickSigma(card);
+        await settle();
+        const layer0 = timeline(card, "SST Thermostat").rows.find(r => r.label === "0");
+        expect(layer0.tooltip).toMatch(/ℹ️ Default state$/);
+        expect(layer0.tooltip).not.toMatch(/✅|❌/);
+        const badge = card.shadowRoot.querySelector(".icon-row .layer-number");
+        expect(badge.getAttribute("style")).not.toMatch(/opacity/);
+    });
+
     it("Σ toggle expands every layer with its active state, and collapses back", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hassOf());
         await settle();
@@ -90,12 +102,14 @@ describe("days layout", () => {
         await settle();
 
         const rows = timeline(card, "SST Thermostat").rows;
-        expect(rows.map(r => [r.label, r.tooltip.includes("✅") ? "active" : r.tooltip.includes("❌") ? "inactive" : "-"]))
+        const status = (r) => r.tooltip.includes("✅") ? "active" : r.tooltip.includes("❌") ? "inactive"
+            : r.tooltip.includes("ℹ️") ? "default" : "-";
+        expect(rows.map(r => [r.label, status(r)]))
             .toMatchInlineSnapshot(`
               [
                 [
                   "0",
-                  "inactive",
+                  "default",
                 ],
                 [
                   "1",
