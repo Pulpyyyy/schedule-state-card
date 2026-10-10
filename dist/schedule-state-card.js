@@ -1766,29 +1766,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Translate condition text by applying all translation patterns sequentially
-     * Patterns are applied in order to avoid conflicts (e.g., sunrise before sun)
-     * Replace the old _translateConditionText method with this one
-     * 
-     * @param {string} text - Raw condition text to translate
-     * @returns {string} Fully translated condition text
-     */
-    /**
-     * Convert a Jinja2 now().month template condition into a human-readable string
-     * using localized month names (via Intl.DateTimeFormat).
-     *
-     * Handles four patterns (with and without "not"):
-     *   {{ now().month in range(4, 10) }}     → "Mois: Avril – Septembre"
-     *   {{ now().month in [11, 12, 1, 2, 3] }} → "Mois: Novembre, Décembre, …"
-     *   (same with "not in" → prefixed with ≠)
-     *
-     * Returns null if the text doesn't match any known month pattern,
-     * so the caller can fall through to the normal translation pipeline.
-     *
-     * @param {string} text - Raw condition_text string
-     * @returns {string|null}
-     */
-    /**
      * Convert a "now().X in range/list" Jinja2 condition to a human-readable label.
      * Uses Intl.DateTimeFormat for month and weekday names; raw numbers for the rest.
      * Returns null if the text doesn't match any supported now() pattern.
@@ -1841,6 +1818,12 @@ class ScheduleStateCard extends HTMLElement {
         return null;
     }
 
+    /**
+     * Translate a server-flattened condition_text by applying all translation
+     * patterns in order (e.g. sunrise before sun, to avoid conflicts).
+     * @param {string} text - Raw condition text
+     * @returns {string} Translated condition text
+     */
     _translateConditionText(text) {
         if (!text) return "";
 
@@ -2508,10 +2491,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Updated startTimelineUpdate method - use LAYOUT_CONSTANTS
-     * Replace the existing startTimelineUpdate method with this one
-     */
-    /**
      * Moves the time cursor (and today's view past midnight) on every
      * minute boundary: an interval started at mount time ran up to 59 s late.
      */
@@ -2550,10 +2529,7 @@ class ScheduleStateCard extends HTMLElement {
         this.updateTimeline();
     }
 
-    /**
-     * Updated updateTimeline method
-     * Replace the existing updateTimeline method with this one
-     */
+    /** Places the time cursor on today's timelines. */
     updateTimeline() {
         const timePercentage = this.timeHelper.getTimePercentage(this.currentTime);
         this._updateTimelineCursors(timePercentage);
@@ -3168,14 +3144,10 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     clearTooltipTimer() {
-        // ✅ USE CENTRALIZED STATE for timer management
         this._state.clearTimer('tooltip');
     }
 
-    /**
-     * Updated scheduleTooltipDisplay method - use LAYOUT_CONSTANTS
-     * Replace the existing scheduleTooltipDisplay method with this one
-     */
+    /** Shows the tooltip once the pointer has rested on a target. */
     scheduleTooltipDisplay(event, text) {
         // Clear any pending tooltip timer
         this.clearTooltipTimer();
@@ -3376,7 +3348,7 @@ class ScheduleStateCard extends HTMLElement {
             }
         };
 
-        // Attacher les handlers en utilisant la helper
+        // One listener on #content serves every block, icon and toggle
         this._attachEventHandlers(container, handler);
 
         // Store listener reference in centralized state for cleanup
@@ -3506,7 +3478,7 @@ class ScheduleStateCard extends HTMLElement {
             layersMetadata,
             unitOfMeasurement,
             entityId,
-            dayId // Passer dayId pour le collapse/expand
+            dayId // the rendered day: its own folding and conditions
         );
 
         // Assembly - simple concatenation
@@ -3761,7 +3733,7 @@ class ScheduleStateCard extends HTMLElement {
                 top,
                 isSelectedDayToday,
                 entityId,
-                dayId // Passer dayId
+                dayId
             );
             if (iconHtml) iconParts.push(iconHtml);
 
@@ -4018,7 +3990,7 @@ class ScheduleStateCard extends HTMLElement {
         if (meta.isCombined) {
             blockClass += " combined-layer-block sch-z-combined";
 
-            // CRITICAL FIX: Preserve hatching pattern for default blocks in combined layer
+            // Default-state segments keep their hatching in Σ
             if (block.is_default_bg) {
                 blockClass += " default-block";
             }
@@ -4302,7 +4274,7 @@ class ScheduleStateCard extends HTMLElement {
                 color: var(--primary-text-color);
                 cursor: pointer;
                 font-weight: 500;
-                transition: all 0.2s;
+                transition: background-color 0.2s, border-color 0.2s, color 0.2s;
                 border: 1px solid var(--divider-color);
             }
 
@@ -4380,7 +4352,7 @@ class ScheduleStateCard extends HTMLElement {
                 cursor: help;
                 width: 100%;
                 height: var(--sch-block-height);
-                transition: all 0.2s;
+                transition: filter 0.2s;
                 top: 0;
                 margin-top: 6px;
                 z-index: 1;
@@ -4400,7 +4372,7 @@ class ScheduleStateCard extends HTMLElement {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.2s;
+                transition: filter 0.2s;
             }
 
             .timeline-container {
