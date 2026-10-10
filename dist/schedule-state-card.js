@@ -947,18 +947,14 @@ class TimeHelper {
         return (totalMinutes / this.MINUTES_PER_DAY) * 100;
     }
 
-    normalizeBlockTimes(block) {
-        let startMin = this.timeToMinutes(block.start);
-        let endMin = this.timeToMinutes(block.end);
-
-        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
-            endMin = this.MINUTES_PER_DAY;
-        }
-        if (block.end === "23:59" || block.end === "23:59:00") {
-            endMin = this.MINUTES_PER_DAY;
-        }
-
-        return { startMin, endMin };
+    /**
+     * Minutes of a block's end: "00:00" ends the day (24:00). 23:59 stays
+     * 23:59: schedule_state ends the default layer there, and stretching it
+     * would create a 23:59-00:00 slot nobody configured.
+     */
+    endToMinutes(end) {
+        const minutes = this.timeToMinutes(end);
+        return minutes === 0 && (end === "00:00" || end === "00:00:00") ? this.MINUTES_PER_DAY : minutes;
     }
 
     calculateBlockDimensions(startMin, endMin) {
@@ -1418,8 +1414,7 @@ class CombinedLayerBuilder {
                 if (block._source_layer !== layer) continue;
 
                 const startMin = this.timeHelper.timeToMinutes(block.start);
-                let endMin = this.timeHelper.timeToMinutes(block.end);
-                if ((block.end === '00:00' || block.end === '00:00:00') && endMin === 0) endMin = this.timeHelper.MINUTES_PER_DAY;
+                const endMin = this.timeHelper.endToMinutes(block.end);
 
                 breakpoints.add(startMin);
                 breakpoints.add(endMin);
@@ -1429,8 +1424,7 @@ class CombinedLayerBuilder {
         const defaultBlocks = defaultLayer.blocks || [];
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeHelper.timeToMinutes(defBlock.start);
-            let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-            if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+            const defEnd = this.timeHelper.endToMinutes(defBlock.end);
 
             breakpoints.add(defStart);
             breakpoints.add(defEnd);
@@ -1447,8 +1441,7 @@ class CombinedLayerBuilder {
                 if (block._source_layer === defaultLayer) continue;
 
                 const blockStart = this.timeHelper.timeToMinutes(block.start);
-                let blockEnd = this.timeHelper.timeToMinutes(block.end);
-                if ((block.end === '00:00' || block.end === '00:00:00') && blockEnd === 0) blockEnd = this.timeHelper.MINUTES_PER_DAY;
+                const blockEnd = this.timeHelper.endToMinutes(block.end);
 
                 if (blockStart <= segStart && segEnd <= blockEnd) {
                     coveringBlocks.push(block);
@@ -1480,8 +1473,7 @@ class CombinedLayerBuilder {
             } else {
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeHelper.timeToMinutes(defBlock.start);
-                    let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-                    if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+                    const defEnd = this.timeHelper.endToMinutes(defBlock.end);
 
                     if (defStart <= segStart && segEnd <= defEnd) {
                         const segStartStr = this.timeHelper.minutesToTime(segStart);
@@ -3056,11 +3048,7 @@ class ScheduleStateCard extends HTMLElement {
 
     _getBlockMetrics(block) {
         const startMin = this.timeHelper.timeToMinutes(block.start);
-        let endMin = this.timeHelper.timeToMinutes(block.end);
-
-        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
-            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
-        }
+        const endMin = this.timeHelper.endToMinutes(block.end);
         const dimensions = this.timeHelper.calculateBlockDimensions(startMin, endMin);
         const borderRadius = this.timeHelper.calculateBorderRadius(
             dimensions.width,
