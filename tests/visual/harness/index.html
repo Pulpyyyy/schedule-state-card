@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>schedule-state-card harness</title>
+    <!-- Bundled font (HA's Roboto) so text renders the same on every machine -->
+    <link rel="stylesheet" href="/node_modules/@fontsource/roboto/400.css">
+    <link rel="stylesheet" href="/node_modules/@fontsource/roboto/500.css">
+    <link rel="stylesheet" href="/node_modules/@fontsource/roboto/700.css">
+    <style>
+        /* Subset of Home Assistant's default theme variables the card uses */
+        :root {
+            --primary-color: #03a9f4;
+            --text-primary-color: #ffffff;
+            --primary-text-color: #212121;
+            --secondary-text-color: #727272;
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --card-background-color: #ffffff;
+            --divider-color: rgba(0, 0, 0, 0.12);
+            --error-color: #db4437;
+            --info-color: #039be5;
+            --label-badge-yellow: #f4b400;
+            color-scheme: light;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-text-color: #e1e1e1;
+                --secondary-text-color: #9b9b9b;
+                --primary-background-color: #111111;
+                --secondary-background-color: #282828;
+                --card-background-color: #1c1c1c;
+                --divider-color: rgba(225, 225, 225, 0.12);
+                color-scheme: dark;
+            }
+        }
+        html, body {
+            margin: 0;
+            background: var(--primary-background-color);
+            color: var(--primary-text-color);
+            font-family: Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        #host {
+            box-sizing: border-box;
+            padding: 16px;
+            max-width: 524px; /* a dashboard column: 492px card + gutters */
+        }
+    </style>
+    <script src="/tests/visual/harness/harness.js"></script>
+    <script src="/dist/schedule-state-card.js"></script>
+</head>
+<body>
+    <div id="host"></div>
+</body>
+</html>
