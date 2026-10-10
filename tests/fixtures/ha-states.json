@@ -1,0 +1,5785 @@
+{
+ "_meta": {
+  "source": "/api/states of the test Home Assistant instance running tests/ha/packages/schedule_card_tests.yaml",
+  "captured_at": "2026-10-10T07:50:09+02:00",
+  "home_assistant": "2026.10.0",
+  "schedule_state": "0.20.4"
+ },
+ "states": {
+  "input_boolean.sst_away": {
+   "entity_id": "input_boolean.sst_away",
+   "state": "off",
+   "attributes": {
+    "editable": false,
+    "friendly_name": "SST Away"
+   }
+  },
+  "input_number.sst_outdoor": {
+   "entity_id": "input_number.sst_outdoor",
+   "state": "10.0",
+   "attributes": {
+    "min": -20.0,
+    "max": 40.0,
+    "step": 0.5,
+    "mode": "box",
+    "initial": 10.0,
+    "editable": false,
+    "unit_of_measurement": "°C",
+    "friendly_name": "SST Outdoor"
+   }
+  },
+  "input_number.sst_setpoint": {
+   "entity_id": "input_number.sst_setpoint",
+   "state": "20.0",
+   "attributes": {
+    "min": 5.0,
+    "max": 30.0,
+    "step": 0.5,
+    "mode": "box",
+    "initial": 20.0,
+    "editable": false,
+    "unit_of_measurement": "°C",
+    "friendly_name": "SST Setpoint"
+   }
+  },
+  "sensor.sst_dynamic": {
+   "entity_id": "sensor.sst_dynamic",
+   "state": "20.0",
+   "attributes": {
+    "states": [
+     "21",
+     "20.0",
+     "19",
+     "22.0"
+    ],
+    "next_state": "22.0",
+    "start": "00:00:00",
+    "end": "08:00:00",
+    "friendly_start": "00:00:00",
+    "friendly_end": "08:00:00",
+    "errors": [],
+    "layers": {
+     "mon": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "tue": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "wed": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "thu": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "fri": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sat": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sun": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "08:00",
+         "end": "12:00",
+         "original_start": "08:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "22.0",
+         "raw_state_template": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "{{ states('sensor.sst_thermostat') }}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "18:00",
+         "end": "20:00",
+         "original_start": "18:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.0",
+         "raw_state_template": "{{ states('input_number.sst_setpoint') }}",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ]
+    },
+    "events": [
+     {
+      "start": "08:00:00",
+      "end": "12:00:00",
+      "state": "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}"
+     },
+     {
+      "start": "12:00:00",
+      "end": "14:00:00",
+      "state": "{{ states('sensor.sst_thermostat') }}"
+     },
+     {
+      "start": "18:00:00",
+      "end": "20:00:00",
+      "state": "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}"
+     }
+    ],
+    "total_events": 14,
+    "last_update": "2026-10-10T07:39:01.824802+02:00",
+    "default_state": "20.0",
+    "unit_of_measurement": "°C",
+    "icon": "mdi:function-variant",
+    "friendly_name": "SST Dynamic"
+   }
+  },
+  "sensor.sst_issue_18": {
+   "entity_id": "sensor.sst_issue_18",
+   "state": "normal",
+   "attributes": {
+    "states": [
+     "sleep",
+     "comfort",
+     "eco",
+     "normal"
+    ],
+    "next_state": "sleep",
+    "start": "07:00:00",
+    "end": "22:30:00",
+    "friendly_start": "07:00:00",
+    "friendly_end": "22:30:00",
+    "errors": [],
+    "layers": {
+     "mon": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "tue": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "wed": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "thu": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "fri": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sat": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sun": [
+      {
+       "condition_key": "0",
+       "condition_text": "input_number.sst_outdoor < 30.0",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:00",
+         "end": "09:00",
+         "original_start": "06:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 30.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 30.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "input_number.sst_outdoor < 35.0",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 35.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 35.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_number.sst_outdoor < 38.0",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "17:00",
+         "end": "20:00",
+         "original_start": "17:00",
+         "original_end": "20:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 38.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 38.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_boolean.sst_away == off",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "00:00",
+         "end": "07:00",
+         "original_start": "00:00",
+         "original_end": "07:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "07:00",
+         "end": "22:30",
+         "original_start": "07:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "22:30",
+         "end": "23:59",
+         "original_start": "22:30",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "sleep",
+         "raw_state_template": "sleep",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "off",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == off",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "normal",
+         "raw_state_template": "normal",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ]
+    },
+    "events": [
+     {
+      "start": "06:00:00",
+      "end": "09:00:00",
+      "state": "comfort",
+      "condition": [
+       {
+        "condition": "numeric_state",
+        "entity_id": [
+         "input_number.sst_outdoor"
+        ],
+        "below": 30.0
+       }
+      ]
+     },
+     {
+      "start": "12:00:00",
+      "end": "14:00:00",
+      "state": "eco",
+      "condition": [
+       {
+        "condition": "numeric_state",
+        "entity_id": [
+         "input_number.sst_outdoor"
+        ],
+        "below": 35.0
+       }
+      ]
+     },
+     {
+      "start": "17:00:00",
+      "end": "20:00:00",
+      "state": "comfort",
+      "condition": [
+       {
+        "condition": "numeric_state",
+        "entity_id": [
+         "input_number.sst_outdoor"
+        ],
+        "below": 38.0
+       }
+      ]
+     },
+     {
+      "start": "00:00:00",
+      "end": "07:00:00",
+      "state": "sleep",
+      "condition": [
+       {
+        "condition": "state",
+        "entity_id": [
+         "input_boolean.sst_away"
+        ],
+        "state": "off",
+        "match": "all"
+       }
+      ]
+     },
+     {
+      "start": "07:00:00",
+      "end": "22:30:00",
+      "state": "normal",
+      "condition": [
+       {
+        "condition": "state",
+        "entity_id": [
+         "input_boolean.sst_away"
+        ],
+        "state": "off",
+        "match": "all"
+       }
+      ]
+     },
+     {
+      "start": "22:30:00",
+      "end": "23:59:00",
+      "state": "sleep",
+      "condition": [
+       {
+        "condition": "state",
+        "entity_id": [
+         "input_boolean.sst_away"
+        ],
+        "state": "off",
+        "match": "all"
+       }
+      ]
+     }
+    ],
+    "total_events": 35,
+    "last_update": "2026-10-10T07:39:01.840138+02:00",
+    "default_state": "normal",
+    "icon": "mdi:sigma",
+    "friendly_name": "SST Issue 18"
+   }
+  },
+  "sensor.sst_mode": {
+   "entity_id": "sensor.sst_mode",
+   "state": "eco",
+   "attributes": {
+    "states": [
+     "2 persons",
+     "comfort",
+     "08:30",
+     "off",
+     "eco",
+     "Very long state label to test truncation"
+    ],
+    "next_state": "comfort",
+    "start": "00:00:00",
+    "end": "09:00:00",
+    "friendly_start": "00:00:00",
+    "friendly_end": "09:00:00",
+    "errors": [],
+    "layers": {
+     "mon": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "07:00",
+         "end": "09:00",
+         "original_start": "07:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "tue": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "07:00",
+         "end": "09:00",
+         "original_start": "07:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "wed": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "07:00",
+         "end": "09:00",
+         "original_start": "07:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "thu": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "07:00",
+         "end": "09:00",
+         "original_start": "07:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "fri": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "07:00",
+         "end": "09:00",
+         "original_start": "07:00",
+         "original_end": "09:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sat": [
+      {
+       "condition_key": "1",
+       "condition_text": "Days: Sat, Sun",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "09:00",
+         "end": "12:00",
+         "original_start": "09:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "sat",
+            "sun"
+           ]
+          }
+         ],
+         "condition_text": "Days: Sat, Sun",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sun": [
+      {
+       "condition_key": "1",
+       "condition_text": "Days: Sat, Sun",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "09:00",
+         "end": "12:00",
+         "original_start": "09:00",
+         "original_end": "12:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "comfort",
+         "raw_state_template": "comfort",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "sat",
+            "sun"
+           ]
+          }
+         ],
+         "condition_text": "Days: Sat, Sun",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "10:00",
+         "end": "11:00",
+         "original_start": "10:00",
+         "original_end": "11:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "08:30",
+         "raw_state_template": "08:30",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 3,
+         "start": "13:00",
+         "end": "14:00",
+         "original_start": "13:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "2 persons",
+         "raw_state_template": "2 persons",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "14:00",
+         "end": "14:30",
+         "original_start": "14:00",
+         "original_end": "14:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "Very long state label to test truncation",
+         "raw_state_template": "Very long state label to test truncation",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 5,
+         "start": "23:00",
+         "end": "23:59",
+         "original_start": "23:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "off",
+         "raw_state_template": "off",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "eco",
+         "raw_state_template": "eco",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ]
+    },
+    "events": [
+     {
+      "start": "07:00:00",
+      "end": "09:00:00",
+      "state": "comfort",
+      "condition": [
+       {
+        "condition": "time",
+        "weekday": [
+         "mon",
+         "tue",
+         "wed",
+         "thu",
+         "fri"
+        ]
+       }
+      ]
+     },
+     {
+      "start": "09:00:00",
+      "end": "12:00:00",
+      "state": "comfort",
+      "condition": [
+       {
+        "condition": "time",
+        "weekday": [
+         "sat",
+         "sun"
+        ]
+       }
+      ]
+     },
+     {
+      "start": "10:00:00",
+      "end": "11:00:00",
+      "state": "08:30"
+     },
+     {
+      "start": "13:00:00",
+      "end": "14:00:00",
+      "state": "2 persons"
+     },
+     {
+      "start": "14:00:00",
+      "end": "14:30:00",
+      "state": "Very long state label to test truncation"
+     },
+     {
+      "start": "23:00:00",
+      "end": "23:59:00",
+      "state": "off"
+     }
+    ],
+    "total_events": 21,
+    "last_update": "2026-10-10T07:39:01.821810+02:00",
+    "default_state": "eco",
+    "icon": "mdi:home-thermometer",
+    "friendly_name": "SST Mode"
+   }
+  },
+  "sensor.sst_price": {
+   "entity_id": "sensor.sst_price",
+   "state": "0.1952",
+   "attributes": {
+    "states": [
+     "0.2516",
+     "0.1952",
+     "0"
+    ],
+    "next_state": "0.2516",
+    "start": "06:00:00",
+    "end": "08:00:00",
+    "friendly_start": "06:00:00",
+    "friendly_end": "08:00:00",
+    "errors": [],
+    "layers": {
+     "mon": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "tue": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "wed": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "thu": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "fri": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sat": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sun": [
+      {
+       "condition_key": "0",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "00:00",
+         "end": "06:00",
+         "original_start": "00:00",
+         "original_end": "06:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0",
+         "raw_state_template": "0",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 1,
+         "start": "06:00",
+         "end": "08:00",
+         "original_start": "06:00",
+         "original_end": "08:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 2,
+         "start": "22:00",
+         "end": "23:59",
+         "original_start": "22:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.1952",
+         "raw_state_template": "0.1952",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "0.2516",
+         "raw_state_template": "0.2516",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ]
+    },
+    "events": [
+     {
+      "start": "00:00:00",
+      "end": "06:00:00",
+      "state": "0"
+     },
+     {
+      "start": "06:00:00",
+      "end": "08:00:00",
+      "state": "0.1952"
+     },
+     {
+      "start": "22:00:00",
+      "end": "23:59:00",
+      "state": "0.1952"
+     }
+    ],
+    "total_events": 14,
+    "last_update": "2026-10-10T07:39:01.816353+02:00",
+    "default_state": "0.2516",
+    "unit_of_measurement": "€/kWh",
+    "icon": "mdi:currency-eur",
+    "friendly_name": "SST Price"
+   }
+  },
+  "sensor.sst_thermostat": {
+   "entity_id": "sensor.sst_thermostat",
+   "state": "19",
+   "attributes": {
+    "states": [
+     "16",
+     "21",
+     "20.5",
+     "17",
+     "23",
+     "19",
+     "18.5"
+    ],
+    "next_state": "18.5",
+    "start": "06:30:00",
+    "end": "16:00:00",
+    "friendly_start": "06:30:00",
+    "friendly_end": "16:00:00",
+    "errors": [],
+    "layers": {
+     "mon": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:30",
+         "end": "08:30",
+         "original_start": "06:30",
+         "original_end": "08:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "tue": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:30",
+         "end": "08:30",
+         "original_start": "06:30",
+         "original_end": "08:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "wed": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:30",
+         "end": "08:30",
+         "original_start": "06:30",
+         "original_end": "08:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "thu": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:30",
+         "end": "08:30",
+         "original_start": "06:30",
+         "original_end": "08:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "fri": [
+      {
+       "condition_key": "0",
+       "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+       "blocks": [
+        {
+         "event_idx": 0,
+         "start": "06:30",
+         "end": "08:30",
+         "original_start": "06:30",
+         "original_end": "08:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [
+          {
+           "condition": "time",
+           "weekday": [
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri"
+           ]
+          }
+         ],
+         "condition_text": "Days: Mon, Tue, Wed, Thu, Fri",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sat": [
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ],
+     "sun": [
+      {
+       "condition_key": "1",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 1,
+         "start": "18:00",
+         "end": "22:30",
+         "original_start": "18:00",
+         "original_end": "22:30",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "21",
+         "raw_state_template": "21",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "2",
+       "condition_text": "input_boolean.sst_away == on",
+       "blocks": [
+        {
+         "event_idx": 2,
+         "start": "08:30",
+         "end": "18:00",
+         "original_start": "08:30",
+         "original_end": "18:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "16",
+         "raw_state_template": "16",
+         "raw_conditions": [
+          {
+           "condition": "state",
+           "entity_id": [
+            "input_boolean.sst_away"
+           ],
+           "state": "on",
+           "match": "all"
+          }
+         ],
+         "condition_text": "input_boolean.sst_away == on",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "3",
+       "condition_text": "input_number.sst_outdoor < 5.0",
+       "blocks": [
+        {
+         "event_idx": 3,
+         "start": "12:00",
+         "end": "14:00",
+         "original_start": "12:00",
+         "original_end": "14:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "23",
+         "raw_state_template": "23",
+         "raw_conditions": [
+          {
+           "condition": "numeric_state",
+           "entity_id": [
+            "input_number.sst_outdoor"
+           ],
+           "below": 5.0
+          }
+         ],
+         "condition_text": "input_number.sst_outdoor < 5.0",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "4",
+       "condition_text": "",
+       "blocks": [
+        {
+         "event_idx": 4,
+         "start": "00:00",
+         "end": "06:30",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": true,
+         "wraps_end": false,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        },
+        {
+         "event_idx": 4,
+         "start": "22:30",
+         "end": "00:00",
+         "original_start": "22:30",
+         "original_end": "06:30",
+         "wraps_start": false,
+         "wraps_end": true,
+         "state_value": "17",
+         "raw_state_template": "17",
+         "raw_conditions": [],
+         "condition_text": "",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "5",
+       "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+       "blocks": [
+        {
+         "event_idx": 5,
+         "start": "14:00",
+         "end": "16:00",
+         "original_start": "14:00",
+         "original_end": "16:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "20.5",
+         "raw_state_template": "20.5",
+         "raw_conditions": [
+          {
+           "condition": "template",
+           "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+          }
+         ],
+         "condition_text": "Custom: {{ now().month in [11, 12, 1, 2, 3] }}",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "6",
+       "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+       "blocks": [
+        {
+         "event_idx": 6,
+         "start": "16:00",
+         "end": "17:00",
+         "original_start": "16:00",
+         "original_end": "17:00",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "18.5",
+         "raw_state_template": "18.5",
+         "raw_conditions": [
+          {
+           "condition": "or",
+           "alias": "Absent ou pas de canicule",
+           "conditions": [
+            {
+             "condition": "state",
+             "entity_id": [
+              "input_boolean.sst_away"
+             ],
+             "state": "on",
+             "match": "all"
+            },
+            {
+             "condition": "not",
+             "conditions": [
+              {
+               "condition": "numeric_state",
+               "entity_id": [
+                "input_number.sst_outdoor"
+               ],
+               "above": 25.0
+              }
+             ]
+            }
+           ]
+          }
+         ],
+         "condition_text": "(input_boolean.sst_away == on OR NOT (input_number.sst_outdoor > 25.0))",
+         "icon": "mdi:calendar-check",
+         "is_default_bg": false,
+         "z_index": 2,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": false
+      },
+      {
+       "condition_key": "default",
+       "condition_text": "default",
+       "blocks": [
+        {
+         "start": "00:00",
+         "end": "23:59",
+         "original_start": "00:00",
+         "original_end": "23:59",
+         "wraps_start": false,
+         "wraps_end": false,
+         "state_value": "19",
+         "raw_state_template": "19",
+         "raw_conditions": [],
+         "condition_text": "default",
+         "is_default_bg": true,
+         "z_index": 1,
+         "is_dynamic_color": false
+        }
+       ],
+       "is_default_layer": true
+      }
+     ]
+    },
+    "events": [
+     {
+      "start": "06:30:00",
+      "end": "08:30:00",
+      "state": "21",
+      "condition": [
+       {
+        "condition": "time",
+        "weekday": [
+         "mon",
+         "tue",
+         "wed",
+         "thu",
+         "fri"
+        ]
+       }
+      ]
+     },
+     {
+      "start": "18:00:00",
+      "end": "22:30:00",
+      "state": "21"
+     },
+     {
+      "start": "08:30:00",
+      "end": "18:00:00",
+      "state": "16",
+      "condition": [
+       {
+        "condition": "state",
+        "entity_id": [
+         "input_boolean.sst_away"
+        ],
+        "state": "on",
+        "match": "all"
+       }
+      ]
+     },
+     {
+      "start": "12:00:00",
+      "end": "14:00:00",
+      "state": "23",
+      "condition": [
+       {
+        "condition": "numeric_state",
+        "entity_id": [
+         "input_number.sst_outdoor"
+        ],
+        "below": 5.0
+       }
+      ]
+     },
+     {
+      "start": "22:30:00",
+      "end": "06:30:00",
+      "state": "17",
+      "allow_wrap": true
+     },
+     {
+      "start": "14:00:00",
+      "end": "16:00:00",
+      "state": "20.5",
+      "condition": [
+       {
+        "condition": "template",
+        "value_template": "{{ now().month in [11, 12, 1, 2, 3] }}"
+       }
+      ]
+     },
+     {
+      "start": "16:00:00",
+      "end": "17:00:00",
+      "state": "18.5",
+      "condition": [
+       {
+        "condition": "or",
+        "alias": "Absent ou pas de canicule",
+        "conditions": [
+         {
+          "condition": "state",
+          "entity_id": [
+           "input_boolean.sst_away"
+          ],
+          "state": "on",
+          "match": "all"
+         },
+         {
+          "condition": "not",
+          "conditions": [
+           {
+            "condition": "numeric_state",
+            "entity_id": [
+             "input_number.sst_outdoor"
+            ],
+            "above": 25.0
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "total_events": 54,
+    "last_update": "2026-10-10T07:39:01.813949+02:00",
+    "default_state": "19",
+    "unit_of_measurement": "°C",
+    "icon": "mdi:thermostat",
+    "friendly_name": "SST Thermostat"
+   }
+  }
+ }
+}

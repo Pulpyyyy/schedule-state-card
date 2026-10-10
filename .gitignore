@@ -5,3 +5,12 @@ __pycache__/
 *.swp
 node_modules/
 *.zip
+
+# Test runs: local reports and credentials never go to the repository
+.env
+.env.*
+*.token
+*_token
+test-results/
+playwright-report/
+coverage/

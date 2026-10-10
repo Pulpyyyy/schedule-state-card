@@ -1,0 +1,14 @@
+{
+  "name": "schedule-state-card",
+  "private": true,
+  "description": "Dev tooling only (tests). HACS ships dist/ as is, no build step.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.6",
+    "vitest": "^5.0.3"
+  }
+}
