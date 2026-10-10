@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.2.4";
+const CARD_VERSION = "2.2.5";
 
 console.info(`%c 🙂 Schedule State Card %c v${CARD_VERSION} %c`, "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
@@ -880,10 +880,7 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_AUTOHIDE_MS: 4000,
     TOGGLE_LOCK_MS: 300,
     HOURS_TO_SHOW: [6, 12, 18],
-    MAX_ENTITIES: 50,
-    MIN_BLOCK_WIDTH_PX: 30,
-    TEXT_CHAR_WIDTH_PX: 6,
-    TEXT_CHAR_MARGIN: 2
+    MAX_ENTITIES: 50
 };
 
 /**
@@ -950,18 +947,14 @@ class TimeHelper {
         return (totalMinutes / this.MINUTES_PER_DAY) * 100;
     }
 
-    normalizeBlockTimes(block) {
-        let startMin = this.timeToMinutes(block.start);
-        let endMin = this.timeToMinutes(block.end);
-
-        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
-            endMin = this.MINUTES_PER_DAY;
-        }
-        if (block.end === "23:59" || block.end === "23:59:00") {
-            endMin = this.MINUTES_PER_DAY;
-        }
-
-        return { startMin, endMin };
+    /**
+     * Minutes of a block's end: "00:00" ends the day (24:00). 23:59 stays
+     * 23:59: schedule_state ends the default layer there, and stretching it
+     * would create a 23:59-00:00 slot nobody configured.
+     */
+    endToMinutes(end) {
+        const minutes = this.timeToMinutes(end);
+        return minutes === 0 && (end === "00:00" || end === "00:00:00") ? this.MINUTES_PER_DAY : minutes;
     }
 
     calculateBlockDimensions(startMin, endMin) {
@@ -1205,7 +1198,8 @@ class ConditionEvaluator {
                 return condition.conditions?.every(c => this.evaluateCondition(c)) ?? true;
             }
             if (condType === "not") {
-                return !this.evaluateCondition(condition.conditions?.[0]);
+                // HA: true only when none of the conditions is true
+                return !(condition.conditions || []).some(c => this.evaluateCondition(c));
             }
             if (condType === "template") {
                 return this._evaluateTemplateCondition(condition);
@@ -1269,18 +1263,11 @@ class ConditionEvaluator {
         if (!entityId || !this.hass.states) return false;
 
         const entities = Array.isArray(entityId) ? entityId : [entityId];
+        // HA accepts one state or a list of accepted states
+        const accepted = Array.isArray(condition.state) ? condition.state : [condition.state];
+        const matches = id => accepted.includes(this.hass.states[id]?.state);
 
-        if (condition.match === "all") {
-            return entities.every(id => {
-                const entity = this.hass.states[id];
-                return entity?.state === condition.state;
-            });
-        }
-
-        return entities.some(id => {
-            const entity = this.hass.states[id];
-            return entity?.state === condition.state;
-        });
+        return condition.match === "all" ? entities.every(matches) : entities.some(matches);
     }
 
     _evaluateNumericStateCondition(condition) {
@@ -1359,7 +1346,9 @@ class CombinedLayerBuilder {
         return {
             is_combined_layer: true,
             condition_text: "Combined Schedule",
-            blocks: filled
+            blocks: filled,
+            // Shown when Σ is folded: the layers are hidden, only the result matters
+            packed_blocks: this._packAcrossLayers(filled)
         };
     }
 
@@ -1425,8 +1414,7 @@ class CombinedLayerBuilder {
                 if (block._source_layer !== layer) continue;
 
                 const startMin = this.timeHelper.timeToMinutes(block.start);
-                let endMin = this.timeHelper.timeToMinutes(block.end);
-                if ((block.end === '00:00' || block.end === '00:00:00') && endMin === 0) endMin = this.timeHelper.MINUTES_PER_DAY;
+                const endMin = this.timeHelper.endToMinutes(block.end);
 
                 breakpoints.add(startMin);
                 breakpoints.add(endMin);
@@ -1436,8 +1424,7 @@ class CombinedLayerBuilder {
         const defaultBlocks = defaultLayer.blocks || [];
         for (const defBlock of defaultBlocks) {
             const defStart = this.timeHelper.timeToMinutes(defBlock.start);
-            let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-            if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+            const defEnd = this.timeHelper.endToMinutes(defBlock.end);
 
             breakpoints.add(defStart);
             breakpoints.add(defEnd);
@@ -1454,8 +1441,7 @@ class CombinedLayerBuilder {
                 if (block._source_layer === defaultLayer) continue;
 
                 const blockStart = this.timeHelper.timeToMinutes(block.start);
-                let blockEnd = this.timeHelper.timeToMinutes(block.end);
-                if ((block.end === '00:00' || block.end === '00:00:00') && blockEnd === 0) blockEnd = this.timeHelper.MINUTES_PER_DAY;
+                const blockEnd = this.timeHelper.endToMinutes(block.end);
 
                 if (blockStart <= segStart && segEnd <= blockEnd) {
                     coveringBlocks.push(block);
@@ -1478,29 +1464,28 @@ class CombinedLayerBuilder {
                 const segStartStr = this.timeHelper.minutesToTime(segStart);
                 const segEndStr = segEnd === this.timeHelper.MINUTES_PER_DAY ? '00:00' : this.timeHelper.minutesToTime(segEnd);
 
-                result.push({
+                this._pushSegment(result, {
                     ...coveringBlock,
                     start: segStartStr,
                     end: segEndStr,
                     is_default_bg: false
-                });
+                }, coveringBlock);
             } else {
                 for (const defBlock of defaultBlocks) {
                     const defStart = this.timeHelper.timeToMinutes(defBlock.start);
-                    let defEnd = this.timeHelper.timeToMinutes(defBlock.end);
-                    if ((defBlock.end === '00:00' || defBlock.end === '00:00:00') && defEnd === 0) defEnd = this.timeHelper.MINUTES_PER_DAY;
+                    const defEnd = this.timeHelper.endToMinutes(defBlock.end);
 
                     if (defStart <= segStart && segEnd <= defEnd) {
                         const segStartStr = this.timeHelper.minutesToTime(segStart);
                         const segEndStr = segEnd === this.timeHelper.MINUTES_PER_DAY ? '00:00' : this.timeHelper.minutesToTime(segEnd);
 
-                        result.push({
+                        this._pushSegment(result, {
                             ...defBlock,
                             start: segStartStr,
                             end: segEndStr,
                             _source_layer: defaultLayer,
                             is_default_bg: true
-                        });
+                        }, defBlock);
                         break;
                     }
                 }
@@ -1508,6 +1493,55 @@ class CombinedLayerBuilder {
         }
 
         return result;
+    }
+
+    /**
+     * Append a segment, or extend the previous one when it ends where this one
+     * starts, comes from the same layer and renders identically. Breakpoints
+     * come from every active layer, so a winning block is otherwise cut wherever
+     * a losing layer has a boundary. Segments of different layers stay apart even
+     * with the same value while the layers are unfolded: they depend on different
+     * conditions, so the cut shows where the result could change.
+     */
+    _pushSegment(result, segment, sourceBlock) {
+        const prev = result[result.length - 1];
+        if (prev && prev.end === segment.start && this._canMerge(prev, segment)) {
+            prev.end = segment.end;
+            // Pieces of different blocks: the original times of the first block's
+            // wrap no longer describe the merged span, show the real one instead
+            if (prev._segment_source !== sourceBlock) {
+                prev.wraps_start = false;
+                prev.wraps_end = false;
+            }
+            return;
+        }
+        Object.defineProperty(segment, '_segment_source', { value: sourceBlock, writable: true });
+        result.push(segment);
+    }
+
+    /**
+     * Folded Σ: also merge identical neighbours from different layers, like the
+     * schedule_state entity does (its IntervalDict merges adjacent equal values).
+     * Copies the merged segments: the unfolded view keeps the per-layer cuts.
+     */
+    _packAcrossLayers(segments) {
+        const result = [];
+        for (const segment of segments) {
+            const prev = result[result.length - 1];
+            if (prev && prev.end === segment.start && this._canMerge(prev, segment, true)) {
+                // Always pieces of different blocks: show the real merged span
+                result[result.length - 1] = { ...prev, end: segment.end, wraps_start: false, wraps_end: false };
+                continue;
+            }
+            result.push(segment);
+        }
+        return result;
+    }
+
+    _canMerge(a, b, acrossLayers = false) {
+        return (acrossLayers || a._source_layer === b._source_layer) &&
+            ['state_value', 'raw_state_template', 'unit', 'color', 'icon', 'is_default_bg', 'description']
+            .every(key => (a[key] ?? null) === (b[key] ?? null));
     }
 }
 
@@ -1550,11 +1584,6 @@ class AppState {
         this.timers = {
             debounce: null,
             tooltip: null
-        };
-
-        // Cache storage - for expensive calculations
-        this.caches = {
-            dom: null // DOM metrics (container width, etc.)
         };
 
         // Timing tracking - for debounce logic
@@ -1624,36 +1653,6 @@ class AppState {
     }
 
     /**
-     * Invalidate DOM cache to force recalculation
-     */
-    invalidateDOMCache() {
-        this.caches.dom = null;
-    }
-
-    /**
-     * Set cached DOM metrics
-     * @param {object} metrics - Object containing {containerWidth: number}
-     */
-    setDOMMetrics(metrics) {
-        this.caches.dom = metrics;
-    }
-
-    /**
-     * Get cached DOM metrics or null if not cached
-     * @returns {object|null} Cached metrics or null
-     */
-    getDOMMetrics() {
-        return this.caches.dom;
-    }
-
-    /**
-     * Invalidate all caches to force recalculation
-     */
-    invalidateAllCaches() {
-        this.caches.dom = null;
-    }
-
-    /**
      * Update timing information for debounce logic
      * @param {number} timestamp - Current timestamp (from Date.now())
      */
@@ -1671,11 +1670,10 @@ class AppState {
 
     /**
      * Complete cleanup for disconnection
-     * Clears all timers, caches, and resets state
+     * Clears all timers and resets state
      */
     resetOnDisconnect() {
         this.clearAllTimers();
-        this.invalidateAllCaches();
         // layerVisibility is intentionally KEPT: HA re-parents cards in the DOM
         // (masonry re-layout), and collapsing everything on each move is bad UX
         this.eventListener = null;
@@ -1692,7 +1690,6 @@ class AppState {
                 acc[key] = this.timers[key] !== null ? 'active' : 'null';
                 return acc;
             }, {}),
-            cachedDOMMetrics: this.caches.dom !== null,
             lastUpdateTime: this.lastUpdateTime
         });
     }
@@ -1744,7 +1741,8 @@ class ScheduleStateCard extends HTMLElement {
             ...DEFAULT_COLORS
         };
 
-        this._isToggling = false;
+        // Σ toggles locked for a moment after a click (keys of _visibilityKey)
+        this._togglingKeys = new Set();
         this._overridesReleased = false;
         this._inEditorPreview = false;
         this._relevantIdsCache = null;
@@ -1961,10 +1959,12 @@ class ScheduleStateCard extends HTMLElement {
      * @param {string} dayId - Day identifier
      */
     toggleLayerVisibility(entityId, dayId) {
-        if (this._isToggling) return;
-        this._isToggling = true;
-
         const visibilityKey = this._visibilityKey(entityId, dayId);
+        // Ignores a repeated click on the same toggle (a double-fired event
+        // would fold it right back), not a click on another entity's toggle
+        if (this._togglingKeys.has(visibilityKey)) return;
+        this._togglingKeys.add(visibilityKey);
+
         const currentState = this._state.layerVisibility.get(visibilityKey);
         const newState = !currentState;
 
@@ -1975,9 +1975,7 @@ class ScheduleStateCard extends HTMLElement {
         this._state.layerVisibility.set(visibilityKey, newState);
         this.updateContent();
 
-        setTimeout(() => {
-            this._isToggling = false;
-        }, LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
+        setTimeout(() => this._togglingKeys.delete(visibilityKey), LAYOUT_CONSTANTS.TOGGLE_LOCK_MS);
     }
 
     setConfig(config) {
@@ -2523,7 +2521,8 @@ class ScheduleStateCard extends HTMLElement {
             // This ensures cursor remains visible when day transitions
             if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
                 this.selectedDay = this.currentTime.day;
-                // Re-render content for the new day to update timeline containers
+                // updateContent() redraws the timelines, not the day buttons
+                this._syncDayButtons();
                 this.updateContent();
                 return; // updateContent already calls updateTimeline
             }
@@ -2591,14 +2590,42 @@ class ScheduleStateCard extends HTMLElement {
         return luminance;
     }
 
-    getTextColorForBackground(hslColor) {
-        const match = hslColor.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
-        if (!match) return "#000000";
-        const h = parseFloat(match[1]);
-        const s = parseFloat(match[2]);
-        const l = parseFloat(match[3]);
-        const luminance = this.getPerceivedLuminance(h, s, l);
-        return luminance > 0.5 ? "#000000" : "#ffffff";
+    /**
+     * Relative luminance (WCAG) of an hsl(), #rgb / #rrggbb or rgb() color;
+     * null for anything else (e.g. a CSS variable).
+     */
+    _colorLuminance(color) {
+        const c = String(color || "").trim();
+        let m = c.match(/^hsla?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%/i);
+        if (m) return this.getPerceivedLuminance(parseFloat(m[1]) % 360, parseFloat(m[2]), parseFloat(m[3]));
+
+        let rgb = null;
+        m = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (m) {
+            const hex = m[1].length === 3 ? [...m[1]].map(x => x + x).join("") : m[1];
+            rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+        }
+        m = c.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/i);
+        if (m) rgb = [m[1], m[2], m[3]].map(Number);
+        if (!rgb) return null;
+
+        const [r, g, b] = rgb.map(v => {
+            const s = Math.min(255, v) / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    /**
+     * Black or white text, whichever contrasts more with the background
+     * (WCAG ratio: they tie at a luminance of about 0.18, not 0.5, which
+     * left about half of the generated colors with unreadable white text).
+     * null when the background cannot be read (e.g. a CSS variable).
+     */
+    getTextColorForBackground(color) {
+        const luminance = this._colorLuminance(color);
+        if (luminance === null) return null;
+        return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#000000" : "#ffffff";
     }
 
     getColorForState(stateValue, unit) {
@@ -2858,20 +2885,6 @@ class ScheduleStateCard extends HTMLElement {
         return String(text).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => map[m]);
     }
 
-    truncateText(text, maxWidthPx) {
-        if (!text || typeof text !== "string") return text;
-        if (maxWidthPx < LAYOUT_CONSTANTS.MIN_BLOCK_WIDTH_PX) return "...";
-
-        const maxChars = Math.floor(maxWidthPx / LAYOUT_CONSTANTS.TEXT_CHAR_WIDTH_PX) 
-                         - LAYOUT_CONSTANTS.TEXT_CHAR_MARGIN;
-
-        if (maxChars <= 0) return "...";
-        if (text.length <= maxChars) return text;
-
-        // Return truncated text (caller will escape)
-        return text.substring(0, maxChars) + "...";
-    }
-
     resolveTemplate(template) {
         if (!template || typeof template !== "string") return template;
         if (!this._hass) return template;
@@ -2898,42 +2911,6 @@ class ScheduleStateCard extends HTMLElement {
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
         result = this._evalMath(result);
         return String(result).trim();
-    }
-
-    getCachedDOMMetrics() {
-        // Get from centralized cache
-        let metrics = this._state.getDOMMetrics();
-
-        if (metrics) {
-            return metrics;
-        }
-
-        // Calculate metrics if not cached
-        const container = this.shadowRoot.querySelector(".timeline-container");
-
-        // Safety check: if container doesn't exist, use default width
-        if (!container) {
-            debugWarn("Timeline container not found, using default width");
-            metrics = {
-                containerWidth: 800
-            };
-        } else {
-            // Get actual container width from DOM
-            const containerWidth = container.offsetWidth || 800;
-            metrics = {
-                containerWidth
-            };
-        }
-
-        // Store in centralized cache
-        this._state.setDOMMetrics(metrics);
-
-        return metrics;
-    }
-
-    invalidateDOMMetrics() {
-        // ✅ INVALIDATE CENTRALIZED CACHE
-        this._state.invalidateDOMCache();
     }
 
     _evalMath(expr) {
@@ -3071,11 +3048,7 @@ class ScheduleStateCard extends HTMLElement {
 
     _getBlockMetrics(block) {
         const startMin = this.timeHelper.timeToMinutes(block.start);
-        let endMin = this.timeHelper.timeToMinutes(block.end);
-
-        if ((block.end === "00:00" || block.end === "00:00:00") && endMin === 0) {
-            endMin = LAYOUT_CONSTANTS.MINUTES_PER_DAY;
-        }
+        const endMin = this.timeHelper.endToMinutes(block.end);
         const dimensions = this.timeHelper.calculateBlockDimensions(startMin, endMin);
         const borderRadius = this.timeHelper.calculateBorderRadius(
             dimensions.width,
@@ -3359,8 +3332,13 @@ class ScheduleStateCard extends HTMLElement {
                 return;
             }
 
+            // mouseover/mouseout also fire when the pointer crosses a block's
+            // own label: only entering or leaving a target counts
             if (e.type === "mouseover" && tooltipTarget) {
+                if (tooltipTarget === this._tooltipTarget) return;
+                this._tooltipTarget = tooltipTarget;
                 const tooltip = tooltipTarget.dataset.tooltip;
+                // Also cancels a pending hide: the open tooltip is replaced, not blinked
                 this.clearTooltipTimer();
 
                 if (tooltip) {
@@ -3373,8 +3351,11 @@ class ScheduleStateCard extends HTMLElement {
             }
             // Tooltip hide on mouse leave
             else if (e.type === "mouseout") {
+                const next = e.relatedTarget?.closest?.(".schedule-block, .icon-row[data-tooltip]");
+                if (next && next === this._tooltipTarget) return;
+                this._tooltipTarget = null;
                 this.clearTooltipTimer();
-                setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_HIDE_DELAY_MS);
+                this._state.setTimer('tooltip', setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_HIDE_DELAY_MS));
             }
         };
 
@@ -3394,14 +3375,19 @@ class ScheduleStateCard extends HTMLElement {
             this._dayButtonHandlers[idx] = (e) => {
                 const newDay = e.target.dataset.day;
                 if (newDay !== this.selectedDay) {
-                    dayButtons.forEach(btn => btn.classList.remove("active"));
-                    e.target.classList.add("active");
                     this.selectedDay = newDay;
+                    this._syncDayButtons();
                     this.updateContent();
                 }
             };
             button.addEventListener("click", this._dayButtonHandlers[idx]);
         });
+    }
+
+    /** Highlights the selected day's button ("days" layout). */
+    _syncDayButtons() {
+        this.shadowRoot.querySelectorAll(".day-button").forEach(btn =>
+            btn.classList.toggle("active", btn.dataset.day === this.selectedDay));
     }
 
     attachEntitySelectorListener() {
@@ -3488,10 +3474,6 @@ class ScheduleStateCard extends HTMLElement {
             LAYOUT_CONSTANTS.TOP_MARGIN,
             LAYOUT_CONSTANTS.BOTTOM_MARGIN
         );
-        const {
-            containerWidth
-        } = this.getCachedDOMMetrics();
-
         // Render components
         const headerHtml = this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
         const hourLabels = this._renderHourLabels();
@@ -3502,7 +3484,6 @@ class ScheduleStateCard extends HTMLElement {
             layersToDisplay,
             allLayers,
             layersMetadata,
-            containerWidth,
             unitOfMeasurement,
             entityId,
             dayId // Passer dayId pour le collapse/expand
@@ -3720,10 +3701,11 @@ class ScheduleStateCard extends HTMLElement {
         ).join("");
     }
 
-    _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, containerWidth, unitOfMeasurement, entityId, dayId = null) {
+    _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, unitOfMeasurement, entityId, dayId = null) {
         const blockParts = [];
         const iconParts = [];
         const isSelectedDayToday = dayId ? (dayId === this.currentTime.day) : this.isToday();
+        const isExpanded = this._state.isLayerVisible(this._visibilityKey(entityId, dayId));
 
         for (let layerIdx = 0; layerIdx < layersToDisplay.length; layerIdx++) {
             const currentLayer = layersToDisplay[layerIdx];
@@ -3748,14 +3730,15 @@ class ScheduleStateCard extends HTMLElement {
             );
             if (iconHtml) iconParts.push(iconHtml);
 
-            // Render all blocks in this layer
-            for (const block of currentLayer.blocks) {
+            // Render all blocks in this layer (folded Σ: merged across layers)
+            const blocks = currentLayer.is_combined_layer && !isExpanded ?
+                currentLayer.packed_blocks : currentLayer.blocks;
+            for (const block of blocks) {
                 const blockHtml = this._renderBlock(
                     block,
                     currentLayer,
                     meta,
                     top,
-                    containerWidth,
                     unitOfMeasurement,
                     isSelectedDayToday
                 );
@@ -3950,7 +3933,7 @@ class ScheduleStateCard extends HTMLElement {
         return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
     }
 
-    _renderBlock(block, currentLayer, meta, top, containerWidth, unitOfMeasurement, isSelectedDayToday) {
+    _renderBlock(block, currentLayer, meta, top, unitOfMeasurement, isSelectedDayToday) {
         const metrics = this._getBlockMetrics(block);
         const {
             startMin,
@@ -3983,7 +3966,9 @@ class ScheduleStateCard extends HTMLElement {
         const hasStateValue = resolvedState !== null && resolvedState !== undefined && String(resolvedState).trim() !== "";
         const colorData = this.getColorForState(hasStateValue ? resolvedState : "default", unit || unitOfMeasurement);
         const color = block.color || colorData.color;
-        const textColor = colorData.textColor;
+        // A block's own color needs its own text color (the generated one
+        // matches the generated background)
+        const textColor = (block.color && this.getTextColorForBackground(block.color)) || colorData.textColor;
 
         // Build CSS classes - PRESERVE HATCHING FOR DEFAULT BLOCKS IN COMBINED LAYER
         let blockClass = "schedule-block";
@@ -4010,10 +3995,6 @@ class ScheduleStateCard extends HTMLElement {
         // Build styles
         const style = `left:${left}%;width:${width}%;top:${top}px;border-radius:${borderRadius};color:${this.validateStyleValue(textColor)};background-color:${this.validateStyleValue(color)};`;
 
-        // Truncate text to fit block width
-        const blockWidthPx = (width / 100) * containerWidth;
-        const displayText = this.truncateText(stateDisplay, blockWidthPx);
-
         // Build tooltip (with escapeHtmlAttribute for data attribute)
         const tooltip = this._buildBlockTooltip({
             block,
@@ -4025,8 +4006,9 @@ class ScheduleStateCard extends HTMLElement {
             escapedUnit
         });
 
-        // Display only text on block (no icon)
-        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${escapeHtml(displayText)}</span></div>`;
+        // Full label (already escaped): CSS cuts it to the block's real width
+        // with an ellipsis (.block-center text-overflow)
+        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${stateDisplay}</span></div>`;
     }
 
     updateContent() {
@@ -4119,13 +4101,6 @@ class ScheduleStateCard extends HTMLElement {
         
         const content = this.shadowRoot.querySelector("#content");
         if (!content) return "";
-        
-        if (this._state.eventListener) {
-            this._detachEventHandlers(content, this._state.eventListener);
-            this._state.eventListener = null;
-        }
-
-        this._state.invalidateDOMCache();
 
         let timelines = "";
 
@@ -4207,10 +4182,14 @@ class ScheduleStateCard extends HTMLElement {
 
         const newHTML = `<div class="schedules-container">${timelines}</div>`;
 
-        if (content.innerHTML !== newHTML) {
-            content.innerHTML = newHTML;
-        }
-        // Always re-attach listeners since they are detached at line 3470
+        // Same output as last time: keep the DOM (icons, hover state, open
+        // tooltip) instead of rebuilding it. Comparing with content.innerHTML
+        // never matched: the browser re-serializes the escaped text and the
+        // time cursor is added after rendering.
+        if (newHTML === this._lastContentHTML && content.firstChild) return;
+        this._lastContentHTML = newHTML;
+        content.innerHTML = newHTML;
+        // Replaces the previous listener (attached to the same #content)
         this.attachAllListeners();
     }
 

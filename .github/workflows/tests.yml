@@ -1,0 +1,87 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      update_screenshots:
+        description: "Regenerate the Linux reference screenshots and commit them to this branch"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# The Playwright image tag (two jobs below) must stay equal to the
+# @playwright/test version pinned in package.json: browser and system
+# libraries are part of what the screenshots depend on.
+
+jobs:
+  unit:
+    name: Unit and behavior tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+  visual:
+    name: Visual tests
+    if: ${{ !inputs.update_screenshots }}
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.64.0-noble
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: npm ci
+
+      - run: npx playwright test
+        env:
+          HOME: /root
+
+      - name: Upload report and diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  update-screenshots:
+    name: Update reference screenshots
+    if: ${{ inputs.update_screenshots }}
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.64.0-noble
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: npm ci
+
+      - run: npx playwright test --update-snapshots
+        env:
+          HOME: /root
+
+      - name: Commit the Linux screenshots
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/visual/__screenshots__
+          if git diff --cached --quiet; then
+            echo "Screenshots unchanged."
+          else
+            git commit -m "test: update Linux reference screenshots"
+            git push
+          fi

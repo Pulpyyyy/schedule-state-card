@@ -1,0 +1,201 @@
+# schedule-state-card test fixtures (dashboard /schedule-tests).
+# Managed from the schedule-state-card repo: edit there, not here.
+# Reload without restart: service schedule_state.reload
+
+input_boolean:
+  sst_away:
+    name: SST Away
+    initial: false
+
+input_number:
+  sst_outdoor:
+    name: SST Outdoor
+    min: -20
+    max: 40
+    step: 0.5
+    initial: 10
+    mode: box
+    unit_of_measurement: "°C"
+  sst_setpoint:
+    name: SST Setpoint
+    min: 5
+    max: 30
+    step: 0.5
+    initial: 20
+    mode: box
+    unit_of_measurement: "°C"
+
+sensor:
+  # Numeric schedule: every condition type, nested and/or/not with alias,
+  # a block wrapping past midnight, a template condition on now().month
+  - platform: schedule_state
+    name: SST Thermostat
+    icon: mdi:thermostat
+    default_state: "19"
+    extra_attributes:
+      unit_of_measurement: "°C"
+    events:
+      - start: "06:30"
+        end: "08:30"
+        state: "21"
+        condition:
+          - condition: time
+            weekday: [mon, tue, wed, thu, fri]
+      - start: "18:00"
+        end: "22:30"
+        state: "21"
+      - start: "08:30"
+        end: "18:00"
+        state: "16"
+        condition:
+          - condition: state
+            entity_id: input_boolean.sst_away
+            state: "on"
+      - start: "12:00"
+        end: "14:00"
+        state: "23"
+        condition:
+          - condition: numeric_state
+            entity_id: input_number.sst_outdoor
+            below: 5
+      - start: "22:30"
+        end: "06:30"
+        state: "17"
+        allow_wrap: true
+      - start: "14:00"
+        end: "16:00"
+        state: "20.5"
+        condition:
+          - condition: template
+            value_template: "{{ now().month in [11, 12, 1, 2, 3] }}"
+      - start: "16:00"
+        end: "17:00"
+        state: "18.5"
+        condition:
+          - condition: or
+            alias: "Absent ou pas de canicule"
+            conditions:
+              - condition: state
+                entity_id: input_boolean.sst_away
+                state: "on"
+              - condition: not
+                conditions:
+                  - condition: numeric_state
+                    entity_id: input_number.sst_outdoor
+                    above: 25
+
+  # Price with a unit containing "/" and a state value of 0
+  - platform: schedule_state
+    name: SST Price
+    icon: mdi:currency-eur
+    default_state: "0.2516"
+    extra_attributes:
+      unit_of_measurement: "€/kWh"
+    events:
+      - start: "00:00"
+        end: "06:00"
+        state: "0"
+      - start: "06:00"
+        end: "08:00"
+        state: "0.1952"
+      - start: "22:00"
+        end: "23:59"
+        state: "0.1952"
+
+  # Text states without unit: weekday-specific layers, plain values that look
+  # like times/numbers, a long label on a short block (truncation)
+  - platform: schedule_state
+    name: SST Mode
+    icon: mdi:home-thermometer
+    default_state: "eco"
+    events:
+      - start: "07:00"
+        end: "09:00"
+        state: "comfort"
+        condition:
+          - condition: time
+            weekday: [mon, tue, wed, thu, fri]
+      - start: "09:00"
+        end: "12:00"
+        state: "comfort"
+        condition:
+          - condition: time
+            weekday: [sat, sun]
+      - start: "10:00"
+        end: "11:00"
+        state: "08:30"
+      - start: "13:00"
+        end: "14:00"
+        state: "2 persons"
+      - start: "14:00"
+        end: "14:30"
+        state: "Very long state label to test truncation"
+      - start: "23:00"
+        end: "23:59"
+        state: "off"
+
+  # Dynamic values: templates on helpers, math, if/else, reference to
+  # another schedule sensor
+  - platform: schedule_state
+    name: SST Dynamic
+    icon: mdi:function-variant
+    default_state: "{{ states('input_number.sst_setpoint') }}"
+    extra_attributes:
+      unit_of_measurement: "°C"
+    events:
+      - start: "08:00"
+        end: "12:00"
+        state: "{{ (states('input_number.sst_setpoint') | float(0) + 2) | round(1) }}"
+      - start: "12:00"
+        end: "14:00"
+        state: "{{ states('sensor.sst_thermostat') }}"
+      - start: "18:00"
+        end: "20:00"
+        state: "{% if is_state('input_boolean.sst_away', 'on') %}15{% else %}21{% endif %}"
+
+  # Issue #18: the top layer covers the whole day and wins everywhere, but Σ
+  # used to be cut at every boundary of the lower active layers. Expected Σ
+  # after the fix: sleep 00:00-07:00, normal 07:00-22:30, sleep 22:30-23:59.
+  # Conditions are distinct (one layer each) and true by default; raise
+  # input_number.sst_outdoor or turn on sst_away to deactivate them.
+  - platform: schedule_state
+    name: SST Issue 18
+    icon: mdi:sigma
+    default_state: "normal"
+    events:
+      - start: "06:00"
+        end: "09:00"
+        state: "comfort"
+        condition:
+          - condition: numeric_state
+            entity_id: input_number.sst_outdoor
+            below: 30
+      - start: "12:00"
+        end: "14:00"
+        state: "eco"
+        condition:
+          - condition: numeric_state
+            entity_id: input_number.sst_outdoor
+            below: 35
+      - start: "17:00"
+        end: "20:00"
+        state: "comfort"
+        condition:
+          - condition: numeric_state
+            entity_id: input_number.sst_outdoor
+            below: 38
+      - start: "00:00"
+        end: "07:00"
+        state: "sleep"
+        condition: &top
+          - condition: state
+            entity_id: input_boolean.sst_away
+            state: "off"
+      - start: "07:00"
+        end: "22:30"
+        state: "normal"
+        condition: *top
+      - start: "22:30"
+        end: "23:59"
+        state: "sleep"
+        condition: *top
