@@ -155,6 +155,28 @@ describe("days layout", () => {
         expect(timeline(card, "SST Mode").rows.length).toBeGreaterThan(1);
     });
 
+    it("exposes its controls to assistive technologies", async () => {
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
+        await settle();
+        const root = card.shadowRoot;
+        const sigma = root.querySelector(".combined-layer-toggle");
+        expect([sigma.getAttribute("role"), sigma.getAttribute("tabindex"), sigma.getAttribute("aria-expanded")]).toEqual(["button", "0", "false"]);
+        expect(sigma.getAttribute("aria-label")).toBeTruthy();
+        expect(root.querySelector(".room-name").getAttribute("role")).toBe("button");
+        expect([...root.querySelectorAll(".day-button")].map(b => b.getAttribute("aria-pressed")))
+            .toEqual(["true", "false", "false", "false", "false", "false", "false"]);
+
+        sigma.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, composed: true }));
+        await settle();
+        expect(root.querySelector(".combined-layer-toggle").getAttribute("aria-expanded")).toBe("true");
+        expect(timeline(card, "SST Mode").rows.length).toBeGreaterThan(1);
+
+        clickDay(card, "sat");
+        await settle();
+        expect(root.querySelector('.day-button[data-day="sat"]').getAttribute("aria-pressed")).toBe("true");
+        expect(root.querySelector('.day-button[data-day="mon"]').getAttribute("aria-pressed")).toBe("false");
+    });
+
     it("keeps the expanded state when switching days", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
         await settle();

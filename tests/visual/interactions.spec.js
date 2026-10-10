@@ -78,18 +78,39 @@ test("the tooltip stays visible while the pointer moves inside a block", async (
     }
 });
 
-// Audit #15: Σ toggle and entity name are <span>s, unreachable by keyboard
-test("the Σ toggle can be reached and used with the keyboard (known bug)", async ({ page }) => {
-    test.fail();
+// Keyboard: the Σ toggle and the entity name are buttons (audit #15)
+const deepActive = (page) => page.evaluate(() => {
+    let el = document.activeElement;
+    while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+    return { cls: el?.className || "", expanded: el?.getAttribute?.("aria-expanded") ?? null };
+});
+
+test("the Σ toggle can be reached and used with the keyboard", async ({ page }) => {
     await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
     let reached = false;
     for (let i = 0; i < 15 && !reached; i++) {
         await page.keyboard.press("Tab");
-        reached = await page.evaluate(() => {
-            let el = document.activeElement;
-            while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
-            return !!el?.classList?.contains("combined-layer-toggle");
-        });
+        reached = (await deepActive(page)).cls.includes("combined-layer-toggle");
     }
     expect(reached).toBe(true);
+    expect((await deepActive(page)).expanded).toBe("false");
+
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".icon-row")).not.toHaveCount(1);
+    // The focus stays on the toggle although the rows were rebuilt
+    expect(await deepActive(page)).toEqual({ cls: expect.stringContaining("combined-layer-toggle"), expanded: "true" });
+
+    await page.clock.runFor(400);
+    await page.keyboard.press(" ");
+    await expect(page.locator(".icon-row")).toHaveCount(1);
+    expect((await deepActive(page)).expanded).toBe("false");
+});
+
+test("the entity name opens more-info from the keyboard", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_price"] });
+    const opened = page.evaluate(() => new Promise(resolve =>
+        window.addEventListener("hass-more-info", e => resolve(e.detail.entityId), { once: true })));
+    await page.locator(".room-name").focus();
+    await page.keyboard.press("Enter");
+    expect(await opened).toBe("sensor.sst_price");
 });

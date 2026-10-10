@@ -3198,7 +3198,7 @@ class ScheduleStateCard extends HTMLElement {
      * @param {Function} handler - The handler function
      * @param {string[]} events - Events to attach (default: click, mouseover, mouseout)
      */
-    _attachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout"]) {
+    _attachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout", "keydown"]) {
         if (!element || !handler) return;
         events.forEach(event => {
             element.addEventListener(event, handler);
@@ -3211,7 +3211,7 @@ class ScheduleStateCard extends HTMLElement {
      * @param {Function} handler - The handler function
      * @param {string[]} events - Events to detach (default: click, mouseover, mouseout)
      */
-    _detachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout"]) {
+    _detachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout", "keydown"]) {
         if (!element || !handler) return;
         events.forEach(event => {
             element.removeEventListener(event, handler);
@@ -3270,6 +3270,15 @@ class ScheduleStateCard extends HTMLElement {
             // Ensure this is the ScheduleStateCard instance
             if (!this.toggleLayerVisibility) {
                 errorLog("Handler context error: toggleLayerVisibility not found");
+                return;
+            }
+
+            // Keyboard: Enter / Space on an ARIA button act as a click
+            if (e.type === "keydown") {
+                if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute?.("role") === "button") {
+                    e.preventDefault();
+                    e.target.click();
+                }
                 return;
             }
 
@@ -3386,8 +3395,11 @@ class ScheduleStateCard extends HTMLElement {
 
     /** Highlights the selected day's button ("days" layout). */
     _syncDayButtons() {
-        this.shadowRoot.querySelectorAll(".day-button").forEach(btn =>
-            btn.classList.toggle("active", btn.dataset.day === this.selectedDay));
+        this.shadowRoot.querySelectorAll(".day-button").forEach(btn => {
+            const selected = btn.dataset.day === this.selectedDay;
+            btn.classList.toggle("active", selected);
+            btn.setAttribute("aria-pressed", String(selected));
+        });
     }
 
     attachEntitySelectorListener() {
@@ -3440,7 +3452,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderErrorCard(entityId, message) {
-        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" data-entity-id="' + escapeHtmlAttribute(entityId) + '" style="color:var(--error-color);">' + escapeHtml(entityId) + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + escapeHtml(message) + "</div></div></div>";
+        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" role="button" tabindex="0" data-entity-id="' + escapeHtmlAttribute(entityId) + '" style="color:var(--error-color);">' + escapeHtml(entityId) + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + escapeHtml(message) + "</div></div></div>";
     }
 
     renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState, dayId = null) {
@@ -3773,7 +3785,7 @@ class ScheduleStateCard extends HTMLElement {
             return `<option value="${escapeHtml(entityId)}" ${this.selectedEntity === entityId ? "selected" : ""}>${escapeHtml(name)}</option>`;
         }).join("");
 
-        return `<div class="entity-selector-wrapper"><select id="entity-selector" class="entity-selector">${options}</select></div>`;
+        return `<div class="entity-selector-wrapper"><select id="entity-selector" class="entity-selector" aria-label="${escapeHtmlAttribute(this.t("editor_entities_label"))}">${options}</select></div>`;
     }
 
     renderDaysLayout() {
@@ -3799,7 +3811,7 @@ class ScheduleStateCard extends HTMLElement {
 
         const styleContent = dynamicStyles + baseStylesheet + additionalStyle;
 
-        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + escapeHtml(day.label) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
+        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" aria-pressed="' + (day.id === this.selectedDay) + '" data-day="' + day.id + '">' + escapeHtml(day.label) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -3862,6 +3874,7 @@ class ScheduleStateCard extends HTMLElement {
         const unfoldedBg = this.validateStyleValue(this._colors.combined_unfolded_layer);
 
         let toggleClass = "";
+        let toggleAttrs = "";
         let iconStyle = `background:${foldedBg};filter:brightness(1.1);`;
 
         if (!isSelectedDayToday) {
@@ -3873,6 +3886,11 @@ class ScheduleStateCard extends HTMLElement {
 
             const visibilityKey = this._visibilityKey(entityId, dayId);
             const isExpanded = this._state.isLayerVisible(visibilityKey);
+            // Keyboard and screen readers: a button announcing its state; the
+            // focus key lets the focus come back after the re-render
+            toggleAttrs = ` role="button" tabindex="0" aria-expanded="${isExpanded ? "true" : "false"}"` +
+                ` aria-label="${escapeHtmlAttribute(this.t("cond_combined_schedule_toggle"))}"` +
+                ` data-focus-key="${escapeHtmlAttribute(`sigma|${entityId}|${dayId || ""}`)}"`;
 
             debugLog(entityName, "[_renderCombinedLayerIcon] entityId:", entityId, "dayId:", dayId, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
 
@@ -3891,7 +3909,7 @@ class ScheduleStateCard extends HTMLElement {
 
         debugLog(entityName, "[_renderCombinedLayerIcon] Rendering icon with dataDay:", dataDay, "entityId:", entityId);
 
-        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number combined-layer-toggle" data-entity-id="${escapeHtml(entityId)}"${dataDay} style="${iconStyle}">Σ</span></div>`;
+        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number${toggleClass}" data-entity-id="${escapeHtml(entityId)}"${dataDay}${toggleAttrs} style="${iconStyle}">Σ</span></div>`;
     }
 
     _renderConditionalLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday) {
@@ -4052,7 +4070,7 @@ class ScheduleStateCard extends HTMLElement {
             headerHtml += '<ha-icon icon="' + escapedRoomIcon + '"></ha-icon>';
         }
 
-        headerHtml += '<span class="room-name" data-entity-id="' + escapedEntityId + '">' + escapedRoomName + '</span>';
+        headerHtml += '<span class="room-name" role="button" tabindex="0" data-entity-id="' + escapedEntityId + '">' + escapedRoomName + '</span>';
 
         if (stateValue) {
             headerHtml += '<span class="room-state">' + stateValue + '</span>';
@@ -4188,7 +4206,11 @@ class ScheduleStateCard extends HTMLElement {
         // time cursor is added after rendering.
         if (newHTML === this._lastContentHTML && content.firstChild) return;
         this._lastContentHTML = newHTML;
+        const focusKey = this.shadowRoot.activeElement?.dataset?.focusKey;
         content.innerHTML = newHTML;
+        if (focusKey) {
+            [...content.querySelectorAll("[data-focus-key]")].find(el => el.dataset.focusKey === focusKey)?.focus();
+        }
         // Replaces the previous listener (attached to the same #content)
         this.attachAllListeners();
     }
@@ -4470,6 +4492,13 @@ class ScheduleStateCard extends HTMLElement {
 
             .combined-layer-toggle:hover {
                 filter: brightness(1.3) !important;
+            }
+
+            .combined-layer-toggle:focus-visible,
+            .room-name:focus-visible,
+            .day-button:focus-visible {
+                outline: 2px solid var(--primary-color);
+                outline-offset: 2px;
             }
 
             .icon-row.combined-icon-row .layer-number {
