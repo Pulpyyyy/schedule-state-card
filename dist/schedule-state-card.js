@@ -880,10 +880,7 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_AUTOHIDE_MS: 4000,
     TOGGLE_LOCK_MS: 300,
     HOURS_TO_SHOW: [6, 12, 18],
-    MAX_ENTITIES: 50,
-    MIN_BLOCK_WIDTH_PX: 30,
-    TEXT_CHAR_WIDTH_PX: 6,
-    TEXT_CHAR_MARGIN: 2
+    MAX_ENTITIES: 50
 };
 
 /**
@@ -1597,11 +1594,6 @@ class AppState {
             tooltip: null
         };
 
-        // Cache storage - for expensive calculations
-        this.caches = {
-            dom: null // DOM metrics (container width, etc.)
-        };
-
         // Timing tracking - for debounce logic
         this.lastUpdateTime = 0;
 
@@ -1669,36 +1661,6 @@ class AppState {
     }
 
     /**
-     * Invalidate DOM cache to force recalculation
-     */
-    invalidateDOMCache() {
-        this.caches.dom = null;
-    }
-
-    /**
-     * Set cached DOM metrics
-     * @param {object} metrics - Object containing {containerWidth: number}
-     */
-    setDOMMetrics(metrics) {
-        this.caches.dom = metrics;
-    }
-
-    /**
-     * Get cached DOM metrics or null if not cached
-     * @returns {object|null} Cached metrics or null
-     */
-    getDOMMetrics() {
-        return this.caches.dom;
-    }
-
-    /**
-     * Invalidate all caches to force recalculation
-     */
-    invalidateAllCaches() {
-        this.caches.dom = null;
-    }
-
-    /**
      * Update timing information for debounce logic
      * @param {number} timestamp - Current timestamp (from Date.now())
      */
@@ -1716,11 +1678,10 @@ class AppState {
 
     /**
      * Complete cleanup for disconnection
-     * Clears all timers, caches, and resets state
+     * Clears all timers and resets state
      */
     resetOnDisconnect() {
         this.clearAllTimers();
-        this.invalidateAllCaches();
         // layerVisibility is intentionally KEPT: HA re-parents cards in the DOM
         // (masonry re-layout), and collapsing everything on each move is bad UX
         this.eventListener = null;
@@ -1737,7 +1698,6 @@ class AppState {
                 acc[key] = this.timers[key] !== null ? 'active' : 'null';
                 return acc;
             }, {}),
-            cachedDOMMetrics: this.caches.dom !== null,
             lastUpdateTime: this.lastUpdateTime
         });
     }
@@ -2932,20 +2892,6 @@ class ScheduleStateCard extends HTMLElement {
         return String(text).replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => map[m]);
     }
 
-    truncateText(text, maxWidthPx) {
-        if (!text || typeof text !== "string") return text;
-        if (maxWidthPx < LAYOUT_CONSTANTS.MIN_BLOCK_WIDTH_PX) return "...";
-
-        const maxChars = Math.floor(maxWidthPx / LAYOUT_CONSTANTS.TEXT_CHAR_WIDTH_PX) 
-                         - LAYOUT_CONSTANTS.TEXT_CHAR_MARGIN;
-
-        if (maxChars <= 0) return "...";
-        if (text.length <= maxChars) return text;
-
-        // Return truncated text (caller will escape)
-        return text.substring(0, maxChars) + "...";
-    }
-
     resolveTemplate(template) {
         if (!template || typeof template !== "string") return template;
         if (!this._hass) return template;
@@ -2972,42 +2918,6 @@ class ScheduleStateCard extends HTMLElement {
         result = result.replace(/\|\s*float\([^)]*\)/g, "").replace(/\|\s*int\([^)]*\)/g, "").replace(/\|\s*float\b/g, "").replace(/\|\s*int\b/g, "");
         result = this._evalMath(result);
         return String(result).trim();
-    }
-
-    getCachedDOMMetrics() {
-        // Get from centralized cache
-        let metrics = this._state.getDOMMetrics();
-
-        if (metrics) {
-            return metrics;
-        }
-
-        // Calculate metrics if not cached
-        const container = this.shadowRoot.querySelector(".timeline-container");
-
-        // Safety check: if container doesn't exist, use default width
-        if (!container) {
-            debugWarn("Timeline container not found, using default width");
-            metrics = {
-                containerWidth: 800
-            };
-        } else {
-            // Get actual container width from DOM
-            const containerWidth = container.offsetWidth || 800;
-            metrics = {
-                containerWidth
-            };
-        }
-
-        // Store in centralized cache
-        this._state.setDOMMetrics(metrics);
-
-        return metrics;
-    }
-
-    invalidateDOMMetrics() {
-        // ✅ INVALIDATE CENTRALIZED CACHE
-        this._state.invalidateDOMCache();
     }
 
     _evalMath(expr) {
@@ -3575,10 +3485,6 @@ class ScheduleStateCard extends HTMLElement {
             LAYOUT_CONSTANTS.TOP_MARGIN,
             LAYOUT_CONSTANTS.BOTTOM_MARGIN
         );
-        const {
-            containerWidth
-        } = this.getCachedDOMMetrics();
-
         // Render components
         const headerHtml = this.renderRoomHeader(roomName, roomIcon, entityState, unitOfMeasurement, entityId);
         const hourLabels = this._renderHourLabels();
@@ -3589,7 +3495,6 @@ class ScheduleStateCard extends HTMLElement {
             layersToDisplay,
             allLayers,
             layersMetadata,
-            containerWidth,
             unitOfMeasurement,
             entityId,
             dayId // Passer dayId pour le collapse/expand
@@ -3807,7 +3712,7 @@ class ScheduleStateCard extends HTMLElement {
         ).join("");
     }
 
-    _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, containerWidth, unitOfMeasurement, entityId, dayId = null) {
+    _renderAllBlocksAndIcons(layersToDisplay, allLayers, layersMetadata, unitOfMeasurement, entityId, dayId = null) {
         const blockParts = [];
         const iconParts = [];
         const isSelectedDayToday = dayId ? (dayId === this.currentTime.day) : this.isToday();
@@ -3845,7 +3750,6 @@ class ScheduleStateCard extends HTMLElement {
                     currentLayer,
                     meta,
                     top,
-                    containerWidth,
                     unitOfMeasurement,
                     isSelectedDayToday
                 );
@@ -4040,7 +3944,7 @@ class ScheduleStateCard extends HTMLElement {
         return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
     }
 
-    _renderBlock(block, currentLayer, meta, top, containerWidth, unitOfMeasurement, isSelectedDayToday) {
+    _renderBlock(block, currentLayer, meta, top, unitOfMeasurement, isSelectedDayToday) {
         const metrics = this._getBlockMetrics(block);
         const {
             startMin,
@@ -4102,10 +4006,6 @@ class ScheduleStateCard extends HTMLElement {
         // Build styles
         const style = `left:${left}%;width:${width}%;top:${top}px;border-radius:${borderRadius};color:${this.validateStyleValue(textColor)};background-color:${this.validateStyleValue(color)};`;
 
-        // Truncate text to fit block width
-        const blockWidthPx = (width / 100) * containerWidth;
-        const displayText = this.truncateText(stateDisplay, blockWidthPx);
-
         // Build tooltip (with escapeHtmlAttribute for data attribute)
         const tooltip = this._buildBlockTooltip({
             block,
@@ -4117,8 +4017,9 @@ class ScheduleStateCard extends HTMLElement {
             escapedUnit
         });
 
-        // Display only text on block (no icon)
-        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${escapeHtml(displayText)}</span></div>`;
+        // Full label (already escaped): CSS cuts it to the block's real width
+        // with an ellipsis (.block-center text-overflow)
+        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${stateDisplay}</span></div>`;
     }
 
     updateContent() {
@@ -4211,8 +4112,6 @@ class ScheduleStateCard extends HTMLElement {
         
         const content = this.shadowRoot.querySelector("#content");
         if (!content) return "";
-
-        this._state.invalidateDOMCache();
 
         let timelines = "";
 

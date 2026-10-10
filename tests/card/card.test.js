@@ -168,6 +168,19 @@ describe("days layout", () => {
         expect(sigmaOf(timeline(card, "SST Price"))[0]).toBe("00:00-06:00 0 €/kWh");
     });
 
+    it("labels blocks with the full value, escaped once (CSS cuts it to the block)", async () => {
+        const day = [{ is_default_layer: true, condition_text: "default", blocks: [
+            { start: "00:00", end: "12:00", state_value: "Tom & Jerry <3", is_default_bg: true },
+            { start: "12:00", end: "23:59", state_value: "Very long state label to test truncation", is_default_bg: true },
+        ] }];
+        const hass = hassOf({ states: { "sensor.text": { entity_id: "sensor.text", state: "x", attributes: { friendly_name: "Text", layers: { mon: day } } } } });
+        const card = mountCard({ layout: "days", entities: ["sensor.text"] }, hass);
+        await settle();
+        const blocks = timeline(card, "Text").rows[0].blocks;
+        expect(blocks.map(b => b.text)).toEqual(["Tom & Jerry <3", "Very long state label to test truncation"]);
+        expect(card.shadowRoot.querySelectorAll(".block-center script, .block-center b")).toHaveLength(0);
+    });
+
     it("explains a block in its tooltip", async () => {
         const card = mountCard({ layout: "days", entities: ["sensor.sst_price", "sensor.sst_dynamic"] }, hassOf());
         await settle();
