@@ -2469,8 +2469,22 @@ class ScheduleStateCard extends HTMLElement {
         };
     }
 
+    /**
+     * Height in HA's masonry units (~50 px), layers folded. Measured: a
+     * timeline ~114 px, the title ~45 px, the day buttons and padding
+     * ~100 px (entity selector and padding ~62 px). The "entities" layout
+     * always shows 7 timelines, whatever the number of entities.
+     */
     getCardSize() {
-        return (this._config?.entities?.length ?? 1) + 2;
+        const title = this._config?.title ? 45 : 0;
+        if (this._config?.layout === "entities") return Math.ceil((62 + title + 7 * 114) / 50);
+        const timelines = Math.max(1, this._config?.entities?.length ?? 1);
+        return Math.ceil((100 + title + timelines * 114) / 50);
+    }
+
+    /** Sections view: full width by default, never narrower than half. */
+    getGridOptions() {
+        return { columns: 12, min_columns: 6 };
     }
 
     get type() {

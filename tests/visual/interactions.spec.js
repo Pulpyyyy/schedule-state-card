@@ -114,3 +114,20 @@ test("the entity name opens more-info from the keyboard", async ({ page }) => {
     await page.keyboard.press("Enter");
     expect(await opened).toBe("sensor.sst_price");
 });
+
+test("the size declared to the dashboard matches the rendered height", async ({ page }) => {
+    const configs = [
+        { layout: "days", entities: SENSORS.slice(0, 1) },
+        { title: "Planning", layout: "days", entities: SENSORS },
+        { title: "Planning", layout: "days", entities: [...SENSORS, ...SENSORS] },
+        { title: "Planning", layout: "entities", entities: SENSORS },
+        { layout: "entities", entities: SENSORS.slice(0, 1) },
+    ];
+    for (const config of configs) {
+        const card = await mount(page, config);
+        const [height, size] = await card.evaluate(el =>
+            [el.shadowRoot.querySelector("ha-card").getBoundingClientRect().height, el.getCardSize()]);
+        // Masonry units of ~50 px, one unit of tolerance
+        expect(Math.abs(size - height / 50), JSON.stringify(config)).toBeLessThanOrEqual(1);
+    }
+});
