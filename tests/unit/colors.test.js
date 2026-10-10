@@ -45,8 +45,7 @@ describe("state colors", () => {
         expect(card().getColorForState("0", "€/kWh").color).toMatch(/^hsl\(/);
     });
 
-    // Audit #1: text color picked with a 0.5 luminance threshold
-    it.fails("keep block text readable (WCAG 4.5:1) (known bug)", () => {
+    it("keep block text readable (WCAG 4.5:1)", () => {
         const c = card();
         const unreadable = SAMPLE
             .map(([v, u]) => ({ v, u, ...c.getColorForState(v, u) }))
@@ -54,9 +53,7 @@ describe("state colors", () => {
         expect(unreadable).toEqual([]);
     });
 
-    // Audit #2: block.color replaces the background, the text color still
-    // matches the generated one
-    it.fails("pick the text color for a block's own color (known bug)", async () => {
+    it("pick the text color for a block's own color", async () => {
         vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "requestAnimationFrame", "cancelAnimationFrame"] });
         vi.setSystemTime(new Date("2026-10-12T10:00:00"));
         const yellow = "#FFEB3B";

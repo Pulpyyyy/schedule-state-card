@@ -20,14 +20,14 @@ exports[`state colors > are stable across releases for the same value and unit 1
     "0",
     {
       "color": "hsl(93.4, 51%, 46%)",
-      "textColor": "#ffffff",
+      "textColor": "#000000",
     },
   ],
   [
     "eco",
     {
       "color": "hsl(226.8, 79%, 63%)",
-      "textColor": "#ffffff",
+      "textColor": "#000000",
     },
   ],
   [
@@ -41,7 +41,7 @@ exports[`state colors > are stable across releases for the same value and unit 1
     "0 €/kWh",
     {
       "color": "hsl(126.5, 63%, 46%)",
-      "textColor": "#ffffff",
+      "textColor": "#000000",
     },
   ],
 ]

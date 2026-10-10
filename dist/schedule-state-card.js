@@ -2642,14 +2642,42 @@ class ScheduleStateCard extends HTMLElement {
         return luminance;
     }
 
-    getTextColorForBackground(hslColor) {
-        const match = hslColor.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
-        if (!match) return "#000000";
-        const h = parseFloat(match[1]);
-        const s = parseFloat(match[2]);
-        const l = parseFloat(match[3]);
-        const luminance = this.getPerceivedLuminance(h, s, l);
-        return luminance > 0.5 ? "#000000" : "#ffffff";
+    /**
+     * Relative luminance (WCAG) of an hsl(), #rgb / #rrggbb or rgb() color;
+     * null for anything else (e.g. a CSS variable).
+     */
+    _colorLuminance(color) {
+        const c = String(color || "").trim();
+        let m = c.match(/^hsla?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%/i);
+        if (m) return this.getPerceivedLuminance(parseFloat(m[1]) % 360, parseFloat(m[2]), parseFloat(m[3]));
+
+        let rgb = null;
+        m = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (m) {
+            const hex = m[1].length === 3 ? [...m[1]].map(x => x + x).join("") : m[1];
+            rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+        }
+        m = c.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/i);
+        if (m) rgb = [m[1], m[2], m[3]].map(Number);
+        if (!rgb) return null;
+
+        const [r, g, b] = rgb.map(v => {
+            const s = Math.min(255, v) / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    /**
+     * Black or white text, whichever contrasts more with the background
+     * (WCAG ratio: they tie at a luminance of about 0.18, not 0.5, which
+     * left about half of the generated colors with unreadable white text).
+     * null when the background cannot be read (e.g. a CSS variable).
+     */
+    getTextColorForBackground(color) {
+        const luminance = this._colorLuminance(color);
+        if (luminance === null) return null;
+        return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#000000" : "#ffffff";
     }
 
     getColorForState(stateValue, unit) {
@@ -4037,7 +4065,9 @@ class ScheduleStateCard extends HTMLElement {
         const hasStateValue = resolvedState !== null && resolvedState !== undefined && String(resolvedState).trim() !== "";
         const colorData = this.getColorForState(hasStateValue ? resolvedState : "default", unit || unitOfMeasurement);
         const color = block.color || colorData.color;
-        const textColor = colorData.textColor;
+        // A block's own color needs its own text color (the generated one
+        // matches the generated background)
+        const textColor = (block.color && this.getTextColorForBackground(block.color)) || colorData.textColor;
 
         // Build CSS classes - PRESERVE HATCHING FOR DEFAULT BLOCKS IN COMBINED LAYER
         let blockClass = "schedule-block";
