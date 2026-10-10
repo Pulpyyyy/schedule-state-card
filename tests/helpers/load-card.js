@@ -17,7 +17,7 @@ const DEFAULT_FILE = resolve(dirname(fileURLToPath(import.meta.url)), "../../dis
 // refactor) comes back undefined instead of breaking every test file.
 const EXPOSED = [
     "CARD_VERSION", "LAYOUT_CONSTANTS", "DEFAULT_COLORS", "TRANSLATIONS", "DAY_ORDER",
-    "COLOR_CACHE", "ColorCacheSingleton",
+    "COLOR_CACHE", "ColorCacheSingleton", "TEMPLATE_SUBSCRIPTIONS",
     "TimeHelper", "ConditionEvaluator", "CombinedLayerBuilder", "LanguageHelper", "AppState",
     "ScheduleStateCard",
     "escapeHtml", "escapeHtmlAttribute", "extractTemplateEntityIds", "evaluateNowInExpression",

@@ -70,6 +70,23 @@ test("template conditions are evaluated by Home Assistant", async ({ page }) => 
     await expect.poll(async () => (await row.getAttribute("data-tooltip")).includes(winter ? "✅" : "❌")).toBe(true);
 });
 
+test("a template condition follows the result Home Assistant pushes", async ({ page }) => {
+    // {{ is_state('input_boolean.sst_away', 'on') }}: no state condition the
+    // card could judge itself, only HA's render_template subscription
+    await page.goto("/schedule-tests/templates");
+    const card = cardWith(page, "Template conditions");
+    await expect(card.locator(".schedule-block").first()).toBeVisible();
+    await expect.poll(() => readSigma(card)).toEqual(["00:00-23:59 home"]);
+
+    await setHelpers({ away: true });
+    await page.clock.runFor(1000);
+    await expect.poll(() => readSigma(card)).toEqual(["00:00-09:00 home", "09:00-17:00 away", "17:00-23:59 home"]);
+
+    await setHelpers({ away: false });
+    await page.clock.runFor(1000);
+    await expect.poll(() => readSigma(card)).toEqual(["00:00-23:59 home"]);
+});
+
 test("clicking the entity name opens Home Assistant's more-info dialog", async ({ page }) => {
     await openView(page, "issues");
     await cardWith(page, "#18").locator(".room-name").click();

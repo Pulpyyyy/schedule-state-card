@@ -880,7 +880,8 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_AUTOHIDE_MS: 4000,
     TOGGLE_LOCK_MS: 300,
     HOURS_TO_SHOW: [6, 12, 18],
-    MAX_ENTITIES: 50
+    MAX_ENTITIES: 50,
+    TEMPLATE_RELEASE_DELAY_MS: 10000
 };
 
 /**
@@ -1061,118 +1062,104 @@ function extractTemplateEntityIds(template) {
     return ids;
 }
 
+/**
+ * Template conditions are judged by Home Assistant through render_template
+ * subscriptions: HA pushes a new result whenever an entity the template
+ * reads changes, and once a minute for templates using now(). One
+ * subscription per template and HA connection for the whole page, shared by
+ * every card using it, kept while at least one card uses it.
+ */
+class TemplateSubscriptions {
+    constructor() {
+        // connection → Map(template → { result, cards: Set, unsubscribe: Promise })
+        this._byConnection = new WeakMap();
+    }
+
+    _subs(connection) {
+        let subs = this._byConnection.get(connection);
+        if (!subs) {
+            subs = new Map();
+            this._byConnection.set(connection, subs);
+        }
+        return subs;
+    }
+
+    /** HA's last result for a template (true/false), undefined until it answered. */
+    result(connection, template) {
+        return connection ? this._byConnection.get(connection)?.get(template)?.result : undefined;
+    }
+
+    /** Makes `card` use exactly `templates`: subscribes new ones, releases dropped ones. */
+    sync(card, connection, templates) {
+        if (!connection?.subscribeMessage) return;
+        const subs = this._subs(connection);
+        const wanted = new Set(templates);
+        for (const [template, sub] of subs) {
+            if (sub.cards.has(card) && !wanted.has(template)) this._release(subs, template, card);
+        }
+        for (const template of wanted) {
+            let sub = subs.get(template);
+            if (!sub) {
+                sub = { result: undefined, cards: new Set(), unsubscribe: null };
+                subs.set(template, sub);
+                this._subscribe(connection, subs, template, sub);
+            }
+            sub.cards.add(card);
+        }
+    }
+
+    /** Releases every template of `card` (it left the page). */
+    releaseAll(card, connection) {
+        const subs = connection && this._byConnection.get(connection);
+        if (!subs) return;
+        for (const [template, sub] of [...subs]) {
+            if (sub.cards.has(card)) this._release(subs, template, card);
+        }
+    }
+
+    _release(subs, template, card) {
+        const sub = subs.get(template);
+        sub.cards.delete(card);
+        if (sub.cards.size) return;
+        subs.delete(template);
+        sub.unsubscribe?.then(unsubscribe => unsubscribe?.()).catch(() => {});
+    }
+
+    _subscribe(connection, subs, template, sub) {
+        sub.unsubscribe = connection.subscribeMessage(
+            (msg) => this._set(subs, template, sub, msg.error !== undefined
+                ? this._fallback(template)
+                : String(msg.result).trim().toLowerCase() === "true"),
+            { type: "render_template", template }
+        ).catch((e) => {
+            // Rejected by HA (e.g. a syntax error): judge it locally once
+            errorLog("TemplateSubscriptions", "Template subscription failed:", template, e);
+            this._set(subs, template, sub, this._fallback(template));
+            return null;
+        });
+    }
+
+    /** Local guess when HA cannot judge the template: now() patterns, else true. */
+    _fallback(template) {
+        const inner = template.replace(/^\s*\{\{\s*/, "").replace(/\s*\}\}\s*$/, "").trim();
+        const value = evaluateNowInExpression(inner);
+        return value !== null ? value : true;
+    }
+
+    _set(subs, template, sub, value) {
+        // Released meanwhile, or nothing new: no re-render
+        if (subs.get(template) !== sub || sub.result === value) return;
+        sub.result = value;
+        for (const card of sub.cards) card._onTemplateResult?.();
+    }
+}
+
+const TEMPLATE_SUBSCRIPTIONS = new TemplateSubscriptions();
+
 class ConditionEvaluator {
     constructor(hass, selectedDay = "mon") {
         this.hass = hass;
         this.selectedDay = selectedDay;
-        this.templateCache = new Map();      // value_template string → boolean (last known HA result)
-        this._templateCacheKeys = new Map(); // value_template string → clock key of its last fetch
-        this._templateRequests = new Map();  // value_template string → id of its in-flight request
-        this._templateRequestId = 0;
-    }
-
-    /**
-     * Evaluate the given template strings via HA's WebSocket (Jinja2 engine)
-     * and store results in templateCache.
-     *
-     * A template is re-fetched when its clock key is older than cacheKey, or
-     * unconditionally when listed in `force` (an entity it references changed).
-     * The caller passes a minute-resolution clock key (see set hass), NOT the
-     * sensor's last_update attribute: last_update is bookkeeping the card must
-     * ignore (see _attrsChangedIgnoringNoise).
-     *
-     * Stale results are NEVER cleared before the fresh ones arrive: a render
-     * happening in between keeps showing the last known HA result instead of
-     * the "not yet cached → true" fallback, which would otherwise stick on
-     * screen whenever the fresh result equals the previous one.
-     *
-     * All templates are fetched in parallel in a single Promise.all().
-     * Returns true only when a template's boolean RESULT actually changed —
-     * re-fetching identical values (the common case with a clock-driven key)
-     * does not trigger a re-render. Failed evaluations are cached with the JS
-     * fallback value so a permanently failing template does not retry a WS
-     * round-trip on every refresh.
-     *
-     * @param {Object} hass - Home Assistant hass object
-     * @param {string[]} templates - List of value_template strings to evaluate
-     * @param {string} cacheKey - Invalidation key (minute-resolution clock)
-     * @param {Set<string>} [force] - Templates to re-fetch regardless of cacheKey
-     * @returns {Promise<boolean>} true if at least one cached result changed
-     */
-    async refreshTemplateCache(hass, templates, cacheKey, force = null) {
-        // Forget templates no longer referenced by any layer
-        const wanted = new Set(templates);
-        for (const t of [...this.templateCache.keys()]) {
-            if (!wanted.has(t)) {
-                this.templateCache.delete(t);
-                this._templateCacheKeys.delete(t);
-            }
-        }
-
-        // An in-flight request for the current key is enough, unless forced:
-        // a forced request supersedes it (its answer may predate the change)
-        const toFetch = templates.filter(t => force?.has(t) ||
-            (this._templateCacheKeys.get(t) !== cacheKey && !this._templateRequests.has(t)));
-        if (!toFetch.length) return false;
-
-        let changed = false;
-        await Promise.all(toFetch.map(async (tmpl) => {
-            const requestId = ++this._templateRequestId;
-            this._templateRequests.set(tmpl, requestId);
-            this._templateCacheKeys.set(tmpl, cacheKey);
-            let value;
-            try {
-                const result = await this._evaluateTemplateViaWS(hass, tmpl);
-                value = String(result).trim().toLowerCase() === 'true';
-            } catch (e) {
-                errorLog('ConditionEvaluator', 'Template evaluation error via HA API:', tmpl, e);
-                // Cache the same value _evaluateTemplateCondition would compute
-                // live (JS fallback, else true) — no visual change, no WS retry spam.
-                const inner = tmpl.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
-                const fallback = evaluateNowInExpression(inner);
-                value = fallback !== null ? fallback : true;
-            }
-            // A newer (forced) request for this template was issued meanwhile: its answer wins
-            if (this._templateRequests.get(tmpl) !== requestId) return;
-            this._templateRequests.delete(tmpl);
-            if (this.templateCache.get(tmpl) !== value) changed = true;
-            this.templateCache.set(tmpl, value);
-        }));
-
-        return changed;
-    }
-
-    /**
-     * Evaluate a Jinja2 template via WebSocket (render_template).
-     * Works for non-admin users, unlike the REST /api/template endpoint.
-     */
-    _evaluateTemplateViaWS(hass, template) {
-        return new Promise((resolve, reject) => {
-            let unsubscribe;
-            let timedOut = false;
-            const timer = setTimeout(() => {
-                timedOut = true;
-                if (unsubscribe) unsubscribe();
-                reject(new Error('Template evaluation timeout'));
-            }, 5000);
-
-            hass.connection.subscribeMessage(
-                (msg) => {
-                    clearTimeout(timer);
-                    if (unsubscribe) unsubscribe();
-                    resolve(msg.result);
-                },
-                { type: 'render_template', template }
-            ).then(u => {
-                unsubscribe = u;
-                // Subscription established AFTER the timeout fired: the promise is
-                // already rejected — unsubscribe immediately so nothing leaks
-                if (timedOut) unsubscribe();
-            }).catch(e => {
-                clearTimeout(timer);
-                reject(e);
-            });
-        });
     }
 
     evaluateCondition(condition) {
@@ -1294,13 +1281,12 @@ class ConditionEvaluator {
         const template = condition.value_template;
         if (!template || typeof template !== "string") return true;
 
-        // Use HA-evaluated result if available (populated by refreshTemplateCache)
-        if (this.templateCache.has(template)) {
-            return this.templateCache.get(template);
-        }
+        // HA's result, pushed by its render_template subscription
+        const result = TEMPLATE_SUBSCRIPTIONS.result(this.hass?.connection, template);
+        if (result !== undefined) return result;
 
         // JS fallback for "now().X in range/list" patterns — covers any now() attribute.
-        // Used only on the initial render before the async HA cache is populated.
+        // Used only until HA's first answer arrives.
         const inner = template.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
         const jsResult = evaluateNowInExpression(inner);
         if (jsResult !== null) return jsResult;
@@ -2030,7 +2016,10 @@ class ScheduleStateCard extends HTMLElement {
         COLOR_CACHE.setOwnerOverrides(this, this._config.color_overrides);
         this._overridesReleased = false;
 
-        if (this._hass) this.render();
+        if (this._hass) {
+            this._syncTemplateSubscriptions(this._hass);
+            this.render();
+        }
     }
 
     initializeServices(hass) {
@@ -2191,10 +2180,9 @@ class ScheduleStateCard extends HTMLElement {
             return;
         }
 
-        // Something relevant changed: layers may carry new template conditions,
-        // and templates referencing a changed entity must be re-evaluated now.
-        // Periodic freshness is handled by the 1-minute timer.
-        this._refreshTemplateConditions(hass, oldHass);
+        // Something relevant changed: the layers may carry other template
+        // conditions (their results are pushed by HA, see _onTemplateResult)
+        this._syncTemplateSubscriptions(hass);
 
         const now = Date.now();
         const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
@@ -2213,31 +2201,15 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Collect all unique `condition: template` value_template strings from every
-     * entity layer and ask ConditionEvaluator to refresh their cached results via
-     * HA's WebSocket render_template (works for non-admin users).
-     *
-     * Cache invalidation is CLOCK-DRIVEN (minute resolution, matching HA's own
-     * template evaluation cycle) and fully decoupled from state churn: it no
-     * longer depends on the sensor's last_update attribute, which may beat
-     * without any real change — or stop beating entirely if the integration
-     * stops rewriting unchanged states.
-     *
-     * Called from the 1-minute timeline timer (freshness heartbeat) and from
-     * set hass AFTER the dirty-check (new templates can only appear when a
-     * relevant entity's layers changed). From set hass, `oldHass` is passed so
-     * templates referencing an entity that just changed are re-fetched at once
-     * instead of waiting for the next minute. Re-render is triggered only when
-     * a template's boolean result actually flipped.
-     *
-     * @param {Object} hass - Home Assistant hass object
-     * @param {Object} [oldHass] - Previous hass, to detect changed template entities
+     * Subscribes to the template conditions of every configured schedule
+     * (nested and/or/not included) and releases the ones no longer used.
+     * Home Assistant judges them and pushes each new result (on a change of
+     * an entity they read, or every minute for now()): no polling.
      */
-    _refreshTemplateConditions(hass, oldHass = null) {
-        if (!this._config?.entities || !this.conditionEvaluator) return;
+    _syncTemplateSubscriptions(hass) {
+        if (!this._config?.entities || !hass?.states) return;
 
         const templates = new Set();
-        // Templates nested in and/or/not are evaluated too — collect them all
         const collect = (cond) => {
             if (!cond || typeof cond !== 'object') return;
             if (cond.condition === 'template' && typeof cond.value_template === 'string') {
@@ -2248,10 +2220,7 @@ class ScheduleStateCard extends HTMLElement {
 
         for (const entityConfig of this._config.entities) {
             const entityId = typeof entityConfig === 'string' ? entityConfig : entityConfig.entity;
-            const state = hass.states[entityId];
-            if (!state) continue;
-
-            const layers = state.attributes?.layers;
+            const layers = hass.states[entityId]?.attributes?.layers;
             if (!layers) continue;
             for (const dayLayers of Object.values(layers)) {
                 for (const layer of dayLayers) {
@@ -2262,20 +2231,17 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        if (templates.size === 0) return;
+        TEMPLATE_SUBSCRIPTIONS.sync(this, hass.connection, templates);
+    }
 
-        let force = null;
-        if (oldHass) {
-            const { scheduleIds } = this._collectRelevantEntityIds(hass);
-            force = new Set([...templates].filter(t =>
-                extractTemplateEntityIds(t).some(id => this._templateEntityChanged(id, oldHass, hass, scheduleIds))));
-        }
-
-        const cacheKey = `minute-${Math.floor(Date.now() / 60000)}`;
-
-        this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey, force)
-            .then(updated => { if (updated) this.updateContent(); })
-            .catch(e => errorLog('ScheduleStateCard', 'Failed to refresh template conditions:', e));
+    /** A template result changed: one re-render for a burst of results. */
+    _onTemplateResult() {
+        if (this._templateRenderQueued) return;
+        this._templateRenderQueued = true;
+        queueMicrotask(() => {
+            this._templateRenderQueued = false;
+            if (this._hass && this.shadowRoot.querySelector("#content")) this.updateContent();
+        });
     }
 
     /**
@@ -2524,10 +2490,6 @@ class ScheduleStateCard extends HTMLElement {
 
         // Create new interval using centralized constant
         this.updateInterval = setInterval(() => {
-            // Clock-driven template freshness (minute-keyed cache): re-render
-            // fires only if a template condition's result actually flipped
-            if (this._hass) this._refreshTemplateConditions(this._hass);
-
             const previousDay = this.currentTime.day;
             this.currentTime = this.getCurrentTime();
 
@@ -4569,6 +4531,11 @@ class ScheduleStateCard extends HTMLElement {
             this._wasDisconnected = false;
             this.render();
         }
+
+        // Back within the grace delay: the template subscriptions were kept.
+        // Back later: subscribe again
+        clearTimeout(this._templateReleaseTimer);
+        if (this._hass) this._syncTemplateSubscriptions(this._hass);
     }
 
     /**
@@ -4603,6 +4570,14 @@ class ScheduleStateCard extends HTMLElement {
 
         // Stop timeline updates
         this.stopTimelineUpdate();
+
+        // Template subscriptions: kept a moment, since HA re-parents cards
+        // (disconnect + reconnect) and a new subscription would briefly show
+        // the local guess instead of HA's result
+        const connection = this._hass?.connection;
+        clearTimeout(this._templateReleaseTimer);
+        this._templateReleaseTimer = setTimeout(() => TEMPLATE_SUBSCRIPTIONS.releaseAll(this, connection),
+            LAYOUT_CONSTANTS.TEMPLATE_RELEASE_DELAY_MS);
 
         // Detach listeners BEFORE resetOnDisconnect() nulls the stored references
         const container = this.shadowRoot?.querySelector("#content");

@@ -337,6 +337,51 @@ describe("reactivity", () => {
         expect(card.shadowRoot.querySelector(".schedule-block")).not.toBeNull();
     });
 
+    describe("template conditions", () => {
+        const winterRow = (card) => {
+            clickSigma(card);
+            return () => timeline(card, "SST Thermostat").rows.find(r => r.tooltip?.includes("now().month") || r.tooltip?.includes("Month"));
+        };
+
+        it("follow the results Home Assistant pushes, without polling", async () => {
+            const hass = hassOf();
+            const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hass);
+            await settle();
+            const row = winterRow(card);
+            await settle();
+            expect(row().tooltip).toContain("❌");
+
+            hass.connection.push(WINTER, true);
+            await settle();
+            expect(row().tooltip).toContain("✅");
+
+            await vi.advanceTimersByTimeAsync(5 * 60_000);
+            expect(hass.connection.templateCalls).toEqual([WINTER]);
+        });
+
+        it("share one subscription between cards", async () => {
+            const hass = hassOf();
+            mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hass);
+            mountCard({ layout: "entities", entities: ["sensor.sst_thermostat"] }, hass);
+            await settle();
+            expect(hass.connection.templateCalls).toEqual([WINTER]);
+        });
+
+        it("survive the card being moved in the page, and end when it leaves", async () => {
+            const hass = hassOf();
+            const card = mountCard({ layout: "days", entities: ["sensor.sst_thermostat"] }, hass);
+            await settle();
+            card.remove();
+            document.body.appendChild(card); // HA re-parents cards (masonry, views)
+            await settle();
+            expect(hass.connection.templateCalls).toEqual([WINTER]);
+
+            card.remove();
+            await vi.advanceTimersByTimeAsync(11_000);
+            expect(hass.connection.active()).toEqual([]);
+        });
+    });
+
     it("ignores changes it does not depend on", async () => {
         const hass = hassOf();
         const card = mountCard({ layout: "days", entities: ["sensor.sst_issue_18"] }, hass);

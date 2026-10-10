@@ -199,3 +199,17 @@ sensor:
         end: "23:59"
         state: "sleep"
         condition: *top
+
+  # Template condition on an entity: Home Assistant pushes the new result
+  # through the card's render_template subscription when sst_away changes
+  - platform: schedule_state
+    name: SST Template
+    icon: mdi:code-braces
+    default_state: "home"
+    events:
+      - start: "09:00"
+        end: "17:00"
+        state: "away"
+        condition:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.sst_away', 'on') }}"
