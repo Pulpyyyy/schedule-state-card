@@ -1899,6 +1899,15 @@ class ScheduleStateCard extends HTMLElement {
         const tf = this._hass?.locale?.time_format;
         if (tf === "12") return true;
         if (tf === "24") return false;
+        // Called for every hour label: ask Intl once per locale setting
+        const key = `${tf}|${this._hass?.locale?.language}`;
+        if (this._hour12Key === key) return this._hour12;
+        this._hour12Key = key;
+        this._hour12 = this._localeUses12Hours(tf);
+        return this._hour12;
+    }
+
+    _localeUses12Hours(tf) {
         // "language" / "system" (or unset): let Intl decide from the locale,
         // so en-GB gets 24h while en-US gets 12h instead of forcing 12h on all English
         const locale = tf === "system" ? undefined : (this._hass?.locale?.language || "en").replace("_", "-");
@@ -3608,7 +3617,22 @@ class ScheduleStateCard extends HTMLElement {
      * AND. Falls back to the server-flattened condition_text when no
      * structured conditions are available (compat).
      */
+    /**
+     * Cached per layer object and language: the layers keep their identity
+     * until the schedule changes, and describing their conditions runs many
+     * regular expressions and Intl formatters on every render otherwise.
+     */
     _getLayerConditionText(layer) {
+        const language = this.getLanguage();
+        this._conditionTexts ??= new WeakMap();
+        const cached = this._conditionTexts.get(layer);
+        if (cached?.language === language) return cached.text;
+        const text = this._describeLayerConditions(layer);
+        this._conditionTexts.set(layer, { language, text });
+        return text;
+    }
+
+    _describeLayerConditions(layer) {
         if (!layer.is_combined_layer && this.conditionEvaluator) {
             const conditions = this.conditionEvaluator._collectUniqueConditions(layer.blocks || []);
             const parts = conditions.map(c => this.describeCondition(c)).filter(Boolean);
