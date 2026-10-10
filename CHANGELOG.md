@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.2.5] - 2026-10-10
+
+### Fixed
+- **Σ is no longer cut into pieces** ([#18](https://github.com/Pulpyyyy/schedule-state-card/issues/18)): the combined layer was split at every start and end of every active layer, so a layer winning the whole day showed up as many small blocks. Consecutive segments of the same layer with the same value are merged. When Σ is folded, identical neighbours from different layers are merged too, like the `schedule_state` entity does; unfolded, the cut where the layer changes is kept, since the result may change there. A wrapping event ending at midnight is no longer cut at 23:59 either.
+- **Editor: the card title and entity name fields are back**: Home Assistant 2026.x no longer provides the text field the editor used, so these two fields were invisible and could not be edited. They now update the preview as you type.
+- **Editor: changes are no longer lost while editing**: each change redrew the whole editor, so the color picker closed on its own change and the text typed for a new color override was lost when another setting changed.
+- **Block text is readable on every background**: about half of the generated colors had white text below the readable contrast (white on light green, for instance). The text is now black or white, whichever contrasts more. A block with its own color now gets a text color for that color.
+- **Conditions evaluated like Home Assistant**: a `state` condition with a list of states (`state: [a, b]`) was never true, and `not` only looked at its first condition. Layers using them could show as active or inactive in the card while the entity said the opposite.
+- **The day selector follows midnight**: when today was shown, the card moved to the new day at midnight but kept highlighting the previous day's button.
+- **Tooltips no longer blink**: moving the pointer over a block's label, or to the next block, hid the tooltip for a moment.
+- **Block labels use the block's real width**: labels were cut from an estimated width, so on a phone most blocks showed `...` or `com...`. The browser now cuts them to the space actually available. A value containing `&` or `<` was shown escaped (`Tom &amp; Jerry`).
+- **The Σ of another entity responds right after a click**: any Σ click ignored all Σ clicks of the card for 300 ms.
+
+### Performance
+- **No more full redraw when nothing changes on screen**: every relevant state change rebuilt the whole card, recreating every icon (they flickered) and losing the hover state. The card now keeps its content when the result is identical, and no longer forces a layout measurement on each render.
+
+### Documentation
+- README matches what `schedule_state` 0.20.4 accepts: the unit goes in `extra_attributes`, an event ending at `00:00` is ignored by the integration (end the day with `23:59`, or use `allow_wrap`), and `unit`, `description` and `tooltip` are not passed on to the card.
+
+### Tests
+- Automated tests now guard against regressions: unit and behavior tests, screenshots of the card in light and dark themes on desktop and mobile, and tests inside a real Home Assistant, editor included. They run on every push and pull request.
+
 ## [2.2.4] - 2026-10-06
 
 ### Fixed
