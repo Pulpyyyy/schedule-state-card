@@ -304,10 +304,10 @@ class ScheduleStateCardEditor extends HTMLElement {
   <span class="entity-name">${escapeHtml(nm)}</span>
   <span class="entity-id">${escapeHtml(id)}</span>
   <div class="row-actions">
-    <button class="icon-btn edit-btn" data-index="${index}" title="Edit">
+    <button class="icon-btn edit-btn" data-index="${index}" title="${t('editor_edit')}" aria-label="${t('editor_edit')}">
       <ha-icon icon="mdi:pencil"></ha-icon>
     </button>
-    <button class="icon-btn danger remove-btn" data-index="${index}" title="Delete">
+    <button class="icon-btn danger remove-btn" data-index="${index}" title="${t('editor_delete')}" aria-label="${t('editor_delete')}">
       <ha-icon icon="mdi:delete"></ha-icon>
     </button>
   </div>
@@ -348,7 +348,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
 <div class="override-row">
   <div class="override-chip" style="background:${bg};color:${text};">${escapeHtml(value)}${unit ? ' ' + escapeHtml(unit) : ''}</div>
   <span class="override-key">${escapeHtml(key)}</span>
-  <button class="icon-btn danger delete-override-btn" data-override-key="${escapeHtml(key)}" title="Delete">
+  <button class="icon-btn danger delete-override-btn" data-override-key="${escapeHtml(key)}" title="${t('editor_delete')}" aria-label="${t('editor_delete')}">
     <ha-icon icon="mdi:delete"></ha-icon>
   </button>
 </div>`;
@@ -469,7 +469,8 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             sel.value    = this._hexToRgb(color);
             sel.addEventListener('value-changed', e => {
                 const hex    = this._rgbToHex(e.detail.value);
-                const colors = { ...DEFAULT_COLORS, ...(this._config.colors || {}), [key]: hex };
+                // Only the changed color: the others keep following the defaults
+                const colors = { ...(this._config.colors || {}), [key]: hex };
                 this._config = { ...this._config, colors };
                 this._fire();
             });

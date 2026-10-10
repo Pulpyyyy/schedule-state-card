@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { loadCard } from "../helpers/load-card.js";
 import { makeHass, dayLayers } from "../helpers/hass.js";
 
-const { ConditionEvaluator, extractTemplateEntityIds } = loadCard();
+const { ConditionEvaluator, TEMPLATE_SUBSCRIPTIONS, extractTemplateEntityIds } = loadCard();
 
 const evaluator = (opts, day = "mon") => new ConditionEvaluator(makeHass(opts), day);
 const state = (entity_id, s) => ({ condition: "state", entity_id, state: s });
@@ -100,48 +100,74 @@ describe("and / or / not", () => {
 
 describe("template condition", () => {
     const WINTER = "{{ now().month in [11, 12, 1, 2, 3] }}";
+    const TMPL = "{{ is_state('input_boolean.x', 'on') }}";
+    const cond = (value_template) => ({ condition: "template", value_template });
+    const flush = () => new Promise(r => setTimeout(r, 0));
 
-    it("uses the result Home Assistant rendered", async () => {
-        const hass = makeHass({ templates: { "{{ is_state('x', 'y') }}": true } });
+    it("uses the result Home Assistant pushes, and each new one", async () => {
+        const hass = makeHass({ templates: { [TMPL]: true } });
+        const card = { _onTemplateResult: vi.fn() };
+        TEMPLATE_SUBSCRIPTIONS.sync(card, hass.connection, [TMPL]);
+        await flush();
         const ev = new ConditionEvaluator(hass, "mon");
-        const tmpl = "{{ is_state('x', 'y') }}";
-        expect(await ev.refreshTemplateCache(hass, [tmpl], "k1")).toBe(true);
-        expect(ev.evaluateCondition({ condition: "template", value_template: tmpl })).toBe(true);
+        expect(ev.evaluateCondition(cond(TMPL))).toBe(true);
+        expect(card._onTemplateResult).toHaveBeenCalledTimes(1);
+
+        hass.connection.push(TMPL, false);
+        expect(ev.evaluateCondition(cond(TMPL))).toBe(false);
+        expect(card._onTemplateResult).toHaveBeenCalledTimes(2);
+
+        // Same result again: nothing to redraw
+        hass.connection.push(TMPL, false);
+        expect(card._onTemplateResult).toHaveBeenCalledTimes(2);
+        TEMPLATE_SUBSCRIPTIONS.releaseAll(card, hass.connection);
     });
 
     it("falls back to a local now() evaluation before HA answers", () => {
-        expect(evaluator().evaluateCondition({ condition: "template", value_template: WINTER })).toBe(false);
+        expect(evaluator().evaluateCondition(cond(WINTER))).toBe(false);
         vi.setSystemTime(new Date("2026-12-01T10:00:00"));
-        expect(evaluator().evaluateCondition({ condition: "template", value_template: WINTER })).toBe(true);
+        expect(evaluator().evaluateCondition(cond(WINTER))).toBe(true);
     });
 
-    it("keeps the last HA result while a refresh is in flight", async () => {
-        const tmpl = "{{ states('sensor.x') == 'on' }}";
-        const hass = makeHass({ templates: { [tmpl]: true } });
-        const ev = new ConditionEvaluator(hass, "mon");
-        await ev.refreshTemplateCache(hass, [tmpl], "k1");
-        const pending = ev.refreshTemplateCache(makeHass({ templates: { [tmpl]: false } }), [tmpl], "k2");
-        expect(ev.evaluateCondition({ condition: "template", value_template: tmpl })).toBe(true);
-        expect(await pending).toBe(true);
-        expect(ev.evaluateCondition({ condition: "template", value_template: tmpl })).toBe(false);
+    it("subscribes once per template for all the cards using it", async () => {
+        const hass = makeHass({ templates: { [TMPL]: true } });
+        const [a, b] = [{}, {}];
+        TEMPLATE_SUBSCRIPTIONS.sync(a, hass.connection, [TMPL]);
+        TEMPLATE_SUBSCRIPTIONS.sync(b, hass.connection, [TMPL]);
+        await flush();
+        expect(hass.connection.templateCalls).toEqual([TMPL]);
+
+        // Kept while a card still uses it
+        TEMPLATE_SUBSCRIPTIONS.releaseAll(a, hass.connection);
+        await flush();
+        expect(hass.connection.active()).toEqual([TMPL]);
+        TEMPLATE_SUBSCRIPTIONS.releaseAll(b, hass.connection);
+        await flush();
+        expect(hass.connection.active()).toEqual([]);
     });
 
-    it("does not query HA again for the same clock key", async () => {
-        const tmpl = "{{ true }}";
-        const hass = makeHass({ templates: { [tmpl]: true } });
-        const ev = new ConditionEvaluator(hass, "mon");
-        await ev.refreshTemplateCache(hass, [tmpl], "k1");
-        expect(await ev.refreshTemplateCache(hass, [tmpl], "k1")).toBe(false);
+    it("releases a template the card no longer uses", async () => {
+        const other = "{{ true }}";
+        const hass = makeHass({ templates: { [TMPL]: true, [other]: true } });
+        const card = {};
+        TEMPLATE_SUBSCRIPTIONS.sync(card, hass.connection, [TMPL, other]);
+        await flush();
+        TEMPLATE_SUBSCRIPTIONS.sync(card, hass.connection, [other]);
+        await flush();
+        expect(hass.connection.active()).toEqual([other]);
+        TEMPLATE_SUBSCRIPTIONS.releaseAll(card, hass.connection);
+    });
+
+    it("judges locally, once, a template HA rejects", async () => {
+        const hass = makeHass(); // no fixture result: HA rejects the subscription
+        const card = {};
+        TEMPLATE_SUBSCRIPTIONS.sync(card, hass.connection, [WINTER]);
+        await flush();
+        TEMPLATE_SUBSCRIPTIONS.sync(card, hass.connection, [WINTER]);
+        await flush();
         expect(hass.connection.templateCalls).toHaveLength(1);
-    });
-
-    it("caches the fallback when HA fails, without retrying on the same key", async () => {
-        const hass = makeHass(); // no fixture result: render_template fails
-        const ev = new ConditionEvaluator(hass, "mon");
-        await ev.refreshTemplateCache(hass, [WINTER], "k1");
-        await ev.refreshTemplateCache(hass, [WINTER], "k1");
-        expect(hass.connection.templateCalls).toHaveLength(1);
-        expect(ev.evaluateCondition({ condition: "template", value_template: WINTER })).toBe(false);
+        expect(new ConditionEvaluator(hass, "mon").evaluateCondition(cond(WINTER))).toBe(false);
+        TEMPLATE_SUBSCRIPTIONS.releaseAll(card, hass.connection);
     });
 });
 

@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.2.5";
+const CARD_VERSION = "2.3.0";
 
 console.info(`%c 🙂 Schedule State Card %c v${CARD_VERSION} %c`, "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold", "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0", "background:none");
 
@@ -364,6 +364,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Text",
         editor_override_add_button: "Add Override",
         editor_override_no_overrides: "No overrides configured",
+        editor_edit: "Edit",
+        editor_delete: "Delete",
         common: {
             edit: "Edit",
             delete: "Delete"
@@ -439,6 +441,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texte",
         editor_override_add_button: "Ajouter un Remplacement",
         editor_override_no_overrides: "Aucun remplacement configuré",
+        editor_edit: "Modifier",
+        editor_delete: "Supprimer",
         common: {
             edit: "Éditer",
             delete: "Supprimer"
@@ -514,6 +518,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Text",
         editor_override_add_button: "Überschreibung Hinzufügen",
         editor_override_no_overrides: "Keine Überschreibungen konfiguriert",
+        editor_edit: "Bearbeiten",
+        editor_delete: "Löschen",
         common: {
             edit: "Bearbeiten",
             delete: "Löschen"
@@ -589,6 +595,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Agregar Sobrescritura",
         editor_override_no_overrides: "No hay sobrescrituras configuradas",
+        editor_edit: "Editar",
+        editor_delete: "Eliminar",
         common: {
             edit: "Editar",
             delete: "Eliminar"
@@ -664,6 +672,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
         editor_override_no_overrides: "Nenhuma substituição configurada",
+        editor_edit: "Editar",
+        editor_delete: "Eliminar",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -739,6 +749,8 @@ const TRANSLATIONS = {
         editor_override_text_label: "Texto",
         editor_override_add_button: "Adicionar Substituição",
         editor_override_no_overrides: "Nenhuma substituição configurada",
+        editor_edit: "Editar",
+        editor_delete: "Excluir",
         common: {
             edit: "Editar",
             delete: "Excluir"
@@ -863,7 +875,7 @@ const DAY_ABBREVIATION_MAP = {
  * Eliminates magic numbers throughout the codebase
  */
 const LAYOUT_CONSTANTS = {
-    BLOCK_HEIGHT: 20,
+    BLOCK_HEIGHT: 24,
     VERTICAL_GAP: 8,
     TOP_MARGIN: 4,
     BOTTOM_MARGIN: 20,
@@ -880,7 +892,8 @@ const LAYOUT_CONSTANTS = {
     TOOLTIP_AUTOHIDE_MS: 4000,
     TOGGLE_LOCK_MS: 300,
     HOURS_TO_SHOW: [6, 12, 18],
-    MAX_ENTITIES: 50
+    MAX_ENTITIES: 50,
+    TEMPLATE_RELEASE_DELAY_MS: 10000
 };
 
 /**
@@ -990,7 +1003,7 @@ class TimeHelper {
         return "4px";
     }
 
-    _calculateContainerHeight(layerCount, blockHeight = 20, verticalGap = 8, topMargin = 4, bottomMargin = 20) {
+    _calculateContainerHeight(layerCount, blockHeight = LAYOUT_CONSTANTS.BLOCK_HEIGHT, verticalGap = LAYOUT_CONSTANTS.VERTICAL_GAP, topMargin = LAYOUT_CONSTANTS.TOP_MARGIN, bottomMargin = LAYOUT_CONSTANTS.BOTTOM_MARGIN) {
         if (layerCount === 0) return topMargin + bottomMargin;
         return topMargin + layerCount * blockHeight + (layerCount - 1) * verticalGap + bottomMargin;
     }
@@ -1061,118 +1074,104 @@ function extractTemplateEntityIds(template) {
     return ids;
 }
 
+/**
+ * Template conditions are judged by Home Assistant through render_template
+ * subscriptions: HA pushes a new result whenever an entity the template
+ * reads changes, and once a minute for templates using now(). One
+ * subscription per template and HA connection for the whole page, shared by
+ * every card using it, kept while at least one card uses it.
+ */
+class TemplateSubscriptions {
+    constructor() {
+        // connection → Map(template → { result, cards: Set, unsubscribe: Promise })
+        this._byConnection = new WeakMap();
+    }
+
+    _subs(connection) {
+        let subs = this._byConnection.get(connection);
+        if (!subs) {
+            subs = new Map();
+            this._byConnection.set(connection, subs);
+        }
+        return subs;
+    }
+
+    /** HA's last result for a template (true/false), undefined until it answered. */
+    result(connection, template) {
+        return connection ? this._byConnection.get(connection)?.get(template)?.result : undefined;
+    }
+
+    /** Makes `card` use exactly `templates`: subscribes new ones, releases dropped ones. */
+    sync(card, connection, templates) {
+        if (!connection?.subscribeMessage) return;
+        const subs = this._subs(connection);
+        const wanted = new Set(templates);
+        for (const [template, sub] of subs) {
+            if (sub.cards.has(card) && !wanted.has(template)) this._release(subs, template, card);
+        }
+        for (const template of wanted) {
+            let sub = subs.get(template);
+            if (!sub) {
+                sub = { result: undefined, cards: new Set(), unsubscribe: null };
+                subs.set(template, sub);
+                this._subscribe(connection, subs, template, sub);
+            }
+            sub.cards.add(card);
+        }
+    }
+
+    /** Releases every template of `card` (it left the page). */
+    releaseAll(card, connection) {
+        const subs = connection && this._byConnection.get(connection);
+        if (!subs) return;
+        for (const [template, sub] of [...subs]) {
+            if (sub.cards.has(card)) this._release(subs, template, card);
+        }
+    }
+
+    _release(subs, template, card) {
+        const sub = subs.get(template);
+        sub.cards.delete(card);
+        if (sub.cards.size) return;
+        subs.delete(template);
+        sub.unsubscribe?.then(unsubscribe => unsubscribe?.()).catch(() => {});
+    }
+
+    _subscribe(connection, subs, template, sub) {
+        sub.unsubscribe = connection.subscribeMessage(
+            (msg) => this._set(subs, template, sub, msg.error !== undefined
+                ? this._fallback(template)
+                : String(msg.result).trim().toLowerCase() === "true"),
+            { type: "render_template", template }
+        ).catch((e) => {
+            // Rejected by HA (e.g. a syntax error): judge it locally once
+            errorLog("TemplateSubscriptions", "Template subscription failed:", template, e);
+            this._set(subs, template, sub, this._fallback(template));
+            return null;
+        });
+    }
+
+    /** Local guess when HA cannot judge the template: now() patterns, else true. */
+    _fallback(template) {
+        const inner = template.replace(/^\s*\{\{\s*/, "").replace(/\s*\}\}\s*$/, "").trim();
+        const value = evaluateNowInExpression(inner);
+        return value !== null ? value : true;
+    }
+
+    _set(subs, template, sub, value) {
+        // Released meanwhile, or nothing new: no re-render
+        if (subs.get(template) !== sub || sub.result === value) return;
+        sub.result = value;
+        for (const card of sub.cards) card._onTemplateResult?.();
+    }
+}
+
+const TEMPLATE_SUBSCRIPTIONS = new TemplateSubscriptions();
+
 class ConditionEvaluator {
     constructor(hass, selectedDay = "mon") {
         this.hass = hass;
         this.selectedDay = selectedDay;
-        this.templateCache = new Map();      // value_template string → boolean (last known HA result)
-        this._templateCacheKeys = new Map(); // value_template string → clock key of its last fetch
-        this._templateRequests = new Map();  // value_template string → id of its in-flight request
-        this._templateRequestId = 0;
-    }
-
-    /**
-     * Evaluate the given template strings via HA's WebSocket (Jinja2 engine)
-     * and store results in templateCache.
-     *
-     * A template is re-fetched when its clock key is older than cacheKey, or
-     * unconditionally when listed in `force` (an entity it references changed).
-     * The caller passes a minute-resolution clock key (see set hass), NOT the
-     * sensor's last_update attribute: last_update is bookkeeping the card must
-     * ignore (see _attrsChangedIgnoringNoise).
-     *
-     * Stale results are NEVER cleared before the fresh ones arrive: a render
-     * happening in between keeps showing the last known HA result instead of
-     * the "not yet cached → true" fallback, which would otherwise stick on
-     * screen whenever the fresh result equals the previous one.
-     *
-     * All templates are fetched in parallel in a single Promise.all().
-     * Returns true only when a template's boolean RESULT actually changed —
-     * re-fetching identical values (the common case with a clock-driven key)
-     * does not trigger a re-render. Failed evaluations are cached with the JS
-     * fallback value so a permanently failing template does not retry a WS
-     * round-trip on every refresh.
-     *
-     * @param {Object} hass - Home Assistant hass object
-     * @param {string[]} templates - List of value_template strings to evaluate
-     * @param {string} cacheKey - Invalidation key (minute-resolution clock)
-     * @param {Set<string>} [force] - Templates to re-fetch regardless of cacheKey
-     * @returns {Promise<boolean>} true if at least one cached result changed
-     */
-    async refreshTemplateCache(hass, templates, cacheKey, force = null) {
-        // Forget templates no longer referenced by any layer
-        const wanted = new Set(templates);
-        for (const t of [...this.templateCache.keys()]) {
-            if (!wanted.has(t)) {
-                this.templateCache.delete(t);
-                this._templateCacheKeys.delete(t);
-            }
-        }
-
-        // An in-flight request for the current key is enough, unless forced:
-        // a forced request supersedes it (its answer may predate the change)
-        const toFetch = templates.filter(t => force?.has(t) ||
-            (this._templateCacheKeys.get(t) !== cacheKey && !this._templateRequests.has(t)));
-        if (!toFetch.length) return false;
-
-        let changed = false;
-        await Promise.all(toFetch.map(async (tmpl) => {
-            const requestId = ++this._templateRequestId;
-            this._templateRequests.set(tmpl, requestId);
-            this._templateCacheKeys.set(tmpl, cacheKey);
-            let value;
-            try {
-                const result = await this._evaluateTemplateViaWS(hass, tmpl);
-                value = String(result).trim().toLowerCase() === 'true';
-            } catch (e) {
-                errorLog('ConditionEvaluator', 'Template evaluation error via HA API:', tmpl, e);
-                // Cache the same value _evaluateTemplateCondition would compute
-                // live (JS fallback, else true) — no visual change, no WS retry spam.
-                const inner = tmpl.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
-                const fallback = evaluateNowInExpression(inner);
-                value = fallback !== null ? fallback : true;
-            }
-            // A newer (forced) request for this template was issued meanwhile: its answer wins
-            if (this._templateRequests.get(tmpl) !== requestId) return;
-            this._templateRequests.delete(tmpl);
-            if (this.templateCache.get(tmpl) !== value) changed = true;
-            this.templateCache.set(tmpl, value);
-        }));
-
-        return changed;
-    }
-
-    /**
-     * Evaluate a Jinja2 template via WebSocket (render_template).
-     * Works for non-admin users, unlike the REST /api/template endpoint.
-     */
-    _evaluateTemplateViaWS(hass, template) {
-        return new Promise((resolve, reject) => {
-            let unsubscribe;
-            let timedOut = false;
-            const timer = setTimeout(() => {
-                timedOut = true;
-                if (unsubscribe) unsubscribe();
-                reject(new Error('Template evaluation timeout'));
-            }, 5000);
-
-            hass.connection.subscribeMessage(
-                (msg) => {
-                    clearTimeout(timer);
-                    if (unsubscribe) unsubscribe();
-                    resolve(msg.result);
-                },
-                { type: 'render_template', template }
-            ).then(u => {
-                unsubscribe = u;
-                // Subscription established AFTER the timeout fired: the promise is
-                // already rejected — unsubscribe immediately so nothing leaks
-                if (timedOut) unsubscribe();
-            }).catch(e => {
-                clearTimeout(timer);
-                reject(e);
-            });
-        });
     }
 
     evaluateCondition(condition) {
@@ -1294,13 +1293,12 @@ class ConditionEvaluator {
         const template = condition.value_template;
         if (!template || typeof template !== "string") return true;
 
-        // Use HA-evaluated result if available (populated by refreshTemplateCache)
-        if (this.templateCache.has(template)) {
-            return this.templateCache.get(template);
-        }
+        // HA's result, pushed by its render_template subscription
+        const result = TEMPLATE_SUBSCRIPTIONS.result(this.hass?.connection, template);
+        if (result !== undefined) return result;
 
         // JS fallback for "now().X in range/list" patterns — covers any now() attribute.
-        // Used only on the initial render before the async HA cache is populated.
+        // Used only until HA's first answer arrives.
         const inner = template.replace(/^\s*\{\{\s*/, '').replace(/\s*\}\}\s*$/, '').trim();
         const jsResult = evaluateNowInExpression(inner);
         if (jsResult !== null) return jsResult;
@@ -1768,29 +1766,6 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Translate condition text by applying all translation patterns sequentially
-     * Patterns are applied in order to avoid conflicts (e.g., sunrise before sun)
-     * Replace the old _translateConditionText method with this one
-     * 
-     * @param {string} text - Raw condition text to translate
-     * @returns {string} Fully translated condition text
-     */
-    /**
-     * Convert a Jinja2 now().month template condition into a human-readable string
-     * using localized month names (via Intl.DateTimeFormat).
-     *
-     * Handles four patterns (with and without "not"):
-     *   {{ now().month in range(4, 10) }}     → "Mois: Avril – Septembre"
-     *   {{ now().month in [11, 12, 1, 2, 3] }} → "Mois: Novembre, Décembre, …"
-     *   (same with "not in" → prefixed with ≠)
-     *
-     * Returns null if the text doesn't match any known month pattern,
-     * so the caller can fall through to the normal translation pipeline.
-     *
-     * @param {string} text - Raw condition_text string
-     * @returns {string|null}
-     */
-    /**
      * Convert a "now().X in range/list" Jinja2 condition to a human-readable label.
      * Uses Intl.DateTimeFormat for month and weekday names; raw numbers for the rest.
      * Returns null if the text doesn't match any supported now() pattern.
@@ -1843,6 +1818,12 @@ class ScheduleStateCard extends HTMLElement {
         return null;
     }
 
+    /**
+     * Translate a server-flattened condition_text by applying all translation
+     * patterns in order (e.g. sunrise before sun, to avoid conflicts).
+     * @param {string} text - Raw condition text
+     * @returns {string} Translated condition text
+     */
     _translateConditionText(text) {
         if (!text) return "";
 
@@ -1901,6 +1882,15 @@ class ScheduleStateCard extends HTMLElement {
         const tf = this._hass?.locale?.time_format;
         if (tf === "12") return true;
         if (tf === "24") return false;
+        // Called for every hour label: ask Intl once per locale setting
+        const key = `${tf}|${this._hass?.locale?.language}`;
+        if (this._hour12Key === key) return this._hour12;
+        this._hour12Key = key;
+        this._hour12 = this._localeUses12Hours(tf);
+        return this._hour12;
+    }
+
+    _localeUses12Hours(tf) {
         // "language" / "system" (or unset): let Intl decide from the locale,
         // so en-GB gets 24h while en-US gets 12h instead of forcing 12h on all English
         const locale = tf === "system" ? undefined : (this._hass?.locale?.language || "en").replace("_", "-");
@@ -2030,7 +2020,10 @@ class ScheduleStateCard extends HTMLElement {
         COLOR_CACHE.setOwnerOverrides(this, this._config.color_overrides);
         this._overridesReleased = false;
 
-        if (this._hass) this.render();
+        if (this._hass) {
+            this._syncTemplateSubscriptions(this._hass);
+            this.render();
+        }
     }
 
     initializeServices(hass) {
@@ -2191,10 +2184,9 @@ class ScheduleStateCard extends HTMLElement {
             return;
         }
 
-        // Something relevant changed: layers may carry new template conditions,
-        // and templates referencing a changed entity must be re-evaluated now.
-        // Periodic freshness is handled by the 1-minute timer.
-        this._refreshTemplateConditions(hass, oldHass);
+        // Something relevant changed: the layers may carry other template
+        // conditions (their results are pushed by HA, see _onTemplateResult)
+        this._syncTemplateSubscriptions(hass);
 
         const now = Date.now();
         const timeSinceLastUpdate = this._state.getTimeSinceLastUpdate();
@@ -2213,31 +2205,15 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Collect all unique `condition: template` value_template strings from every
-     * entity layer and ask ConditionEvaluator to refresh their cached results via
-     * HA's WebSocket render_template (works for non-admin users).
-     *
-     * Cache invalidation is CLOCK-DRIVEN (minute resolution, matching HA's own
-     * template evaluation cycle) and fully decoupled from state churn: it no
-     * longer depends on the sensor's last_update attribute, which may beat
-     * without any real change — or stop beating entirely if the integration
-     * stops rewriting unchanged states.
-     *
-     * Called from the 1-minute timeline timer (freshness heartbeat) and from
-     * set hass AFTER the dirty-check (new templates can only appear when a
-     * relevant entity's layers changed). From set hass, `oldHass` is passed so
-     * templates referencing an entity that just changed are re-fetched at once
-     * instead of waiting for the next minute. Re-render is triggered only when
-     * a template's boolean result actually flipped.
-     *
-     * @param {Object} hass - Home Assistant hass object
-     * @param {Object} [oldHass] - Previous hass, to detect changed template entities
+     * Subscribes to the template conditions of every configured schedule
+     * (nested and/or/not included) and releases the ones no longer used.
+     * Home Assistant judges them and pushes each new result (on a change of
+     * an entity they read, or every minute for now()): no polling.
      */
-    _refreshTemplateConditions(hass, oldHass = null) {
-        if (!this._config?.entities || !this.conditionEvaluator) return;
+    _syncTemplateSubscriptions(hass) {
+        if (!this._config?.entities || !hass?.states) return;
 
         const templates = new Set();
-        // Templates nested in and/or/not are evaluated too — collect them all
         const collect = (cond) => {
             if (!cond || typeof cond !== 'object') return;
             if (cond.condition === 'template' && typeof cond.value_template === 'string') {
@@ -2248,10 +2224,7 @@ class ScheduleStateCard extends HTMLElement {
 
         for (const entityConfig of this._config.entities) {
             const entityId = typeof entityConfig === 'string' ? entityConfig : entityConfig.entity;
-            const state = hass.states[entityId];
-            if (!state) continue;
-
-            const layers = state.attributes?.layers;
+            const layers = hass.states[entityId]?.attributes?.layers;
             if (!layers) continue;
             for (const dayLayers of Object.values(layers)) {
                 for (const layer of dayLayers) {
@@ -2262,20 +2235,17 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        if (templates.size === 0) return;
+        TEMPLATE_SUBSCRIPTIONS.sync(this, hass.connection, templates);
+    }
 
-        let force = null;
-        if (oldHass) {
-            const { scheduleIds } = this._collectRelevantEntityIds(hass);
-            force = new Set([...templates].filter(t =>
-                extractTemplateEntityIds(t).some(id => this._templateEntityChanged(id, oldHass, hass, scheduleIds))));
-        }
-
-        const cacheKey = `minute-${Math.floor(Date.now() / 60000)}`;
-
-        this.conditionEvaluator.refreshTemplateCache(hass, [...templates], cacheKey, force)
-            .then(updated => { if (updated) this.updateContent(); })
-            .catch(e => errorLog('ScheduleStateCard', 'Failed to refresh template conditions:', e));
+    /** A template result changed: one re-render for a burst of results. */
+    _onTemplateResult() {
+        if (this._templateRenderQueued) return;
+        this._templateRenderQueued = true;
+        queueMicrotask(() => {
+            this._templateRenderQueued = false;
+            if (this._hass && this.shadowRoot.querySelector("#content")) this.updateContent();
+        });
     }
 
     /**
@@ -2451,10 +2421,7 @@ class ScheduleStateCard extends HTMLElement {
                     entity: entityId,
                     name: hass?.states?.[entityId]?.attributes?.friendly_name || entityId
                 }],
-                title: "Schedule Planning",
-                colors: {
-                    ...DEFAULT_COLORS
-                }
+                title: "Schedule Planning"
             };
         }
 
@@ -2462,26 +2429,51 @@ class ScheduleStateCard extends HTMLElement {
         // user pick an entity in the editor (no broken hardcoded example)
         return {
             entities: [],
-            title: "Schedule Planning",
-            colors: {
-                ...DEFAULT_COLORS
-            }
+            title: "Schedule Planning"
         };
     }
 
+    /**
+     * Height in HA's masonry units (~50 px), layers folded. Measured: a
+     * timeline ~118 px, the title ~45 px, the row of day buttons and
+     * padding ~59 px (entity selector and padding ~62 px). The "entities"
+     * layout always shows 7 timelines, whatever the number of entities.
+     */
     getCardSize() {
-        return (this._config?.entities?.length ?? 1) + 2;
+        const title = this._config?.title ? 45 : 0;
+        if (this._config?.layout === "entities") return Math.ceil((62 + title + 7 * 118) / 50);
+        const timelines = Math.max(1, this._config?.entities?.length ?? 1);
+        return Math.ceil((59 + title + timelines * 118) / 50);
+    }
+
+    /** Sections view: full width by default, never narrower than half. */
+    getGridOptions() {
+        return { columns: 12, min_columns: 6 };
     }
 
     get type() {
         return this._config.type || 'custom:schedule-state-card';
     }
 
+    /**
+     * The week from Monday: full name (translations) and short name (the
+     * browser's abbreviation in the user's language, e.g. "Mon", "lun."),
+     * so that the 7 day buttons fit on one row.
+     */
     getDays() {
         const dayTranslations = this.t("days");
-        return DAY_ORDER.map(id => ({
+        let short = null;
+        try {
+            const format = new Intl.DateTimeFormat(this.getLanguage().replace("_", "-"), { weekday: "short" });
+            // 2024-01-01 was a Monday
+            short = (index) => format.format(new Date(2024, 0, 1 + index));
+        } catch (e) {
+            // Unknown locale: the buttons keep the full names
+        }
+        return DAY_ORDER.map((id, index) => ({
             id,
-            label: dayTranslations[id]
+            label: dayTranslations[id],
+            short: short ? short(index) : dayTranslations[id]
         }));
     }
 
@@ -2499,53 +2491,45 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     /**
-     * Updated startTimelineUpdate method - use LAYOUT_CONSTANTS
-     * Replace the existing startTimelineUpdate method with this one
+     * Moves the time cursor (and today's view past midnight) on every
+     * minute boundary: an interval started at mount time ran up to 59 s late.
      */
     startTimelineUpdate() {
-        // Always stop existing interval first to prevent duplicates
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-
-        // Create new interval using centralized constant
-        this.updateInterval = setInterval(() => {
-            // Clock-driven template freshness (minute-keyed cache): re-render
-            // fires only if a template condition's result actually flipped
-            if (this._hass) this._refreshTemplateConditions(this._hass);
-
-            const previousDay = this.currentTime.day;
-            this.currentTime = this.getCurrentTime();
-
-            // Auto-sync selectedDay if we were viewing today and day changed (midnight passed)
-            // This ensures cursor remains visible when day transitions
-            if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
-                this.selectedDay = this.currentTime.day;
-                // updateContent() redraws the timelines, not the day buttons
-                this._syncDayButtons();
-                this.updateContent();
-                return; // updateContent already calls updateTimeline
-            }
-
-            this.updateTimeline();
-        }, LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
+        this.stopTimelineUpdate();
+        const toNextMinute = 60000 - (Date.now() % 60000);
+        this._minuteAlignTimer = setTimeout(() => {
+            this._onMinute();
+            this.updateInterval = setInterval(() => this._onMinute(), LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
+        }, toNextMinute + 50);
     }
 
-    /**
-     * Updated stopTimelineUpdate method
-     * This is already correct but keep it as-is
-     */
     stopTimelineUpdate() {
+        clearTimeout(this._minuteAlignTimer);
+        this._minuteAlignTimer = null;
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
     }
 
-    /**
-     * Updated updateTimeline method
-     * Replace the existing updateTimeline method with this one
-     */
+    /** Clock tick: cursor position, and today's view moving past midnight. */
+    _onMinute() {
+        const previousDay = this.currentTime.day;
+        this.currentTime = this.getCurrentTime();
+
+        // Today was shown and midnight passed: show the new today
+        if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
+            this.selectedDay = this.currentTime.day;
+            // updateContent() redraws the timelines, not the day buttons
+            this._syncDayButtons();
+            this.updateContent();
+            return; // updateContent already calls updateTimeline
+        }
+
+        this.updateTimeline();
+    }
+
+    /** Places the time cursor on today's timelines. */
     updateTimeline() {
         const timePercentage = this.timeHelper.getTimePercentage(this.currentTime);
         this._updateTimelineCursors(timePercentage);
@@ -2874,6 +2858,15 @@ class ScheduleStateCard extends HTMLElement {
         return "";
     }
 
+    /** Tooltip text as a spoken label: one line, without the pictograms. */
+    _spokenLabel(text) {
+        return String(text)
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2139}\u{FE0F}]/gu, "")
+            .replace(/\s*\n\s*/g, ". ")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+    }
+
     decodeHtmlEntities(text) {
         const map = {
             "&amp;": "&",
@@ -3160,14 +3153,10 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     clearTooltipTimer() {
-        // ✅ USE CENTRALIZED STATE for timer management
         this._state.clearTimer('tooltip');
     }
 
-    /**
-     * Updated scheduleTooltipDisplay method - use LAYOUT_CONSTANTS
-     * Replace the existing scheduleTooltipDisplay method with this one
-     */
+    /** Shows the tooltip once the pointer has rested on a target. */
     scheduleTooltipDisplay(event, text) {
         // Clear any pending tooltip timer
         this.clearTooltipTimer();
@@ -3198,7 +3187,7 @@ class ScheduleStateCard extends HTMLElement {
      * @param {Function} handler - The handler function
      * @param {string[]} events - Events to attach (default: click, mouseover, mouseout)
      */
-    _attachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout"]) {
+    _attachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout", "keydown"]) {
         if (!element || !handler) return;
         events.forEach(event => {
             element.addEventListener(event, handler);
@@ -3211,7 +3200,7 @@ class ScheduleStateCard extends HTMLElement {
      * @param {Function} handler - The handler function
      * @param {string[]} events - Events to detach (default: click, mouseover, mouseout)
      */
-    _detachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout"]) {
+    _detachEventHandlers(element, handler, events = ["click", "mouseover", "mouseout", "keydown"]) {
         if (!element || !handler) return;
         events.forEach(event => {
             element.removeEventListener(event, handler);
@@ -3270,6 +3259,15 @@ class ScheduleStateCard extends HTMLElement {
             // Ensure this is the ScheduleStateCard instance
             if (!this.toggleLayerVisibility) {
                 errorLog("Handler context error: toggleLayerVisibility not found");
+                return;
+            }
+
+            // Keyboard: Enter / Space on an ARIA button act as a click
+            if (e.type === "keydown") {
+                if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute?.("role") === "button") {
+                    e.preventDefault();
+                    e.target.click();
+                }
                 return;
             }
 
@@ -3359,7 +3357,7 @@ class ScheduleStateCard extends HTMLElement {
             }
         };
 
-        // Attacher les handlers en utilisant la helper
+        // One listener on #content serves every block, icon and toggle
         this._attachEventHandlers(container, handler);
 
         // Store listener reference in centralized state for cleanup
@@ -3386,8 +3384,11 @@ class ScheduleStateCard extends HTMLElement {
 
     /** Highlights the selected day's button ("days" layout). */
     _syncDayButtons() {
-        this.shadowRoot.querySelectorAll(".day-button").forEach(btn =>
-            btn.classList.toggle("active", btn.dataset.day === this.selectedDay));
+        this.shadowRoot.querySelectorAll(".day-button").forEach(btn => {
+            const selected = btn.dataset.day === this.selectedDay;
+            btn.classList.toggle("active", selected);
+            btn.setAttribute("aria-pressed", String(selected));
+        });
     }
 
     attachEntitySelectorListener() {
@@ -3440,7 +3441,7 @@ class ScheduleStateCard extends HTMLElement {
     }
 
     renderErrorCard(entityId, message) {
-        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" data-entity-id="' + escapeHtmlAttribute(entityId) + '" style="color:var(--error-color);">' + escapeHtml(entityId) + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + escapeHtml(message) + "</div></div></div>";
+        return '<div class="room-timeline"><div class="room-header"><ha-icon icon="mdi:alert-circle"></ha-icon><span class="room-name" role="button" tabindex="0" data-entity-id="' + escapeHtmlAttribute(entityId) + '" style="color:var(--error-color);">' + escapeHtml(entityId) + '</span></div><div class="timeline-container" style="padding:16px;text-align:center;"><div style="color:var(--secondary-text-color);">' + escapeHtml(message) + "</div></div></div>";
     }
 
     renderTimeline(roomName, roomIcon, allLayers, unitOfMeasurement, entityId, entityState, dayId = null) {
@@ -3486,7 +3487,7 @@ class ScheduleStateCard extends HTMLElement {
             layersMetadata,
             unitOfMeasurement,
             entityId,
-            dayId // Passer dayId pour le collapse/expand
+            dayId // the rendered day: its own folding and conditions
         );
 
         // Assembly - simple concatenation
@@ -3611,7 +3612,22 @@ class ScheduleStateCard extends HTMLElement {
      * AND. Falls back to the server-flattened condition_text when no
      * structured conditions are available (compat).
      */
+    /**
+     * Cached per layer object and language: the layers keep their identity
+     * until the schedule changes, and describing their conditions runs many
+     * regular expressions and Intl formatters on every render otherwise.
+     */
     _getLayerConditionText(layer) {
+        const language = this.getLanguage();
+        this._conditionTexts ??= new WeakMap();
+        const cached = this._conditionTexts.get(layer);
+        if (cached?.language === language) return cached.text;
+        const text = this._describeLayerConditions(layer);
+        this._conditionTexts.set(layer, { language, text });
+        return text;
+    }
+
+    _describeLayerConditions(layer) {
         if (!layer.is_combined_layer && this.conditionEvaluator) {
             const conditions = this.conditionEvaluator._collectUniqueConditions(layer.blocks || []);
             const parts = conditions.map(c => this.describeCondition(c)).filter(Boolean);
@@ -3726,7 +3742,7 @@ class ScheduleStateCard extends HTMLElement {
                 top,
                 isSelectedDayToday,
                 entityId,
-                dayId // Passer dayId
+                dayId
             );
             if (iconHtml) iconParts.push(iconHtml);
 
@@ -3773,7 +3789,7 @@ class ScheduleStateCard extends HTMLElement {
             return `<option value="${escapeHtml(entityId)}" ${this.selectedEntity === entityId ? "selected" : ""}>${escapeHtml(name)}</option>`;
         }).join("");
 
-        return `<div class="entity-selector-wrapper"><select id="entity-selector" class="entity-selector">${options}</select></div>`;
+        return `<div class="entity-selector-wrapper"><select id="entity-selector" class="entity-selector" aria-label="${escapeHtmlAttribute(this.t("editor_entities_label"))}">${options}</select></div>`;
     }
 
     renderDaysLayout() {
@@ -3799,7 +3815,7 @@ class ScheduleStateCard extends HTMLElement {
 
         const styleContent = dynamicStyles + baseStylesheet + additionalStyle;
 
-        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" data-day="' + day.id + '">' + escapeHtml(day.label) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
+        const htmlContent = '<ha-card><div class="card-header' + (showTitle ? "" : " hidden") + '"><div class="card-title">' + escapeHtml(this._config.title || "") + '</div></div><div class="day-selector">' + days.map(day => '<button class="day-button' + (day.id === this.selectedDay ? " active" : "") + '" aria-pressed="' + (day.id === this.selectedDay) + '" aria-label="' + escapeHtmlAttribute(day.label) + '" title="' + escapeHtmlAttribute(day.label) + '" data-day="' + day.id + '">' + escapeHtml(day.short) + "</button>").join("") + '</div><div id="content"></div></ha-card>';
         
         this.shadowRoot.innerHTML = '<style>' + styleContent + "</style>" + htmlContent;
         this.updateContent();
@@ -3862,6 +3878,7 @@ class ScheduleStateCard extends HTMLElement {
         const unfoldedBg = this.validateStyleValue(this._colors.combined_unfolded_layer);
 
         let toggleClass = "";
+        let toggleAttrs = "";
         let iconStyle = `background:${foldedBg};filter:brightness(1.1);`;
 
         if (!isSelectedDayToday) {
@@ -3873,6 +3890,11 @@ class ScheduleStateCard extends HTMLElement {
 
             const visibilityKey = this._visibilityKey(entityId, dayId);
             const isExpanded = this._state.isLayerVisible(visibilityKey);
+            // Keyboard and screen readers: a button announcing its state; the
+            // focus key lets the focus come back after the re-render
+            toggleAttrs = ` role="button" tabindex="0" aria-expanded="${isExpanded ? "true" : "false"}"` +
+                ` aria-label="${escapeHtmlAttribute(this.t("cond_combined_schedule_toggle"))}"` +
+                ` data-focus-key="${escapeHtmlAttribute(`sigma|${entityId}|${dayId || ""}`)}"`;
 
             debugLog(entityName, "[_renderCombinedLayerIcon] entityId:", entityId, "dayId:", dayId, "visibilityKey:", visibilityKey, "isExpanded:", isExpanded);
 
@@ -3891,7 +3913,7 @@ class ScheduleStateCard extends HTMLElement {
 
         debugLog(entityName, "[_renderCombinedLayerIcon] Rendering icon with dataDay:", dataDay, "entityId:", entityId);
 
-        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number combined-layer-toggle" data-entity-id="${escapeHtml(entityId)}"${dataDay} style="${iconStyle}">Σ</span></div>`;
+        return `<div class="icon-row combined-icon-row" style="top:${top}px;" data-tooltip="${iconTooltip}"><span class="layer-number${toggleClass}" data-entity-id="${escapeHtml(entityId)}"${dataDay}${toggleAttrs} style="${iconStyle}">Σ</span></div>`;
     }
 
     _renderConditionalLayerIcon(currentLayer, meta, allLayers, layersToDisplay, top, isSelectedDayToday) {
@@ -3902,14 +3924,10 @@ class ScheduleStateCard extends HTMLElement {
 
         if (meta.isDefault) {
             displayLayerIndex = "0";
-            iconTooltipText = this.t("layer_label") + " 0";
-
-            if (meta.conditionText) {
-                iconTooltipText += meta.isActive ? "\n✅ " : "\n❌ ";
-                iconTooltipText += this.t("condition_label") + ": " + meta.conditionText;
-            } else {
-                iconTooltipText += "\n" + this.t("default_state_label");
-            }
+            // Neither active nor inactive: it applies wherever no active layer
+            // does. (schedule_state gives it the condition text "default",
+            // which used to show it as a failed condition.)
+            iconTooltipText = this.t("layer_label") + " 0\nℹ️ " + this.t("default_state_label");
         } else {
             const condLayerIndex = conditionalLayers.findIndex(l => l === currentLayer);
             displayLayerIndex = String(condLayerIndex + 1);
@@ -3923,14 +3941,18 @@ class ScheduleStateCard extends HTMLElement {
             }
         }
 
-        const iconStyle = meta.isActive ?
+        // Default layer: a neutral outlined badge, unlike the filled active
+        // ones and the dimmed inactive ones
+        const iconStyle = meta.isDefault ?
+            "background:transparent;color:var(--primary-text-color);box-shadow:inset 0 0 0 2px var(--secondary-text-color);" :
+            meta.isActive ?
             `background:${this.validateStyleValue(this._colors.active_layer)};filter:brightness(1.3);` :
             `background:${this.validateStyleValue(this._colors.inactive_layer)};opacity:0.5;`;
 
         const opacityAdjust = !isSelectedDayToday ? "opacity:0.5;" : "";
         const finalStyle = opacityAdjust ? `${iconStyle}${opacityAdjust}` : iconStyle;
 
-        return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
+        return `<div class="icon-row" style="top:${top}px;" data-tooltip="${escapeHtml(iconTooltipText)}"><span class="layer-number" role="img" aria-label="${escapeHtmlAttribute(this._spokenLabel(iconTooltipText))}" style="${finalStyle}">${escapeHtml(displayLayerIndex)}</span></div>`;
     }
 
     _renderBlock(block, currentLayer, meta, top, unitOfMeasurement, isSelectedDayToday) {
@@ -3977,7 +3999,7 @@ class ScheduleStateCard extends HTMLElement {
         if (meta.isCombined) {
             blockClass += " combined-layer-block sch-z-combined";
 
-            // CRITICAL FIX: Preserve hatching pattern for default blocks in combined layer
+            // Default-state segments keep their hatching in Σ
             if (block.is_default_bg) {
                 blockClass += " default-block";
             }
@@ -4008,7 +4030,9 @@ class ScheduleStateCard extends HTMLElement {
 
         // Full label (already escaped): CSS cuts it to the block's real width
         // with an ellipsis (.block-center text-overflow)
-        return `<div class="${blockClass}" style="${style}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center">${stateDisplay}</span></div>`;
+        // Screen readers get the tooltip's content (the tooltip itself only
+        // appears on hover or tap)
+        return `<div class="${blockClass}" style="${style}" role="img" aria-label="${escapeHtmlAttribute(this._spokenLabel(this.decodeHtmlEntities(tooltip)))}" data-tooltip="${escapeHtmlAttribute(tooltip)}"><span class="block-center" aria-hidden="true">${stateDisplay}</span></div>`;
     }
 
     updateContent() {
@@ -4052,7 +4076,7 @@ class ScheduleStateCard extends HTMLElement {
             headerHtml += '<ha-icon icon="' + escapedRoomIcon + '"></ha-icon>';
         }
 
-        headerHtml += '<span class="room-name" data-entity-id="' + escapedEntityId + '">' + escapedRoomName + '</span>';
+        headerHtml += '<span class="room-name" role="button" tabindex="0" data-entity-id="' + escapedEntityId + '">' + escapedRoomName + '</span>';
 
         if (stateValue) {
             headerHtml += '<span class="room-state">' + stateValue + '</span>';
@@ -4188,7 +4212,11 @@ class ScheduleStateCard extends HTMLElement {
         // time cursor is added after rendering.
         if (newHTML === this._lastContentHTML && content.firstChild) return;
         this._lastContentHTML = newHTML;
+        const focusKey = this.shadowRoot.activeElement?.dataset?.focusKey;
         content.innerHTML = newHTML;
+        if (focusKey) {
+            [...content.querySelectorAll("[data-focus-key]")].find(el => el.dataset.focusKey === focusKey)?.focus();
+        }
         // Replaces the previous listener (attached to the same #content)
         this.attachAllListeners();
     }
@@ -4237,23 +4265,27 @@ class ScheduleStateCard extends HTMLElement {
                 margin: 0;
             }
 
+            /* One row of 7 equal buttons, aligned with the timelines */
             .day-selector {
                 display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
+                gap: 4px;
                 margin-bottom: 16px;
-                justify-content: center;
             }
 
             .day-button {
-                padding: 8px 6px;
+                flex: 1 1 0;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 8px 0;
                 border: none;
                 border-radius: 8px;
                 background: var(--primary-background-color);
                 color: var(--primary-text-color);
                 cursor: pointer;
                 font-weight: 500;
-                transition: all 0.2s;
+                transition: background-color 0.2s, border-color 0.2s, color 0.2s;
                 border: 1px solid var(--divider-color);
             }
 
@@ -4264,7 +4296,8 @@ class ScheduleStateCard extends HTMLElement {
 
             .day-button.active {
                 background: var(--primary-color);
-                color: white;
+                /* The theme's text color for the primary color (not always white) */
+                color: var(--text-primary-color, white);
                 border-color: var(--primary-color);
             }
 
@@ -4330,7 +4363,7 @@ class ScheduleStateCard extends HTMLElement {
                 cursor: help;
                 width: 100%;
                 height: var(--sch-block-height);
-                transition: all 0.2s;
+                transition: filter 0.2s;
                 top: 0;
                 margin-top: 6px;
                 z-index: 1;
@@ -4350,7 +4383,7 @@ class ScheduleStateCard extends HTMLElement {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.2s;
+                transition: filter 0.2s;
             }
 
             .timeline-container {
@@ -4380,8 +4413,9 @@ class ScheduleStateCard extends HTMLElement {
             .timeline-hour {
                 position: relative;
                 flex: 1;
-                border-right: 1px solid var(--secondary-text-color);
-                opacity: 0.4;
+                /* Faint grid lines, readable hour labels: the opacity used to
+                   dim the labels too (about 1.6:1 contrast) */
+                border-right: 1px solid color-mix(in srgb, var(--secondary-text-color) 40%, transparent);
                 font-size: 11px;
                 color: var(--secondary-text-color);
                 display: flex;
@@ -4389,6 +4423,9 @@ class ScheduleStateCard extends HTMLElement {
                 justify-content: center;
                 font-weight: 600;
                 padding-bottom: 4px;
+                /* "6 AM" is wider than its one-hour cell: wrapped, the number
+                   went up behind the blocks and only "AM" showed */
+                white-space: nowrap;
             }
 
             .timeline-hour:empty {
@@ -4465,11 +4502,24 @@ class ScheduleStateCard extends HTMLElement {
                 position: relative;
                 font-size: 16px !important;
                 line-height: 24px;
-                overflow: hidden;
+            }
+
+            /* A finger-sized hit area (40 px) around the 24 px Σ badge */
+            .combined-layer-toggle::after {
+                content: "";
+                position: absolute;
+                inset: -8px;
             }
 
             .combined-layer-toggle:hover {
                 filter: brightness(1.3) !important;
+            }
+
+            .combined-layer-toggle:focus-visible,
+            .room-name:focus-visible,
+            .day-button:focus-visible {
+                outline: 2px solid var(--primary-color);
+                outline-offset: 2px;
             }
 
             .icon-row.combined-icon-row .layer-number {
@@ -4477,7 +4527,6 @@ class ScheduleStateCard extends HTMLElement {
                 position: relative;
                 font-size: 16px !important;
                 line-height: 24px;
-                overflow: hidden;
             }
 
             .sch-z-default {
@@ -4505,6 +4554,15 @@ class ScheduleStateCard extends HTMLElement {
 
     connectedCallback() {
         this.startTimelineUpdate();
+        // Back on a hidden tab or a woken device (timers throttled or
+        // frozen meanwhile): catch the clock up at once
+        this._onVisibilityChange ??= () => {
+            if (document.visibilityState === "visible" && this.shadowRoot.querySelector("#content")) {
+                this._onMinute();
+                this.startTimelineUpdate();
+            }
+        };
+        document.addEventListener("visibilitychange", this._onVisibilityChange);
 
         // Shared color overrides: re-render when another card changes one.
         // The edit-dialog preview gave its declarations back on disconnect
@@ -4526,6 +4584,11 @@ class ScheduleStateCard extends HTMLElement {
             this._wasDisconnected = false;
             this.render();
         }
+
+        // Back within the grace delay: the template subscriptions were kept.
+        // Back later: subscribe again
+        clearTimeout(this._templateReleaseTimer);
+        if (this._hass) this._syncTemplateSubscriptions(this._hass);
     }
 
     /**
@@ -4560,6 +4623,15 @@ class ScheduleStateCard extends HTMLElement {
 
         // Stop timeline updates
         this.stopTimelineUpdate();
+        document.removeEventListener("visibilitychange", this._onVisibilityChange);
+
+        // Template subscriptions: kept a moment, since HA re-parents cards
+        // (disconnect + reconnect) and a new subscription would briefly show
+        // the local guess instead of HA's result
+        const connection = this._hass?.connection;
+        clearTimeout(this._templateReleaseTimer);
+        this._templateReleaseTimer = setTimeout(() => TEMPLATE_SUBSCRIPTIONS.releaseAll(this, connection),
+            LAYOUT_CONSTANTS.TEMPLATE_RELEASE_DELAY_MS);
 
         // Detach listeners BEFORE resetOnDisconnect() nulls the stored references
         const container = this.shadowRoot?.querySelector("#content");

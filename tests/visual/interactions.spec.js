@@ -78,18 +78,97 @@ test("the tooltip stays visible while the pointer moves inside a block", async (
     }
 });
 
-// Audit #15: Σ toggle and entity name are <span>s, unreachable by keyboard
-test("the Σ toggle can be reached and used with the keyboard (known bug)", async ({ page }) => {
-    test.fail();
+// Keyboard: the Σ toggle and the entity name are buttons (audit #15)
+const deepActive = (page) => page.evaluate(() => {
+    let el = document.activeElement;
+    while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+    return { cls: el?.className || "", expanded: el?.getAttribute?.("aria-expanded") ?? null };
+});
+
+test("the Σ toggle can be reached and used with the keyboard", async ({ page }) => {
     await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
     let reached = false;
     for (let i = 0; i < 15 && !reached; i++) {
         await page.keyboard.press("Tab");
-        reached = await page.evaluate(() => {
-            let el = document.activeElement;
-            while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
-            return !!el?.classList?.contains("combined-layer-toggle");
-        });
+        reached = (await deepActive(page)).cls.includes("combined-layer-toggle");
     }
     expect(reached).toBe(true);
+    expect((await deepActive(page)).expanded).toBe("false");
+
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".icon-row")).not.toHaveCount(1);
+    // The focus stays on the toggle although the rows were rebuilt
+    expect(await deepActive(page)).toEqual({ cls: expect.stringContaining("combined-layer-toggle"), expanded: "true" });
+
+    await page.clock.runFor(400);
+    await page.keyboard.press(" ");
+    await expect(page.locator(".icon-row")).toHaveCount(1);
+    expect((await deepActive(page)).expanded).toBe("false");
+});
+
+test("the entity name opens more-info from the keyboard", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_price"] });
+    const opened = page.evaluate(() => new Promise(resolve =>
+        window.addEventListener("hass-more-info", e => resolve(e.detail.entityId), { once: true })));
+    await page.locator(".room-name").focus();
+    await page.keyboard.press("Enter");
+    expect(await opened).toBe("sensor.sst_price");
+});
+
+test("the size declared to the dashboard matches the rendered height", async ({ page }) => {
+    const configs = [
+        { layout: "days", entities: SENSORS.slice(0, 1) },
+        { title: "Planning", layout: "days", entities: SENSORS },
+        { title: "Planning", layout: "days", entities: [...SENSORS, ...SENSORS] },
+        { title: "Planning", layout: "entities", entities: SENSORS },
+        { layout: "entities", entities: SENSORS.slice(0, 1) },
+    ];
+    for (const config of configs) {
+        const card = await mount(page, config);
+        const [height, size] = await card.evaluate(el =>
+            [el.shadowRoot.querySelector("ha-card").getBoundingClientRect().height, el.getCardSize()]);
+        // Masonry units of ~50 px, one unit of tolerance
+        expect(Math.abs(size - height / 50), JSON.stringify(config)).toBeLessThanOrEqual(1);
+    }
+});
+
+test("the Σ toggle answers a tap slightly off its badge", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
+    const box = await page.locator(".combined-layer-toggle").boundingBox();
+    // 6 px below the 24 px badge: inside the 40 px hit area
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height + 6);
+    await expect(page.locator(".icon-row")).not.toHaveCount(1);
+});
+
+test("hour labels are readable", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] });
+    const [color, opacity] = await page.locator(".timeline-hour", { hasText: "12h" }).evaluate(el => {
+        const style = getComputedStyle(el);
+        return [style.color, style.opacity];
+    });
+    expect(opacity).toBe("1");
+    expect(color).not.toBe("rgba(0, 0, 0, 0)");
+});
+
+test("the 7 day buttons fit on one row, on a desktop column and on a phone", async ({ page }) => {
+    for (const width of [1280, 360]) {
+        await page.setViewportSize({ width, height: 800 });
+        for (const language of ["en", "fr", "de"]) {
+            await mount(page, { title: "Planning", layout: "days", entities: SENSORS.slice(0, 1) }, { language });
+            const tops = await page.locator(".day-button").evaluateAll(buttons => buttons.map(b => b.getBoundingClientRect().top));
+            expect(new Set(tops).size, `${width}px ${language}`).toBe(1);
+        }
+    }
+});
+
+test("12-hour labels keep their number on one line", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_mode"] }, { timeFormat: "12" });
+    const labels = await page.locator(".timeline-hour").evaluateAll(cells => cells
+        .filter(c => c.textContent)
+        .map(c => {
+            const range = document.createRange();
+            range.selectNodeContents(c);
+            return [c.textContent, range.getClientRects().length];
+        }));
+    expect(labels).toEqual([["6 AM", 1], ["12 PM", 1], ["6 PM", 1]]);
 });

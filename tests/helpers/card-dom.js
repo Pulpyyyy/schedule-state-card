@@ -6,10 +6,6 @@
  * keep checking the same user-visible behavior.
  */
 
-const BLOCK_HEIGHT = 20;
-const VERTICAL_GAP = 8;
-const TOP_MARGIN = 4;
-
 export function mountCard(config, hass) {
     const card = document.createElement("schedule-state-card");
     card.setConfig({ type: "custom:schedule-state-card", ...config });
@@ -32,8 +28,6 @@ const styleNumber = (el, prop) => {
     return m ? parseFloat(m[1]) : null;
 };
 
-const rowOf = (el) => Math.round((styleNumber(el, "top") - TOP_MARGIN) / (BLOCK_HEIGHT + VERTICAL_GAP));
-
 // The card escapes the tooltip text, then decodes it when showing it
 const decodeEntities = (text) => text.replace(/&(amp|lt|gt|quot|#39);/g,
     (_, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[e]);
@@ -43,6 +37,11 @@ const decodeEntities = (text) => text.replace(/&(amp|lt|gt|quot|#39);/g,
 const valueOf = (tooltip) => tooltip.match(/🌡️ [^:\n]+: ([^\n]*)/)?.[1] ?? null;
 
 function readTimeline(timeline) {
+    // Rows are told apart by their vertical position, whatever the block
+    // height: icons and blocks of a row share the same top
+    const tops = [...new Set([...timeline.querySelectorAll(".icon-row, .schedule-block")]
+        .map(el => styleNumber(el, "top")))].sort((a, b) => a - b);
+    const rowOf = (el) => tops.indexOf(styleNumber(el, "top"));
     const rows = new Map();
     const row = (i) => {
         if (!rows.has(i)) rows.set(i, { label: null, tooltip: null, blocks: [] });
@@ -88,7 +87,8 @@ export function readCard(card) {
     return {
         title: header && !header.classList.contains("hidden") ? root.querySelector(".card-title").textContent : null,
         days: [...root.querySelectorAll(".day-button")].map(b => ({
-            id: b.dataset.day, label: b.textContent, active: b.classList.contains("active"),
+            id: b.dataset.day, label: b.textContent, name: b.getAttribute("aria-label") ?? b.textContent,
+            active: b.classList.contains("active"),
         })),
         entityOptions: [...root.querySelectorAll("#entity-selector option")].map(o => o.value),
         timelines: [...root.querySelectorAll(".room-timeline")].map(readTimeline),

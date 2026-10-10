@@ -39,6 +39,10 @@ CONFIG = {
              "entities": ["sensor.sst_issue_18"]},
             {"type": "entities", "title": "Pilotage #18", "entities": HELPERS[:2]},
         ]},
+        {"title": "Templates", "path": "templates", "cards": [
+            {"type": CARD, "title": "Template conditions", "layout": "days",
+             "entities": ["sensor.sst_template"]},
+        ]},
         {"title": "Couleurs", "path": "colors", "cards": [
             {"type": CARD, "title": "Overrides", "layout": "days", "entities": ["sensor.sst_price"],
              "color_overrides": {"0|€/kWh": {"color": "#4CAF50", "textColor": "#000000"}}},

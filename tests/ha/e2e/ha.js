@@ -4,7 +4,8 @@
  *
  * Environment (.env, gitignored):
  *   HA_URL          e.g. http://homeassistant.local:8123
- *   HA_TOKEN_FILE   file holding a long-lived access token
+ *   HA_TOKEN_FILE   file holding a long-lived access token (admin)
+ *   HA_USER_TOKEN_FILE  optional: token of a non-admin user (non-admin tests)
  *   HA_CARD_URL     path HA serves the card from (default: HACS path)
  */
 import { createHash } from "node:crypto";
@@ -59,7 +60,7 @@ export async function setHelpers({ away, outdoor, setpoint } = {}) {
  * Log the browser in with the long-lived token, the way the frontend stores
  * its own tokens (no login form, no refresh: the token does not expire).
  */
-export async function login(page) {
+export async function login(page, accessTokenValue = token()) {
     await page.addInitScript(([hassUrl, accessToken]) => {
         localStorage.setItem("hassTokens", JSON.stringify({
             hassUrl, clientId: `${hassUrl}/`, access_token: accessToken, token_type: "Bearer",
@@ -68,7 +69,7 @@ export async function login(page) {
         // English UI and default theme, whatever the token owner's profile says
         localStorage.setItem("selectedLanguage", JSON.stringify("en"));
         localStorage.setItem("selectedTheme", JSON.stringify({ theme: "default", dark: false }));
-    }, [HA_URL(), token()]);
+    }, [HA_URL(), accessTokenValue]);
 }
 
 /** Card of the test dashboard whose title or entity name contains `text`. */

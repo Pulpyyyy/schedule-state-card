@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [2.3.0] - 2026-10-10
+
+### Changed
+- **The 7 day buttons fit on one row**: full day names wrapped (`Sunday` alone on a second row in a dashboard column, two rows on a phone). The buttons now share the card's width on one row, labelled with the browser's abbreviation in your language (`Mon`, `lun.`, `Mo`…); the full name is shown on hover and read by screen readers.
+- **Taller blocks**: blocks are 24 px high instead of 20 px, easier to tap to see their details.
+- **The default layer (0) no longer looks like a failed condition**: it was drawn like an inactive layer, with "❌ Condition: default" in its tooltip. It now has a neutral outlined badge and its tooltip reads "ℹ️ Default state".
+
+### Fixed
+- **Readable hour labels**: the 6h / 12h / 18h labels were dimmed along with the grid lines. In the 12-hour format, they also lost their number (`AM` instead of `6 AM`).
+- **The card declares its real height to the dashboard**: it declared itself 2 to 3 times too small, which misplaced the next cards in the masonry view. In a sections view, it takes the full width by default.
+- **The time cursor moves on the minute**, instead of up to 59 s late, and catches up at once when you come back to a tab or wake a device.
+- **The selected day uses the theme's text color** instead of always white, and the Σ toggle has a larger touch area.
+- **Editor**: the entity edit/delete buttons are translated, and only the colors you choose are written to the card's configuration (the default colors were all copied into it, so a future change of a default would never reach the card).
+
+### Accessibility
+- **Keyboard**: the Σ toggle and the entity name (more-info) can be reached with Tab and used with Enter or Space; the focus stays on Σ after toggling, and focused controls are outlined.
+- **Screen readers**: Σ announces whether the layers are shown, day buttons announce the day shown, and every block and layer badge is described (times, value, condition), not only in the tooltip.
+
+### Performance
+- **Template conditions are pushed by Home Assistant**: instead of asking HA every minute, each card now shares one subscription per template with the other cards of the page, and HA sends a new result as soon as an entity the template reads changes.
+- **Faster renders**: condition descriptions are computed once per schedule instead of on every render (about 37 % faster on a week with all layers unfolded).
+
 ## [2.2.5] - 2026-10-10
 
 ### Fixed
