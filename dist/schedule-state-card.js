@@ -1205,7 +1205,8 @@ class ConditionEvaluator {
                 return condition.conditions?.every(c => this.evaluateCondition(c)) ?? true;
             }
             if (condType === "not") {
-                return !this.evaluateCondition(condition.conditions?.[0]);
+                // HA: true only when none of the conditions is true
+                return !(condition.conditions || []).some(c => this.evaluateCondition(c));
             }
             if (condType === "template") {
                 return this._evaluateTemplateCondition(condition);
@@ -1269,18 +1270,11 @@ class ConditionEvaluator {
         if (!entityId || !this.hass.states) return false;
 
         const entities = Array.isArray(entityId) ? entityId : [entityId];
+        // HA accepts one state or a list of accepted states
+        const accepted = Array.isArray(condition.state) ? condition.state : [condition.state];
+        const matches = id => accepted.includes(this.hass.states[id]?.state);
 
-        if (condition.match === "all") {
-            return entities.every(id => {
-                const entity = this.hass.states[id];
-                return entity?.state === condition.state;
-            });
-        }
-
-        return entities.some(id => {
-            const entity = this.hass.states[id];
-            return entity?.state === condition.state;
-        });
+        return condition.match === "all" ? entities.every(matches) : entities.some(matches);
     }
 
     _evaluateNumericStateCondition(condition) {

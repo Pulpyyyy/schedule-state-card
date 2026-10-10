@@ -48,9 +48,9 @@ describe("state condition", () => {
         expect(evaluator(hass).evaluateCondition({ ...state(both, "on"), match: "all" })).toBe(false);
     });
 
-    // HA accepts `state: [a, b]` (any of the listed states)
-    it.fails("accepts a list of states (known bug)", () => {
+    it("accepts a list of states (any of them)", () => {
         expect(evaluator().evaluateCondition(state(AWAY, ["on", "off"]))).toBe(true);
+        expect(evaluator().evaluateCondition(state(AWAY, ["on", "unavailable"]))).toBe(false);
     });
 });
 
@@ -91,9 +91,10 @@ describe("and / or / not", () => {
         expect(evaluator({ states: { [OUTDOOR]: "30", [AWAY]: "on" } }).evaluateCondition(cond)).toBe(true);
     });
 
-    // HA's `not` is true only when NONE of its conditions is true
-    it.fails("not: checks every sub-condition, not only the first (known bug)", () => {
-        expect(evaluator().evaluateCondition({ condition: "not", conditions: [no, yes] })).toBe(false);
+    it("not: true only when none of its conditions is true", () => {
+        const ev = evaluator();
+        expect(ev.evaluateCondition({ condition: "not", conditions: [no, yes] })).toBe(false);
+        expect(ev.evaluateCondition({ condition: "not", conditions: [no, no] })).toBe(true);
     });
 });
 
