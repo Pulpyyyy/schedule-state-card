@@ -19,6 +19,22 @@ test("hovering a block shows its details after a short delay", async ({ page }) 
     await expect(tooltip(page)).toBeHidden();
 });
 
+test("moving to the next block replaces the tooltip without hiding it", async ({ page }) => {
+    await mount(page, { layout: "days", entities: ["sensor.sst_price"] });
+    const blocks = page.locator(".schedule-block");
+    const first = await blocks.nth(0).boundingBox();
+    const second = await blocks.nth(1).boundingBox();
+    const y = first.y + first.height / 2;
+    await page.mouse.move(first.x + first.width / 2, y);
+    await expect(tooltip(page)).toContainText("00:00 - 06:00");
+    await page.mouse.move(second.x + second.width / 2, y, { steps: 6 });
+    for (let i = 0; i < 4; i++) {
+        await page.clock.runFor(60);
+        expect(await tooltip(page).isVisible()).toBe(true);
+    }
+    await expect(tooltip(page)).toContainText("06:00 - 08:00");
+});
+
 test("tapping a block shows its details, then hides them", async ({ page }) => {
     await mount(page, { layout: "days", entities: ["sensor.sst_price"] });
     await priceNight(page).click();
@@ -48,10 +64,9 @@ test("the card fits a phone screen without horizontal scroll", async ({ page }) 
     expect(overflow).toBeLessThanOrEqual(0);
 });
 
-// Audit #3: mouseout from the block onto its own label starts an untracked
-// 50 ms hide, the re-show waits 200 ms
-test("the tooltip stays visible while the pointer moves inside a block (known bug)", async ({ page }) => {
-    test.fail();
+// Crossing a block's own label fires mouseout/mouseover: it used to hide
+// the tooltip for 150 ms (audit #3)
+test("the tooltip stays visible while the pointer moves inside a block", async ({ page }) => {
     await mount(page, { layout: "days", entities: ["sensor.sst_price"] });
     const box = await priceNight(page).boundingBox();
     await page.mouse.move(box.x + 3, box.y + box.height / 2);

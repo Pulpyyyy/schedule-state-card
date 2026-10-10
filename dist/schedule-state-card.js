@@ -3433,8 +3433,13 @@ class ScheduleStateCard extends HTMLElement {
                 return;
             }
 
+            // mouseover/mouseout also fire when the pointer crosses a block's
+            // own label: only entering or leaving a target counts
             if (e.type === "mouseover" && tooltipTarget) {
+                if (tooltipTarget === this._tooltipTarget) return;
+                this._tooltipTarget = tooltipTarget;
                 const tooltip = tooltipTarget.dataset.tooltip;
+                // Also cancels a pending hide: the open tooltip is replaced, not blinked
                 this.clearTooltipTimer();
 
                 if (tooltip) {
@@ -3447,8 +3452,11 @@ class ScheduleStateCard extends HTMLElement {
             }
             // Tooltip hide on mouse leave
             else if (e.type === "mouseout") {
+                const next = e.relatedTarget?.closest?.(".schedule-block, .icon-row[data-tooltip]");
+                if (next && next === this._tooltipTarget) return;
+                this._tooltipTarget = null;
                 this.clearTooltipTimer();
-                setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_HIDE_DELAY_MS);
+                this._state.setTimer('tooltip', setTimeout(() => this.hideTooltip(), LAYOUT_CONSTANTS.TOOLTIP_HIDE_DELAY_MS));
             }
         };
 
