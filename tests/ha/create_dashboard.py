@@ -43,6 +43,28 @@ CONFIG = {
             {"type": CARD, "title": "Template conditions", "layout": "days",
              "entities": ["sensor.sst_template"]},
         ]},
+        # README screenshots (.img/white.png, .img/dark.png)
+        {"title": "README", "path": "readme", "cards": [
+            {"type": CARD, "title": "My Schedules", "layout": "days",
+             "entities": [{"entity": "sensor.sst_thermostat", "name": "Thermostat State", "icon": "mdi:thermometer"}]},
+            {"type": "entities", "entities": [
+                {"entity": "input_boolean.sst_away", "name": "Away"},
+                {"entity": "input_number.sst_outdoor", "name": "Outdoor temperature"},
+            ]},
+        ]},
+        # README animation of both layouts (.img/layout.gif)
+        {"title": "README layouts", "path": "readme-layouts", "cards": [
+            {"type": CARD, "title": "Planning", "layout": "days", "entities": [
+                {"entity": "sensor.sst_thermostat", "name": "Living room", "icon": "mdi:sofa"},
+                {"entity": "sensor.sst_dynamic", "name": "Bedroom", "icon": "mdi:bed"},
+                {"entity": "sensor.sst_mode", "name": "Mode", "icon": "mdi:home-thermometer"},
+                {"entity": "sensor.sst_price", "name": "Electricity price", "icon": "mdi:currency-eur"},
+            ]},
+            {"type": CARD, "title": "Week", "layout": "entities", "entities": [
+                {"entity": "sensor.sst_thermostat", "name": "Living room", "icon": "mdi:sofa"},
+                {"entity": "sensor.sst_mode", "name": "Mode", "icon": "mdi:home-thermometer"},
+            ]},
+        ]},
         {"title": "Couleurs", "path": "colors", "cards": [
             {"type": CARD, "title": "Overrides", "layout": "days", "entities": ["sensor.sst_price"],
              "color_overrides": {"0|€/kWh": {"color": "#4CAF50", "textColor": "#000000"}}},
