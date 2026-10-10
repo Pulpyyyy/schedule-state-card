@@ -397,6 +397,26 @@ describe("reactivity", () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
+    const cursorMinutes = (card) => Math.round(parseFloat(card.shadowRoot.querySelector(".time-cursor").style.left) * 14.4);
+
+    it("moves the time cursor on the minute boundary", async () => {
+        vi.setSystemTime(new Date("2026-10-12T10:00:40"));
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
+        await settle();
+        expect(cursorMinutes(card)).toBe(600);
+        await vi.advanceTimersByTimeAsync(20_000); // 10:01:00 (+ settle)
+        expect(cursorMinutes(card)).toBe(601);
+    });
+
+    it("catches the clock up when the page becomes visible again", async () => {
+        const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());
+        await settle();
+        // A hidden tab: hours pass, timers do not run
+        vi.setSystemTime(new Date("2026-10-12T13:00:05"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        expect(cursorMinutes(card)).toBe(780);
+    });
+
     const passMidnight = async () => {
         vi.setSystemTime(new Date("2026-10-12T23:59:30")); // Monday
         const card = mountCard({ layout: "days", entities: ["sensor.sst_mode"] }, hassOf());

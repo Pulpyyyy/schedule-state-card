@@ -2482,40 +2482,43 @@ class ScheduleStateCard extends HTMLElement {
      * Updated startTimelineUpdate method - use LAYOUT_CONSTANTS
      * Replace the existing startTimelineUpdate method with this one
      */
+    /**
+     * Moves the time cursor (and today's view past midnight) on every
+     * minute boundary: an interval started at mount time ran up to 59 s late.
+     */
     startTimelineUpdate() {
-        // Always stop existing interval first to prevent duplicates
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-
-        // Create new interval using centralized constant
-        this.updateInterval = setInterval(() => {
-            const previousDay = this.currentTime.day;
-            this.currentTime = this.getCurrentTime();
-
-            // Auto-sync selectedDay if we were viewing today and day changed (midnight passed)
-            // This ensures cursor remains visible when day transitions
-            if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
-                this.selectedDay = this.currentTime.day;
-                // updateContent() redraws the timelines, not the day buttons
-                this._syncDayButtons();
-                this.updateContent();
-                return; // updateContent already calls updateTimeline
-            }
-
-            this.updateTimeline();
-        }, LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
+        this.stopTimelineUpdate();
+        const toNextMinute = 60000 - (Date.now() % 60000);
+        this._minuteAlignTimer = setTimeout(() => {
+            this._onMinute();
+            this.updateInterval = setInterval(() => this._onMinute(), LAYOUT_CONSTANTS.TIMELINE_UPDATE_INTERVAL_MS);
+        }, toNextMinute + 50);
     }
 
-    /**
-     * Updated stopTimelineUpdate method
-     * This is already correct but keep it as-is
-     */
     stopTimelineUpdate() {
+        clearTimeout(this._minuteAlignTimer);
+        this._minuteAlignTimer = null;
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
+    }
+
+    /** Clock tick: cursor position, and today's view moving past midnight. */
+    _onMinute() {
+        const previousDay = this.currentTime.day;
+        this.currentTime = this.getCurrentTime();
+
+        // Today was shown and midnight passed: show the new today
+        if (this.selectedDay === previousDay && previousDay !== this.currentTime.day) {
+            this.selectedDay = this.currentTime.day;
+            // updateContent() redraws the timelines, not the day buttons
+            this._syncDayButtons();
+            this.updateContent();
+            return; // updateContent already calls updateTimeline
+        }
+
+        this.updateTimeline();
     }
 
     /**
@@ -4517,6 +4520,15 @@ class ScheduleStateCard extends HTMLElement {
 
     connectedCallback() {
         this.startTimelineUpdate();
+        // Back on a hidden tab or a woken device (timers throttled or
+        // frozen meanwhile): catch the clock up at once
+        this._onVisibilityChange ??= () => {
+            if (document.visibilityState === "visible" && this.shadowRoot.querySelector("#content")) {
+                this._onMinute();
+                this.startTimelineUpdate();
+            }
+        };
+        document.addEventListener("visibilitychange", this._onVisibilityChange);
 
         // Shared color overrides: re-render when another card changes one.
         // The edit-dialog preview gave its declarations back on disconnect
@@ -4577,6 +4589,7 @@ class ScheduleStateCard extends HTMLElement {
 
         // Stop timeline updates
         this.stopTimelineUpdate();
+        document.removeEventListener("visibilitychange", this._onVisibilityChange);
 
         // Template subscriptions: kept a moment, since HA re-parents cards
         // (disconnect + reconnect) and a new subscription would briefly show
