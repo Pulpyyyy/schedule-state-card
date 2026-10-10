@@ -2,7 +2,8 @@
  * Schedule State Card - Editor
  * Uses native Home Assistant UI helpers:
  *   ha-entity-picker, ha-icon-picker, ha-selector (color_rgb)
- *   ha-textfield, ha-formfield, ha-switch, ha-select
+ *   ha-selector (text), ha-formfield, ha-switch
+ *   (not ha-textfield: HA 2026.x no longer defines it)
  *
  * Globals (TRANSLATIONS, DEFAULT_COLORS) are accessed lazily from
  * window._scheduleStateCardShared, set by schedule-state-card.js at runtime.
@@ -76,6 +77,11 @@ class ScheduleStateCardEditor extends HTMLElement {
     // ── HA interface ────────────────────────────────────────────────────────
     setConfig(config) {
         if (!config) throw new Error('Invalid configuration');
+        // HA calls setConfig back with every config this editor fires.
+        // Re-rendering then would destroy the field being edited (a color
+        // picker closes, text typed elsewhere is lost): the DOM already
+        // shows this config. Changes from elsewhere (YAML editor) differ.
+        if (this._rendered && this._lastFired === JSON.stringify(config)) return;
         this._config = {
             ...config,
             entities: Array.isArray(config.entities)
@@ -105,6 +111,7 @@ class ScheduleStateCardEditor extends HTMLElement {
     // ── config change ────────────────────────────────────────────────────────
     _fire() {
         this._config = { ...this._config, entities: this._entities };
+        this._lastFired = JSON.stringify(this._config);
         this.dispatchEvent(new CustomEvent('config-changed', {
             detail: { config: this._config },
             bubbles: true,
@@ -164,7 +171,7 @@ class ScheduleStateCardEditor extends HTMLElement {
   .card-config { padding: 4px 0; }
   .divider { height: 1px; background: var(--divider-color); margin: 12px 0; }
   .section-title { font-size: 15px; font-weight: 600; margin: 0 0 10px; color: var(--primary-text-color); }
-  ha-textfield  { display: block; margin-bottom: 8px; width: 100%; }
+  .text-slot ha-selector { display: block; margin-bottom: 8px; width: 100%; }
   .layout-select-wrapper { display: block; margin-bottom: 8px; width: 100%; }
   .layout-select-wrapper label { display: block; font-size: 12px; color: var(--secondary-text-color); margin-bottom: 4px; }
   .layout-select-wrapper select { width: 100%; padding: 10px 12px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color, var(--primary-background-color)); color: var(--primary-text-color); font-size: 14px; cursor: pointer; box-sizing: border-box; }
@@ -234,9 +241,7 @@ class ScheduleStateCardEditor extends HTMLElement {
 
 <div class="card-config">
 
-  <ha-textfield id="title-input" label="${t('editor_card_title')}"
-    value="${escapeHtml(c.title || '')}" placeholder="${t('editor_title_placeholder')}">
-  </ha-textfield>
+  <div class="text-slot" data-text="title"></div>
 
   <ha-formfield label="${t('editor_show_state_in_title')}">
     <ha-switch id="show-state-input" ${c.show_state_in_title ? 'checked' : ''}></ha-switch>
@@ -317,11 +322,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
         return `
 <div class="entity-edit-form" data-edit-index="${index}">
   <div class="picker-slot" data-index="${index}"></div>
-  <ha-textfield data-index="${index}" data-field="name"
-    label="${t('editor_name_label')}"
-    value="${escapeHtml(entityConfig.name || '')}"
-    placeholder="${t('editor_placeholder_name')}">
-  </ha-textfield>
+  <div class="text-slot" data-text="name" data-index="${index}"></div>
   <ha-icon-picker data-index="${index}" data-field="icon"></ha-icon-picker>
 </div>`;
     }
@@ -424,6 +425,33 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
             slot.appendChild(p);
         });
 
+        // --- Text fields: card title, entity names ---
+        // A value-changed fires per keystroke; it only fires the config (no
+        // re-render), so the field keeps focus and the preview follows
+        sr.querySelectorAll('.text-slot[data-text]').forEach(slot => {
+            const isTitle = slot.dataset.text === 'title';
+            const i = parseInt(slot.dataset.index);
+            slot.innerHTML = '';
+            const sel = document.createElement('ha-selector');
+            sel.hass     = this._hass;
+            sel.selector = { text: {} };
+            sel.label    = isTitle ? this.t('editor_card_title') : this.t('editor_name_label');
+            sel.placeholder = isTitle ? this.t('editor_title_placeholder') : this.t('editor_placeholder_name');
+            sel.value    = (isTitle ? this._config.title : this._entities[i]?.name) || '';
+            if (isTitle) sel.id = 'title-input';
+            else sel.dataset.field = 'name';
+            sel.addEventListener('value-changed', e => {
+                const value = e.detail.value ?? '';
+                if (isTitle) {
+                    this._config = { ...this._config, title: value };
+                } else {
+                    this._entities = this._entities.map((ent, idx) => idx === i ? { ...ent, name: value } : ent);
+                }
+                this._fire();
+            });
+            slot.appendChild(sel);
+        });
+
         // --- Icon pickers ---
         sr.querySelectorAll('ha-icon-picker[data-index]').forEach(p => {
             const i = parseInt(p.dataset.index);
@@ -481,11 +509,7 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
         const sr = this.shadowRoot;
         if (!sr) return;
 
-        // Title
-        sr.querySelector('#title-input')?.addEventListener('change', e => {
-            this._config = { ...this._config, title: e.target.value };
-            this._fire();
-        });
+        // Title and entity names: value-changed listeners set in _applyHAProps()
 
         // Show state toggle
         sr.querySelector('#show-state-input')?.addEventListener('change', e => {
@@ -537,17 +561,6 @@ ${isEditing ? this._entityEditForm(entityConfig, index) : ''}`;
                 );
                 this._fire();
                 this._render();
-            });
-        });
-
-        // Entity name
-        sr.querySelectorAll('ha-textfield[data-field="name"]').forEach(f => {
-            f.addEventListener('change', e => {
-                const i = parseInt(f.dataset.index);
-                this._entities = this._entities.map((ent, idx) =>
-                    idx === i ? { ...ent, name: e.target.value } : ent
-                );
-                this._fire();
             });
         });
 

@@ -41,10 +41,8 @@ test("removing an entity removes it from the preview", async ({ page }) => {
     await expect(preview(page).locator(".room-timeline")).toHaveCount(3);
 });
 
-// HA 2026.x dropped ha-textfield: the card title and entity name fields
-// never upgrade and render 0 px high
-test("every text field is displayed (known bug)", async ({ page }) => {
-    test.fail();
+// HA 2026.x dropped ha-textfield, which left these fields 0 px high
+test("every text field is displayed", async ({ page }) => {
     const editor = await openEditor(page);
     await editor.locator(".edit-btn").first().click();
     for (const field of ["#title-input", '[data-field="name"]']) {
@@ -53,9 +51,9 @@ test("every text field is displayed (known bug)", async ({ page }) => {
     }
 });
 
-// Audit #17: every change re-renders the whole editor (HA calls setConfig back)
-test("a color field survives its own change (known bug)", async ({ page }) => {
-    test.fail();
+// HA calls setConfig back after each change: the editor must not re-render
+// the field being edited (audit #17)
+test("a color field survives its own change", async ({ page }) => {
     const editor = await openEditor(page);
     const input = editor.locator(".color-selector-slot").first().locator('input[type="color"]');
     const handle = await input.elementHandle();
@@ -64,11 +62,26 @@ test("a color field survives its own change (known bug)", async ({ page }) => {
     expect(await handle.evaluate(el => el.isConnected)).toBe(true);
 });
 
-test("text typed for a new color override survives other changes (known bug)", async ({ page }) => {
-    test.fail();
+test("text typed for a new color override survives other changes", async ({ page }) => {
     const editor = await openEditor(page);
     await editor.locator("#override-value-input").fill("21");
     await editor.locator("#show-state-input").click();
     await page.waitForTimeout(500);
     await expect(editor.locator("#override-value-input")).toHaveValue("21");
+});
+
+test("typing a title updates the preview as you type", async ({ page }) => {
+    const editor = await openEditor(page);
+    const title = editor.locator("#title-input input");
+    await title.fill("");
+    await title.pressSequentially("Chauffage");
+    await expect(preview(page).locator(".card-title")).toHaveText("Chauffage");
+    await expect(title).toBeFocused();
+});
+
+test("an entity name can be edited", async ({ page }) => {
+    const editor = await openEditor(page);
+    await editor.locator(".edit-btn").first().click();
+    await editor.locator('[data-field="name"] input').fill("Salon");
+    await expect(preview(page).locator(".room-name").first()).toHaveText("Salon");
 });
